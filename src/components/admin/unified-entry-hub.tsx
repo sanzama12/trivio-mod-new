@@ -132,15 +132,28 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
     if (!form.schoolCode.trim() || !form.majorName.trim() || form.id) return null;
     const sCode = form.schoolCode.trim().toUpperCase();
     const normMName = normalizeVi(form.majorName.trim()).toLowerCase();
-    const aCode = form.admissionCode.trim().toUpperCase();
 
     return rows.find((r) => {
       if (r.schoolCode.toUpperCase() !== sCode) return false;
-      if (normalizeVi(r.majorName).toLowerCase() === normMName) return true;
-      if (aCode && r.admissionCode.toUpperCase() === aCode) return true;
-      return false;
+      return normalizeVi(r.majorName).toLowerCase() === normMName;
     });
-  }, [form.schoolCode, form.majorName, form.admissionCode, form.id, rows]);
+  }, [form.schoolCode, form.majorName, form.id, rows]);
+
+  // Phát hiện chuyên ngành hẹp dùng chung mã ngành trong cùng trường
+  const subMajorInfo = useMemo(() => {
+    if (!form.schoolCode.trim() || !form.majorName.trim() || form.id || duplicateMajor) return null;
+    const sCode = form.schoolCode.trim().toUpperCase();
+    const rawAdm = form.admissionCode.trim() || form.majorCode.trim();
+    if (!rawAdm) return null;
+    const cleaned = rawAdm.replace(/^\((\d+)\)\s*/, "$1-").replace(/^(\d+)[.)\s_-]+([a-zA-Z0-9]+)/, "$1-$2").toUpperCase();
+    const baseCode = cleaned.match(/^(\d+)[-._]+([A-Z0-9]+)$/)?.[2] || cleaned;
+
+    return rows.find((r) => {
+      if (r.schoolCode.toUpperCase() !== sCode) return false;
+      const rCleaned = r.admissionCode.replace(/^\d+-/, "").toUpperCase();
+      return r.admissionCode.toUpperCase() === cleaned || rCleaned === baseCode;
+    });
+  }, [form.schoolCode, form.majorName, form.admissionCode, form.majorCode, form.id, duplicateMajor, rows]);
 
   // Bộ lọc cho Tab Danh sách
   const [filterStatus, setFilterStatus] = useState<"all" | "missing_score" | "missing_tuition" | "complete">("all");
@@ -749,6 +762,21 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                     </p>
                     <p className="font-medium text-amber-800/90">
                       👉 <strong>Cơ chế cập nhật:</strong> Khi bạn bấm <strong>Cập nhật ngành trùng này</strong>, hệ thống sẽ <strong>tự động CẬP NHẬT</strong> điểm chuẩn ({form.score.trim() || "giữ nguyên"}) và các thông tin mới cho ngành này, đồng thời hiện thông báo xác nhận cập nhật thành công (không tạo bản ghi dư thừa).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Thông báo chuyên ngành hẹp nếu dùng chung mã ngành */}
+              {subMajorInfo && !duplicateMajor && !form.id && (
+                <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-sky-300 bg-sky-50 p-3.5 text-xs text-sky-950 shadow-sm">
+                  <LuSparkles className="size-5 shrink-0 text-sky-600 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-sky-900">
+                      ℹ️ CHUYÊN NGÀNH HẸP: Trường đã có ngành "{subMajorInfo.majorName}" (Mã: {subMajorInfo.admissionCode})!
+                    </p>
+                    <p className="text-sky-800">
+                      Hệ thống tự động liên kết chuyên ngành <strong>"{form.majorName}"</strong> với mã ngành chung và đánh số phân biệt mã xét tuyển (hợp lệ cho trùng mã).
                     </p>
                   </div>
                 </div>

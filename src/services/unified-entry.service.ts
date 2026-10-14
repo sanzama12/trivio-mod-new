@@ -138,10 +138,23 @@ export const unifiedEntryService = {
 
     // ── 2. Xử lý Ngành đào tạo ────────────────────────────────────────────────
     const allMajors = await repositories.catalogAdmin.listMajors();
-    const rawMajorCode = str(input.majorCode, 15).trim();
+    let rawMajorCode = str(input.majorCode, 20).trim();
+    if (!rawMajorCode && input.admissionCode) {
+      const admCandidate = str(input.admissionCode, 30).trim();
+      const admMatch = admCandidate.match(/^(\d+)[-._\s]+([A-Z0-9]+)$/i);
+      const cand = admMatch ? admMatch[2] : admCandidate;
+      if (/^\d{7}$/.test(cand)) {
+        rawMajorCode = cand;
+      }
+    }
+    // Trích xuất mã ngành chuẩn nếu có đánh số chuyên ngành hẹp (VD: "1-7480201", "1 7480201", "1.7480201" -> "7480201")
+    const baseCodeMatch = rawMajorCode.match(/^(\d+)[-._\s]+([A-Z0-9]+)$/i);
+    const baseMajorCode = baseCodeMatch ? baseCodeMatch[2] : rawMajorCode;
+
     let major = allMajors.find(
       (m) =>
         (rawMajorCode && m.code === rawMajorCode) ||
+        (baseMajorCode && m.code === baseMajorCode) ||
         normalizeVi(m.name).toLowerCase() === normalizeVi(rawMajorName).toLowerCase(),
     );
     let isNewMajor = false;
@@ -150,7 +163,11 @@ export const unifiedEntryService = {
       isNewMajor = true;
       const groups = await repositories.majors.findGroups();
       const defaultGroup = groups[0]?.id || "cntt";
-      const finalMajorCode = rawMajorCode && /^\d{7}$/.test(rawMajorCode) ? rawMajorCode : `799${Math.floor(1000 + Math.random() * 9000)}`;
+      const finalMajorCode = baseMajorCode && /^\d{7}$/.test(baseMajorCode)
+        ? baseMajorCode
+        : rawMajorCode && /^\d{7}$/.test(rawMajorCode)
+          ? rawMajorCode
+          : `799${Math.floor(1000 + Math.random() * 9000)}`;
       const majorId = `maj-${slugify(rawMajorName)}`;
       const newMajor: Major = {
         id: majorId,
@@ -184,19 +201,28 @@ export const unifiedEntryService = {
 
     // ── 3. Xử lý Chương trình, Điểm chuẩn & Học phí ────────────────────────────
     const allPrograms = await repositories.catalogAdmin.listPrograms();
-    const admissionCode = str(input.admissionCode, 20).toUpperCase() || (rawMajorCode ? rawMajorCode.toUpperCase() : slugify(rawMajorName).toUpperCase());
     
-    // Tìm chương trình đã có trong trường (khớp mã xét tuyển, mã ngành hoặc tên ngành)
+    // Chuẩn hóa mã xét tuyển (hỗ trợ đánh số 1 2 3 trước mã ngành cho chuyên ngành hẹp)
+    let rawAdmission = str(input.admissionCode, 30).trim();
+    rawAdmission = rawAdmission.replace(/^\((\d+)\)\s*/, "$1-");
+    rawAdmission = rawAdmission.replace(/^(\d+)[.)\s_-]+([a-zA-Z0-9]+)/, "$1-$2");
+    let admissionCode = rawAdmission.toUpperCase().replace(/\s+/g, "-") ||
+      (rawMajorCode ? rawMajorCode.replace(/\s+/g, "-").toUpperCase() : slugify(rawMajorName).toUpperCase());
+    
+    // Tìm chương trình đã có trong trường (khớp id hoặc khớp chính xác tên chương trình)
+    const normInputName = normalizeVi(rawMajorName).toLowerCase();
     let existingProgram = input.id ? allPrograms.find((p) => p.id === input.id) : null;
     if (!existingProgram) {
-      existingProgram = allPrograms.find((p) => p.schoolId === school.id && p.admissionCode.toUpperCase() === admissionCode) ?? null;
-    }
-    if (!existingProgram) {
-      existingProgram = allPrograms.find((p) => p.schoolId === school.id && p.majorId === major.id) ?? null;
-    }
-    if (!existingProgram && rawMajorName) {
-      const normInputName = normalizeVi(rawMajorName).toLowerCase();
       existingProgram = allPrograms.find((p) => p.schoolId === school.id && normalizeVi(p.name).toLowerCase() === normInputName) ?? null;
+    }
+
+    // Đảm bảo không vi phạm UNIQUE (school_id, admission_code) khi nhiều chuyên ngành hẹp dùng chung mã:
+    // Nếu trong trường đã có chương trình mang mã này nhưng tên khác, tự động sinh mã phân biệt: 2-..., 3-...
+    let finalAdmissionCode = admissionCode;
+    let codeSuffix = 2;
+    while (allPrograms.some((p) => p.schoolId === school.id && p.id !== existingProgram?.id && p.admissionCode.toUpperCase() === finalAdmissionCode.toUpperCase())) {
+      finalAdmissionCode = `${codeSuffix}-${admissionCode.replace(/^\d+-/, "")}`;
+      codeSuffix++;
     }
 
     const isDuplicate = Boolean(existingProgram && !input.id);
@@ -230,7 +256,7 @@ export const unifiedEntryService = {
 
       const patch: Partial<Program> = {
         name: rawMajorName || existingProgram.name,
-        admissionCode: admissionCode || existingProgram.admissionCode,
+        admissionCode: finalAdmissionCode || existingProgram.admissionCode,
         campus: campus || existingProgram.campus,
         cutoffs: updatedCutoffs,
         tuitionMin: tMin > 0 ? tMin : existingProgram.tuitionMin,
@@ -273,12 +299,20 @@ export const unifiedEntryService = {
           : `Đã cập nhật ngành "${rawMajorName}" của ${school.shortName || school.code}.`,
       };
     } else {
-      // ── Tạo chương trình mới ─────────────────────────────────────────────────
-      let programId = `${school.id}-${major.id}`;
-      if (allPrograms.some((p) => p.id === programId)) {
-        programId = `${programId}-${slugify(admissionCode)}`;
+      // ── Tạo chương trình mới (hỗ trợ nhiều chuyên ngành hẹp) ─────────────────
+      let programId = `${school.code.toLowerCase()}-${slugify(rawMajorName)}`;
+      let idCounter = 2;
+      while (allPrograms.some((p) => p.id === programId)) {
+        programId = `${school.code.toLowerCase()}-${slugify(rawMajorName)}-${idCounter}`;
+        idCounter++;
       }
-      const slug = `${major.slug}-${school.code.toLowerCase()}`;
+
+      let slug = `${slugify(rawMajorName)}-${school.code.toLowerCase()}`;
+      let slugCounter = 2;
+      while (allPrograms.some((p) => p.slug === slug)) {
+        slug = `${slugify(rawMajorName)}-${school.code.toLowerCase()}-${slugCounter}`;
+        slugCounter++;
+      }
 
       const initialCutoffs = scoreVal != null ? [{ year: targetYear, score: Math.round(scoreVal * 100) / 100 }] : [];
       const newProgram: Program = {
@@ -287,7 +321,7 @@ export const unifiedEntryService = {
         schoolId: school.id,
         majorId: major.id,
         name: rawMajorName,
-        admissionCode,
+        admissionCode: finalAdmissionCode,
         trainingType: (input.trainingType as Program["trainingType"]) || "Chính quy",
         campus,
         combos: combos.length ? combos : ["A00", "D01"],

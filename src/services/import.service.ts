@@ -382,29 +382,81 @@ async function context() {
   return { schools, majors, programs, comboCodes: new Set(combos.map((c) => c.code)) };
 }
 
+/**
+ * Bóc tách tiền tố đánh số chuyên ngành hẹp:
+ * Hỗ trợ các định dạng:
+ * - "1 7480201", "2 7480201", "3 7480201"
+ * - "1-7480201", "2-7480201", "3-7480201"
+ * - "1. 7480201", "2. 7480201", "3. 7480201"
+ * - "(1) 7480201", "(2) 7480201", "(3) 7480201"
+ * - "1) 7480201", "2) 7480201", "3) 7480201"
+ * - "1.7480201", "2.7480201", "3.7480201"
+ * - "1_7480201", "2_7480201", "3_7480201"
+ * - "1 IT1", "2 IT1"
+ */
+function parseNumberedCode(raw: unknown): {
+  normalized: string;
+  baseCode: string;
+  prefixNumber: number | null;
+} {
+  let cleaned = String(raw ?? "").trim();
+  if (!cleaned) return { normalized: "", baseCode: "", prefixNumber: null };
+
+  cleaned = cleaned.replace(/^\((\d+)\)\s*/, "$1-");
+  cleaned = cleaned.replace(/^(\d+)[.)\s_-]+([a-zA-Z0-9]+)/, "$1-$2");
+  const normalized = cleaned.toUpperCase().replace(/\s+/g, "-");
+  const match = normalized.match(/^(\d+)[-._]+([A-Z0-9]+)$/);
+  if (match) {
+    return {
+      normalized,
+      baseCode: match[2],
+      prefixNumber: Number(match[1]),
+    };
+  }
+  return {
+    normalized,
+    baseCode: normalized,
+    prefixNumber: null,
+  };
+}
+
 type Ctx = Awaited<ReturnType<typeof context>>;
 
 function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
   const seen = new Map<string, number>();
   const year = new Date().getFullYear();
 
+  // Theo dõi các chuyên ngành hẹp theo mã ngành / mã xét tuyển gốc trong cùng trường
+  // Map<`${sCode}::${baseMajorCode}`, Map<normName, assignedCode>>
+  const assignedCodesBySpec = new Map<string, Map<string, string>>();
+  const usedCodesInSchool = new Set<string>();
+
+  // Thêm tất cả mã xét tuyển hiện có trong database của các trường vào usedCodesInSchool
+  for (const p of ctx.programs) {
+    const s = ctx.schools.find((x) => x.id === p.schoolId);
+    if (s) {
+      usedCodesInSchool.add(`${s.code.toUpperCase()}::${p.admissionCode.toUpperCase()}`);
+    }
+  }
+
   return input.map((raw, i) => {
     const data = Object.fromEntries(IMPORT_COLUMNS.map((c) => [c, clean(raw?.[c])])) as ImportRowData;
     const errors: ImportRow["errors"] = [];
     const warnings: ImportRow["warnings"] = [];
 
-    const rawCode = (data.ma_xet_tuyen || data.ma_nganh || "").trim();
-    let code = rawCode.toUpperCase().replace(/\s+/g, "-");
-    if (!code || /^(\(.*\)|-|chờ|chưa|tba|n\/a|trống)/i.test(code)) {
-      if (data.ten_chuong_trinh) {
-        code = slugify(data.ten_chuong_trinh).replace(/[^a-zA-Z0-9-]/g, "").slice(0, 15).toUpperCase();
-        data.ma_xet_tuyen = code;
-      } else {
-        errors.push({ field: "ma_xet_tuyen", message: "Thiếu mã xét tuyển" });
-      }
-    } else if (!/^[A-Z0-9_.-]{2,30}$/i.test(code)) {
-      errors.push({ field: "ma_xet_tuyen", message: "Mã xét tuyển chỉ gồm chữ, số, dấu gạch hoặc chấm (2–30 ký tự)" });
+    // Bóc tách mã ngành & mã xét tuyển (hỗ trợ tiền tố 1, 2, 3...)
+    const parsedMajor = parseNumberedCode(data.ma_nganh);
+    const parsedAdmission = parseNumberedCode(data.ma_xet_tuyen);
+
+    // Chuẩn hóa mã ngành chung: nếu có tiền tố số thì lấy baseCode (VD: "1 7480201" -> "7480201")
+    if (parsedMajor.prefixNumber != null) {
+      data.ma_nganh = parsedMajor.baseCode;
+    } else if (!data.ma_nganh && /^\d{7}$/.test(parsedAdmission.baseCode)) {
+      data.ma_nganh = parsedAdmission.baseCode;
     }
+
+    const baseMajorCode = parsedMajor.baseCode || parsedAdmission.baseCode;
+    const userPrefixNum = parsedAdmission.prefixNumber ?? parsedMajor.prefixNumber;
 
     let sCode = (data.ma_truong || "").trim().toUpperCase();
     let school = sCode ? ctx.schools.find((s) => s.code.toUpperCase() === sCode) : undefined;
@@ -415,6 +467,99 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
         sCode = school.code.toUpperCase();
         data.ma_truong = sCode;
       }
+    }
+
+    const normName = data.ten_chuong_trinh ? normalizeVi(data.ten_chuong_trinh).toLowerCase() : "";
+
+    // 1. Xác định mã xét tuyển cho từng chuyên ngành hẹp
+    let code = "";
+    if (userPrefixNum != null) {
+      // Người dùng chủ động đánh số 1, 2, 3... trước mã ngành / mã xét tuyển
+      code = `${userPrefixNum}-${parsedAdmission.baseCode || parsedMajor.baseCode || "NGANH"}`;
+      warnings.push({
+        field: "ma_xet_tuyen",
+        message: `Chuyên ngành hẹp: Mã xét tuyển được gán theo số thứ tự "${code}" cho "${data.ten_chuong_trinh || code}"`,
+      });
+    } else if (parsedAdmission.normalized) {
+      code = parsedAdmission.normalized;
+    } else if (baseMajorCode) {
+      code = baseMajorCode;
+    } else if (data.ten_chuong_trinh) {
+      code = slugify(data.ten_chuong_trinh).replace(/[^a-zA-Z0-9-]/g, "").slice(0, 15).toUpperCase();
+    } else {
+      errors.push({ field: "ma_xet_tuyen", message: "Thiếu mã xét tuyển" });
+    }
+
+    // 2. Xử lý chuyên ngành hẹp nếu người dùng KHÔNG đánh số, nhưng các dòng dùng chung mã trong cùng trường
+    if (userPrefixNum == null && sCode && baseMajorCode && normName) {
+      const specKey = `${sCode}::${baseMajorCode}`;
+      let specMap = assignedCodesBySpec.get(specKey);
+      if (!specMap) {
+        specMap = new Map<string, string>();
+        assignedCodesBySpec.set(specKey, specMap);
+      }
+
+      if (specMap.has(normName)) {
+        // Cùng chuyên ngành này đã xuất hiện trước đó trong file (VD: năm 2023, 2024)
+        code = specMap.get(normName)!;
+      } else {
+        // Chuyên ngành mới dưới cùng mã ngành
+        if (specMap.size === 0) {
+          // Là chuyên ngành đầu tiên trong file với mã này
+          const dbUsed = ctx.programs.find(
+            (p) =>
+              school &&
+              p.schoolId === school.id &&
+              p.admissionCode.toUpperCase() === baseMajorCode.toUpperCase() &&
+              normalizeVi(p.name).toLowerCase() !== normName,
+          );
+          if (dbUsed) {
+            let suffix = 2;
+            let cand = `${suffix}-${baseMajorCode}`;
+            while (usedCodesInSchool.has(`${sCode}::${cand.toUpperCase()}`)) {
+              suffix++;
+              cand = `${suffix}-${baseMajorCode}`;
+            }
+            code = cand;
+            warnings.push({
+              field: "ma_xet_tuyen",
+              message: `Chuyên ngành hẹp: Trường đã có ngành "${dbUsed.name}" (Mã: ${dbUsed.admissionCode}). Tự động gán mã "${code}" cho "${data.ten_chuong_trinh}".`,
+            });
+          } else {
+            code = baseMajorCode;
+          }
+        } else {
+          // Đã có chuyên ngành khác dùng mã này trong file -> Tự động đánh số phân biệt 2-..., 3-...
+          let suffix = specMap.size + 1;
+          let cand = `${suffix}-${baseMajorCode}`;
+          while (usedCodesInSchool.has(`${sCode}::${cand.toUpperCase()}`)) {
+            suffix++;
+            cand = `${suffix}-${baseMajorCode}`;
+          }
+          code = cand;
+          warnings.push({
+            field: "ma_xet_tuyen",
+            message: `Chuyên ngành hẹp dùng chung mã: tự động đánh số phân biệt mã xét tuyển "${code}" cho "${data.ten_chuong_trinh}" (hợp lệ).`,
+          });
+        }
+        specMap.set(normName, code);
+        usedCodesInSchool.add(`${sCode}::${code.toUpperCase()}`);
+      }
+    } else if (sCode && code) {
+      usedCodesInSchool.add(`${sCode}::${code.toUpperCase()}`);
+    }
+
+    data.ma_xet_tuyen = code;
+
+    if (!code || /^(\(.*\)|-|chờ|chưa|tba|n\/a|trống)/i.test(code)) {
+      if (data.ten_chuong_trinh) {
+        code = slugify(data.ten_chuong_trinh).replace(/[^a-zA-Z0-9-]/g, "").slice(0, 15).toUpperCase();
+        data.ma_xet_tuyen = code;
+      } else {
+        errors.push({ field: "ma_xet_tuyen", message: "Thiếu mã xét tuyển" });
+      }
+    } else if (!/^[A-Z0-9_.-]{2,30}$/i.test(code)) {
+      errors.push({ field: "ma_xet_tuyen", message: "Mã xét tuyển chỉ gồm chữ, số, dấu gạch hoặc chấm (2–30 ký tự)" });
     }
 
     if (!data.ma_truong && !sCode) {
@@ -447,28 +592,20 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
       errors.push({ field: "diem_chuan", message: "Điểm chuẩn > 30 (thang 30)" });
     }
 
-    // Tìm ngành đã có trong trường (Báo trùng ngành của trường đó)
-    let existing = school && code ? ctx.programs.find((p) => p.schoolId === school.id && p.admissionCode.toUpperCase() === code) : undefined;
-    
-    // Nếu chưa khớp mã xét tuyển, kiểm tra theo tên ngành / tên chương trình trong trường đó
-    if (!existing && school && data.ten_chuong_trinh) {
-      const normInputName = normalizeVi(data.ten_chuong_trinh).toLowerCase();
-      existing = ctx.programs.find((p) => {
-        if (p.schoolId !== school.id) return false;
-        if (normalizeVi(p.name).toLowerCase() === normInputName) return true;
-        const m = ctx.majors.find((maj) => maj.id === p.majorId);
-        return Boolean(m && normalizeVi(m.name).toLowerCase() === normInputName);
-      });
-    }
+    // Tìm chương trình đã có trong trường (chỉ cập nhật khi trùng tên chương trình đào tạo)
+    let existing = school && normName
+      ? ctx.programs.find((p) => p.schoolId === school.id && normalizeVi(p.name).toLowerCase() === normName)
+      : undefined;
 
-    // Nếu có mã ngành, kiểm tra xem trường đã có ngành này chưa
-    if (!existing && school && data.ma_nganh) {
-      const mCode = data.ma_nganh.trim();
-      existing = ctx.programs.find((p) => {
-        if (p.schoolId !== school.id) return false;
-        const m = ctx.majors.find((maj) => maj.id === p.majorId);
-        return Boolean(m && m.code === mCode);
-      });
+    // Nếu chưa khớp tên, kiểm tra theo mã xét tuyển nhưng tên phải tương đương
+    if (!existing && school && code) {
+      const matchByCode = ctx.programs.find((p) => p.schoolId === school.id && p.admissionCode.toUpperCase() === code);
+      if (matchByCode) {
+        const normExisting = normalizeVi(matchByCode.name).toLowerCase();
+        if (normExisting === normName) {
+          existing = matchByCode;
+        }
+      }
     }
 
     // Báo trùng ngành của trường: ghi nhận cảnh báo và chỉ định cập nhật thay vì tạo mới
@@ -479,11 +616,10 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
       });
     }
 
-    // Kiểm tra trùng dòng nội bộ trong cùng file (cùng trường, cùng ngành/mã, cùng năm)
-    const normName = data.ten_chuong_trinh ? normalizeVi(data.ten_chuong_trinh).toLowerCase() : "";
-    const dedupeKey = `${school?.id ?? data.ma_truong.toUpperCase()}::${code || normName}::${y}`;
-    if ((code || normName) && seen.has(dedupeKey)) {
-      errors.push({ field: "row", message: `Trùng ngành với dòng ${seen.get(dedupeKey)} trong file (cùng trường, cùng ngành/mã xét tuyển, năm ${y})` });
+    // Kiểm tra trùng dòng nội bộ trong cùng file (chỉ báo lỗi khi CÙNG trường, CÙNG mã, CÙNG tên chuyên ngành, CÙNG năm)
+    const dedupeKey = `${school?.id ?? data.ma_truong.toUpperCase()}::${code}::${normName}::${y}`;
+    if (seen.has(dedupeKey)) {
+      errors.push({ field: "row", message: `Trùng hoàn toàn ngành và mã xét tuyển với dòng ${seen.get(dedupeKey)} trong file` });
     } else {
       seen.set(dedupeKey, i + 2);
     }
@@ -609,7 +745,7 @@ export const importService = {
 
     for (const r of preview.rows) {
       if (r.errors.length || !r.action) continue;
-      const key = r.programId ?? `${r.data.ma_truong.toUpperCase()}::${r.data.ma_xet_tuyen}`;
+      const key = r.programId ?? `${r.data.ma_truong.toUpperCase()}::${r.data.ma_xet_tuyen}::${normalizeVi(r.data.ten_chuong_trinh || "").toLowerCase()}`;
       (r.action === "update" ? updates : creates).set(key, [...((r.action === "update" ? updates : creates).get(key) ?? []), r]);
     }
 
@@ -705,6 +841,22 @@ export const importService = {
 
       if (res.ok) {
         created++;
+        if (rows.length > 1 && res.programId) {
+          for (let ri = 1; ri < rows.length; ri++) {
+            const extra = rows[ri].data;
+            const extraScore = num(extra.diem_chuan);
+            const extraYear = Number(extra.nam);
+            if (extraScore != null && extraYear) {
+              await unifiedEntryService.save(actor, {
+                id: res.programId,
+                schoolCode: extra.ma_truong,
+                majorName: extra.ten_chuong_trinh || first.ten_chuong_trinh,
+                year: extraYear,
+                score: extraScore,
+              });
+            }
+          }
+        }
       }
     }
 
