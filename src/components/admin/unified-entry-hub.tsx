@@ -56,8 +56,23 @@ function readFile(f: File): Promise<string> {
       r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
       r.readAsDataURL(f);
     } else {
-      r.onload = () => resolve(String(r.result));
-      r.readAsText(f, "utf-8");
+      // Tự động phát hiện bảng mã UTF-16 LE/BE khi xuất file từ Excel trên Windows
+      const sliceReader = new FileReader();
+      sliceReader.onload = () => {
+        const arr = new Uint8Array(sliceReader.result as ArrayBuffer);
+        let encoding = "utf-8";
+        if (arr.length >= 2) {
+          if (arr[0] === 0xff && arr[1] === 0xfe) encoding = "utf-16le";
+          else if (arr[0] === 0xfe && arr[1] === 0xff) encoding = "utf-16be";
+        }
+        r.onload = () => resolve(String(r.result));
+        r.readAsText(f, encoding);
+      };
+      sliceReader.onerror = () => {
+        r.onload = () => resolve(String(r.result));
+        r.readAsText(f, "utf-8");
+      };
+      sliceReader.readAsArrayBuffer(f.slice(0, 4));
     }
   });
 }
@@ -331,7 +346,10 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
     if (!f) return;
     setFileErr(null);
     setPreview(null);
-    if (!/\.(csv|xlsx)$/i.test(f.name)) return setFileErr("Chỉ hỗ trợ tệp .csv hoặc .xlsx.");
+    if (/\.xls$/i.test(f.name)) {
+      return setFileErr("Tệp .xls (Excel 97-2003 cũ) không được hỗ trợ trực tiếp. Vui lòng mở tệp trong Excel và chọn 'Save As' dạng .xlsx hoặc .csv rồi tải lại.");
+    }
+    if (!/\.(csv|xlsx|tsv|txt)$/i.test(f.name)) return setFileErr("Chỉ hỗ trợ tệp Excel (.xlsx) hoặc CSV (.csv / .tsv / .txt).");
     if (f.size > MAX_BYTES) return setFileErr("Tệp lớn hơn 2 MB.");
 
     let content: string;
@@ -915,7 +933,7 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
               <input
                 id="file-upload"
                 type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept=".csv,.xlsx,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="sr-only"
                 onChange={(e) => pickFile(e.target.files?.[0])}
               />

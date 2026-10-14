@@ -55,14 +55,39 @@ export interface ImportPreview {
 }
 
 const clean = (v: unknown) => String(v ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
-const num = (v: string) => (v.trim() === "" ? null : Number(v.trim().replace(/\s/g, "").replace(",", ".")));
+const num = (v: string) => {
+  const t = v.trim();
+  if (!t || /^(\(.*\)|-|chờ|chưa|tba|n\/a|none|null|đang cập nhật)/i.test(t)) return null;
+  const n = Number(t.replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+};
 
 const COLUMN_ALIASES: Record<string, ImportColumn> = {
+  // Mã xét tuyển
   ma_xet_tuyen: "ma_xet_tuyen",
   maxettuyen: "ma_xet_tuyen",
   ma_xt: "ma_xet_tuyen",
+  maxt: "ma_xet_tuyen",
   admission_code: "ma_xet_tuyen",
   mã_xét_tuyển: "ma_xet_tuyen",
+  mã_xt: "ma_xet_tuyen",
+  mã_ts: "ma_xet_tuyen",
+  mats: "ma_xet_tuyen",
+  mã_tuyển_sinh: "ma_xet_tuyen",
+  matuyensinh: "ma_xet_tuyen",
+  mã_ngành_xét_tuyển: "ma_xet_tuyen",
+  manganhxettuyen: "ma_xet_tuyen",
+  mã_nghành_xét_tuyển: "ma_xet_tuyen",
+  manghanhxettuyen: "ma_xet_tuyen",
+  mã_ctđt: "ma_xet_tuyen",
+  mactdt: "ma_xet_tuyen",
+  mã_xét: "ma_xet_tuyen",
+  maxet: "ma_xet_tuyen",
+  code_xét_tuyển: "ma_xet_tuyen",
+  code_xet_tuyen: "ma_xet_tuyen",
+  major_code: "ma_xet_tuyen",
+
+  // Tên chương trình / Tên ngành
   ten_chuong_trinh: "ten_chuong_trinh",
   tenchuongtrinh: "ten_chuong_trinh",
   ten_nganh: "ten_chuong_trinh",
@@ -74,8 +99,26 @@ const COLUMN_ALIASES: Record<string, ImportColumn> = {
   tên_ngành: "ten_chuong_trinh",
   tên_nghành: "ten_chuong_trinh",
   nghành: "ten_chuong_trinh",
+  ngành_học: "ten_chuong_trinh",
+  nganhhoc: "ten_chuong_trinh",
+  ngành_đào_tạo: "ten_chuong_trinh",
+  nganhdaotao: "ten_chuong_trinh",
+  chuyên_ngành: "ten_chuong_trinh",
+  chuyennganh: "ten_chuong_trinh",
+  tên_chuyên_ngành: "ten_chuong_trinh",
+  tenchuyennganh: "ten_chuong_trinh",
+  chương_trình: "ten_chuong_trinh",
+  chuongtrinh: "ten_chuong_trinh",
+  chương_trình_đào_tạo: "ten_chuong_trinh",
+  chuongtrinhdaotao: "ten_chuong_trinh",
+  ctđt: "ten_chuong_trinh",
+  ctdt: "ten_chuong_trinh",
+  program: "ten_chuong_trinh",
+  program_name: "ten_chuong_trinh",
   major: "ten_chuong_trinh",
   major_name: "ten_chuong_trinh",
+
+  // Mã trường
   ma_truong: "ma_truong",
   matruong: "ma_truong",
   ma_truong_moi: "ma_truong",
@@ -83,27 +126,81 @@ const COLUMN_ALIASES: Record<string, ImportColumn> = {
   truong_moi: "ma_truong",
   mã_trường_mới: "ma_truong",
   mã_trường: "ma_truong",
+  mã_trg: "ma_truong",
+  matrg: "ma_truong",
+  mã_trg_mới: "ma_truong",
+  matrgmoi: "ma_truong",
+  mã_đh: "ma_truong",
+  madh: "ma_truong",
+  ma_dh: "ma_truong",
+  mã_đại_học: "ma_truong",
+  madaihoc: "ma_truong",
   school_code: "ma_truong",
+  code_truong: "ma_truong",
+  school_id: "ma_truong",
   truong: "ma_truong",
+  trường: "ma_truong",
+
+  // Tên trường
   ten_truong: "ten_truong",
   tentruong: "ten_truong",
   tên_trường: "ten_truong",
   school_name: "ten_truong",
+  tên_trường_mới: "ten_truong",
+  tentruongmoi: "ten_truong",
+  tên_trg: "ten_truong",
+  tentrg: "ten_truong",
+  tên_đại_học: "ten_truong",
+  tendaihoc: "ten_truong",
+  trường_đại_học: "ten_truong",
+  truong_dai_hoc: "ten_truong",
+  đại_học: "ten_truong",
+  dai_hoc: "ten_truong",
+
+  // Tỉnh / Thành
   tinh_thanh: "tinh_thanh",
   tinhthanh: "tinh_thanh",
   thanh_pho: "tinh_thanh",
+  thanhpho: "tinh_thanh",
   tinh: "tinh_thanh",
   tỉnh: "tinh_thanh",
   tỉnh_thành: "tinh_thanh",
   thành_phố: "tinh_thanh",
   city: "tinh_thanh",
   province: "tinh_thanh",
+  tỉnh_thành_phố: "tinh_thanh",
+  tinhthanhpho: "tinh_thanh",
+  tỉnh_tp: "tinh_thanh",
+  tinhtp: "tinh_thanh",
+  khu_vực: "tinh_thanh",
+  khuvuc: "tinh_thanh",
+  địa_bàn: "tinh_thanh",
+  diaban: "tinh_thanh",
+  địa_phương: "tinh_thanh",
+  diaphuong: "tinh_thanh",
+
+  // Cơ sở
   co_so: "co_so",
   coso: "co_so",
+  cơ_sở: "co_so",
+  campus: "co_so",
+
+  // Mã ngành chuẩn Bộ GD&ĐT
   ma_nganh: "ma_nganh",
   manganh: "ma_nganh",
+  mã_ngành: "ma_nganh",
+  mã_nghành: "ma_nganh",
+
+  // Năm tuyển sinh
   nam: "nam",
   year: "nam",
+  năm: "nam",
+  năm_tuyển_sinh: "nam",
+  namtuyensinh: "nam",
+  khoá: "nam",
+  khoa: "nam",
+
+  // Điểm chuẩn
   diem_chuan: "diem_chuan",
   diemchuan: "diem_chuan",
   điểm_chuẩn: "diem_chuan",
@@ -111,19 +208,75 @@ const COLUMN_ALIASES: Record<string, ImportColumn> = {
   điểm: "diem_chuan",
   cutoff: "diem_chuan",
   score: "diem_chuan",
+  điểm_trúng_tuyển: "diem_chuan",
+  diemtrungtuyen: "diem_chuan",
+  diem_trung_tuyen: "diem_chuan",
+  điểm_xét_tuyển: "diem_chuan",
+  diemxettuyen: "diem_chuan",
+  diem_xet_tuyen: "diem_chuan",
+  điểm_sàn: "diem_chuan",
+  diemsan: "diem_chuan",
+  diem_san: "diem_chuan",
+  điểm_chuẩn_2025: "diem_chuan",
+  diemchuan2025: "diem_chuan",
+  điểm_2025: "diem_chuan",
+  diem2025: "diem_chuan",
+  điểm_chuẩn_2024: "diem_chuan",
+  diemchuan2024: "diem_chuan",
+  điểm_2024: "diem_chuan",
+  diem2024: "diem_chuan",
+  điểm_chuẩn_2026: "diem_chuan",
+  diemchuan2026: "diem_chuan",
+  điểm_2026: "diem_chuan",
+  diem2026: "diem_chuan",
+  điểm_đầu_vào: "diem_chuan",
+  diemdauvao: "diem_chuan",
+
+  // Học phí
   hoc_phi_min: "hoc_phi_min",
   hoc_phi: "hoc_phi_min",
   hocphi: "hoc_phi_min",
+  học_phí: "hoc_phi_min",
+  học_phí_dự_kiến: "hoc_phi_min",
+  hocphidukien: "hoc_phi_min",
+  mức_học_phí: "hoc_phi_min",
+  muchocphi: "hoc_phi_min",
+  tuition: "hoc_phi_min",
   hoc_phi_max: "hoc_phi_max",
   hocphimax: "hoc_phi_max",
+  học_phí_tối_đa: "hoc_phi_max",
+
+  // Chỉ tiêu
   chi_tieu: "chi_tieu",
   chitieu: "chi_tieu",
+  chỉ_tiêu: "chi_tieu",
+  chỉ_tiêu_tuyển_sinh: "chi_tieu",
+  chitieutuyensinh: "chi_tieu",
+  số_lượng: "chi_tieu",
+  soluong: "chi_tieu",
   quota: "chi_tieu",
+
+  // Tổ hợp
   to_hop: "to_hop",
   tohop: "to_hop",
+  tổ_hợp: "to_hop",
+  khối: "to_hop",
+  khoi: "to_hop",
+  tổ_hợp_xét_tuyển: "to_hop",
+  tohopxettuyen: "to_hop",
+  khối_xét_tuyển: "to_hop",
+  khoixettuyen: "to_hop",
+  tổ_hợp_môn: "to_hop",
+  tohopmon: "to_hop",
   combos: "to_hop",
+
+  // Nguồn
   nguon: "nguon",
   source: "nguon",
+  nguồn: "nguon",
+  ghi_chú: "nguon",
+  ghichu: "nguon",
+  link: "nguon",
 };
 
 /** Đọc file thành dòng dữ liệu theo tên cột (hỗ trợ tiếng Việt và tiếng Anh). */
@@ -132,44 +285,87 @@ export function readSheet(fileName: string, content: string): { ok: true; rows: 
   let table: string[][];
   try {
     if (lower.endsWith(".xlsx")) table = parseXlsx(Buffer.from(content, "base64"));
-    else if (lower.endsWith(".csv") || lower.endsWith(".txt")) table = parseCsv(content);
-    else return { ok: false, status: 400, field: "file", message: "Chỉ hỗ trợ file .csv hoặc .xlsx." };
-  } catch {
+    else if (lower.endsWith(".csv") || lower.endsWith(".txt") || lower.endsWith(".tsv")) table = parseCsv(content);
+    else return { ok: false, status: 400, field: "file", message: "Chỉ hỗ trợ file Excel (.xlsx) hoặc CSV (.csv / .tsv / .txt)." };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === "not-zip") {
+      return { ok: false, status: 400, field: "file", message: "Không đọc được file .xlsx. Nếu đây là file .xls cũ (Excel 97-2003), vui lòng mở trong Excel và lưu thành .xlsx hoặc .csv rồi thử lại." };
+    }
     return { ok: false, status: 400, field: "file", message: "Không đọc được file. Kiểm tra định dạng (CSV UTF-8 hoặc Excel .xlsx)." };
   }
-  if (table.length < 2) return { ok: false, status: 400, field: "file", message: "File không có dòng dữ liệu." };
-  if (table.length - 1 > MAX_SHEET_ROWS) return { ok: false, status: 400, field: "file", message: `Tối đa ${MAX_SHEET_ROWS} dòng mỗi lần nhập.` };
 
-  // Chuẩn hóa tiêu đề cột
-  const rawHeaders = table[0].map((h) => h.trim().toLowerCase().replace(/[\s-]+/g, "_"));
-  const headerMap = new Map<ImportColumn, number>();
+  if (table.length === 0) {
+    return { ok: false, status: 400, field: "file", message: "File hoàn toàn trống (không có dòng nào chứa dữ liệu)." };
+  }
 
-  rawHeaders.forEach((h, idx) => {
-    const norm = normalizeVi(h).replace(/[^a-z0-9_]/g, "");
-    const mapped = COLUMN_ALIASES[h] || COLUMN_ALIASES[norm];
-    if (mapped && !headerMap.has(mapped)) {
-      headerMap.set(mapped, idx);
+  // Tự động tìm hàng tiêu đề thông minh trong 10 dòng đầu tiên (bỏ qua dòng tiêu đề lớn/banner)
+  let headerIdx = 0;
+  let headerMap = new Map<ImportColumn, number>();
+  let bestScore = 0;
+
+  const maxScan = Math.min(table.length, 10);
+  for (let i = 0; i < maxScan; i++) {
+    const row = table[i];
+    const map = new Map<ImportColumn, number>();
+    let score = 0;
+    row.forEach((cell, idx) => {
+      const h = cell.trim().toLowerCase().replace(/[\s-]+/g, "_");
+      const norm = normalizeVi(h).replace(/[^a-z0-9_]/g, "");
+      const mapped = COLUMN_ALIASES[h] || COLUMN_ALIASES[norm];
+      if (mapped && !map.has(mapped)) {
+        map.set(mapped, idx);
+        score += mapped === "ma_truong" || mapped === "ten_chuong_trinh" ? 5 : 2;
+      }
+    });
+    if (score > bestScore) {
+      bestScore = score;
+      headerIdx = i;
+      headerMap = map;
     }
-  });
+  }
 
-  if (!headerMap.has("ma_truong")) {
-    return { ok: false, status: 400, field: "file", message: "Thiếu cột bắt buộc: ma_truong (Mã trường)." };
+  // Cần ít nhất mã trường (hoặc tên trường) và tên ngành
+  if (!headerMap.has("ma_truong") && !headerMap.has("ten_truong")) {
+    return {
+      ok: false,
+      status: 400,
+      field: "file",
+      message: "Không tìm thấy hàng tiêu đề hợp lệ (cần ít nhất cột 'Mã trường' hoặc 'Tên trường', và 'Tên ngành'). Hãy kiểm tra dòng tiêu đề trong file.",
+    };
+  }
+
+  const dataRows = table.slice(headerIdx + 1).filter((r) => r.some((c) => c.trim() !== ""));
+  if (dataRows.length === 0) {
+    return { ok: false, status: 400, field: "file", message: "File không có dòng dữ liệu sau hàng tiêu đề." };
+  }
+  if (dataRows.length > MAX_SHEET_ROWS) {
+    return { ok: false, status: 400, field: "file", message: `Tối đa ${MAX_SHEET_ROWS} dòng mỗi lần nhập.` };
   }
 
   const currentYear = String(new Date().getFullYear());
-  const hasMaXetTuyenInHeader = headerMap.has("ma_xet_tuyen");
 
-  const rows: ImportRowData[] = table.slice(1).map((r) => {
+  const rows: ImportRowData[] = dataRows.map((r) => {
     const rowObj: Record<string, string> = {};
     for (const col of IMPORT_COLUMNS) {
       const idx = headerMap.get(col);
       rowObj[col] = idx != null ? clean(r[idx] ?? "") : "";
     }
-    // Giá trị ngầm định thông minh chỉ khi cột không tồn tại trong file
+    // Giá trị ngầm định thông minh
     if (!rowObj.nam) rowObj.nam = currentYear;
-    if (!hasMaXetTuyenInHeader && !rowObj.ma_xet_tuyen && rowObj.ten_chuong_trinh) {
-      rowObj.ma_xet_tuyen = slugify(rowObj.ten_chuong_trinh).slice(0, 15).toUpperCase();
+
+    // Tự sinh mã xét tuyển nếu để trống hoặc chứa placeholder text như "(để trống)"
+    const mx = (rowObj.ma_xet_tuyen || "").trim();
+    const isMxPlaceholder = !mx || /^(\(.*\)|-|chờ|chưa|tba|n\/a|trống)/i.test(mx);
+    if (isMxPlaceholder && rowObj.ten_chuong_trinh) {
+      rowObj.ma_xet_tuyen = slugify(rowObj.ten_chuong_trinh).replace(/[^a-zA-Z0-9-]/g, "").slice(0, 15).toUpperCase();
     }
+
+    // Làm sạch điểm chuẩn nếu chứa chữ placeholder như "(để trống chờ công bố)"
+    if (rowObj.diem_chuan && /^(\(.*\)|-|chờ|chưa|tba|n\/a|trống)/i.test(rowObj.diem_chuan)) {
+      rowObj.diem_chuan = "";
+    }
+
     return rowObj as ImportRowData;
   });
 
@@ -197,16 +393,38 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
     const errors: ImportRow["errors"] = [];
     const warnings: ImportRow["warnings"] = [];
 
-    const code = (data.ma_xet_tuyen || data.ma_nganh).toUpperCase();
-    if (!code) {
-      errors.push({ field: "ma_xet_tuyen", message: "Thiếu mã xét tuyển" });
-    } else if (!/^[A-Z0-9-]{2,20}$/.test(code)) {
-      errors.push({ field: "ma_xet_tuyen", message: "Mã xét tuyển chỉ gồm chữ, số, dấu gạch (2–20 ký tự)" });
+    const rawCode = (data.ma_xet_tuyen || data.ma_nganh || "").trim();
+    let code = rawCode.toUpperCase().replace(/\s+/g, "-");
+    if (!code || /^(\(.*\)|-|chờ|chưa|tba|n\/a|trống)/i.test(code)) {
+      if (data.ten_chuong_trinh) {
+        code = slugify(data.ten_chuong_trinh).replace(/[^a-zA-Z0-9-]/g, "").slice(0, 15).toUpperCase();
+        data.ma_xet_tuyen = code;
+      } else {
+        errors.push({ field: "ma_xet_tuyen", message: "Thiếu mã xét tuyển" });
+      }
+    } else if (!/^[A-Z0-9_.-]{2,30}$/i.test(code)) {
+      errors.push({ field: "ma_xet_tuyen", message: "Mã xét tuyển chỉ gồm chữ, số, dấu gạch hoặc chấm (2–30 ký tự)" });
     }
 
-    const school = ctx.schools.find((s) => s.code.toUpperCase() === data.ma_truong.toUpperCase());
-    if (!data.ma_truong) {
-      errors.push({ field: "ma_truong", message: "Thiếu mã trường" });
+    let sCode = (data.ma_truong || "").trim().toUpperCase();
+    let school = sCode ? ctx.schools.find((s) => s.code.toUpperCase() === sCode) : undefined;
+    if (!school && data.ten_truong && data.ten_truong.trim()) {
+      const normTen = normalizeVi(data.ten_truong).toLowerCase();
+      school = ctx.schools.find((s) => normalizeVi(s.name).toLowerCase() === normTen || normalizeVi(s.shortName).toLowerCase() === normTen);
+      if (school) {
+        sCode = school.code.toUpperCase();
+        data.ma_truong = sCode;
+      }
+    }
+
+    if (!data.ma_truong && !sCode) {
+      if (data.ten_truong && data.ten_truong.trim()) {
+        data.ma_truong = slugify(data.ten_truong).replace(/-/g, "").slice(0, 8).toUpperCase();
+        sCode = data.ma_truong;
+        warnings.push({ field: "ma_truong", message: `Trường mới sẽ được tạo tự động: "${data.ten_truong}" (mã: ${data.ma_truong})` });
+      } else {
+        errors.push({ field: "ma_truong", message: "Thiếu mã trường hoặc tên trường" });
+      }
     } else if (!school) {
       if (data.ten_truong && data.ten_truong.trim()) {
         warnings.push({ field: "ma_truong", message: `Trường mới sẽ được tạo tự động: "${data.ten_truong}"` });
