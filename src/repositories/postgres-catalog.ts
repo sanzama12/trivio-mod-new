@@ -73,7 +73,7 @@ async function saveSchool(school: School): Promise<void> {
          description=EXCLUDED.description, scholarships=EXCLUDED.scholarships,
          hidden=EXCLUDED.hidden, is_custom=EXCLUDED.is_custom`,
       [school.id, school.slug, school.code, school.name, school.shortName, school.type, school.region, school.city,
-        school.founded, school.students, school.highlight, school.website, school.description, school.scholarships,
+        school.founded && school.founded >= 1800 ? school.founded : null, school.students, school.highlight, school.website, school.description, school.scholarships,
         school.hidden ?? false, school.custom ?? false],
     );
     await client.query(`DELETE FROM trovio.school_campuses WHERE school_id = $1`, [school.id]);

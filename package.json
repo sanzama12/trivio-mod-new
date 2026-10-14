@@ -12,7 +12,7 @@
     "start": "next start",
     "demo": "next build && TROVIO_DEMO=true next start -p 3000",
     "typecheck": "tsc --noEmit",
-    "test": "node --conditions=react-server --import tsx --test tests/*.test.ts",
+    "test": "node --env-file=.env.local --conditions=react-server --import tsx --test tests/*.test.ts",
     "db:migrate": "tsx scripts/migrate-pg.ts",
     "db:status": "tsx scripts/migrate-pg.ts --status",
     "admissions:programs": "tsx scripts/crawl-admissions.ts --resume",
