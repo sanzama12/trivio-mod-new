@@ -61,20 +61,43 @@ const COLUMN_ALIASES: Record<string, ImportColumn> = {
   ma_xet_tuyen: "ma_xet_tuyen",
   maxettuyen: "ma_xet_tuyen",
   ma_xt: "ma_xet_tuyen",
+  admission_code: "ma_xet_tuyen",
+  mã_xét_tuyển: "ma_xet_tuyen",
   ten_chuong_trinh: "ten_chuong_trinh",
   tenchuongtrinh: "ten_chuong_trinh",
   ten_nganh: "ten_chuong_trinh",
   tennganh: "ten_chuong_trinh",
+  ten_nghanh: "ten_chuong_trinh",
+  tennghanh: "ten_chuong_trinh",
   nganh: "ten_chuong_trinh",
+  nghanh: "ten_chuong_trinh",
+  tên_ngành: "ten_chuong_trinh",
+  tên_nghành: "ten_chuong_trinh",
+  nghành: "ten_chuong_trinh",
+  major: "ten_chuong_trinh",
+  major_name: "ten_chuong_trinh",
   ma_truong: "ma_truong",
   matruong: "ma_truong",
+  ma_truong_moi: "ma_truong",
+  matruongmoi: "ma_truong",
+  truong_moi: "ma_truong",
+  mã_trường_mới: "ma_truong",
+  mã_trường: "ma_truong",
+  school_code: "ma_truong",
   truong: "ma_truong",
   ten_truong: "ten_truong",
   tentruong: "ten_truong",
+  tên_trường: "ten_truong",
+  school_name: "ten_truong",
   tinh_thanh: "tinh_thanh",
   tinhthanh: "tinh_thanh",
   thanh_pho: "tinh_thanh",
   tinh: "tinh_thanh",
+  tỉnh: "tinh_thanh",
+  tỉnh_thành: "tinh_thanh",
+  thành_phố: "tinh_thanh",
+  city: "tinh_thanh",
+  province: "tinh_thanh",
   co_so: "co_so",
   coso: "co_so",
   ma_nganh: "ma_nganh",
@@ -83,7 +106,10 @@ const COLUMN_ALIASES: Record<string, ImportColumn> = {
   year: "nam",
   diem_chuan: "diem_chuan",
   diemchuan: "diem_chuan",
+  điểm_chuẩn: "diem_chuan",
   diem: "diem_chuan",
+  điểm: "diem_chuan",
+  cutoff: "diem_chuan",
   score: "diem_chuan",
   hoc_phi_min: "hoc_phi_min",
   hoc_phi: "hoc_phi_min",
@@ -460,12 +486,12 @@ export const importService = {
     return `﻿${IMPORT_COLUMNS.join(",")}\n7480201,Công nghệ thông tin,BKA,,,,,2025,28.5,28,35,300,A00 A01,https://ts.hust.edu.vn/\n`;
   },
 
-  /** File mẫu ĐƠN GIẢN NHẤT (Chỉ 1 bảng dễ hiểu, cho phép để trống điểm và học phí). */
+  /** File mẫu ĐƠN GIẢN NHẤT — Đúng 6 cột chuẩn: mã trường mới, tên trường, tỉnh, tên ngành, mã xét tuyển, điểm chuẩn. */
   templateSimpleCsv() {
-    return `﻿ma_truong,ten_truong,tinh_thanh,co_so,ten_nganh,ma_xet_tuyen,diem_chuan,hoc_phi,to_hop
-BKA,Đại học Bách khoa Hà Nội,Hà Nội,Cơ sở 1 Đại Cồ Việt,Công nghệ thông tin,IT1,28.5,35,A00 A01
-FPT,Trường Đại học FPT,Hà Nội,Cơ sở Hòa Lạc,Kỹ thuật phần mềm,SE01,,,A00 D01
-NEU,Đại học Kinh tế Quốc dân,Hà Nội,Cơ sở Giải Phóng,Marketing,MKT01,27.5,25,A00 D01
+    return `﻿ma_truong_moi,ten_truong,tinh,ten_nganh,ma_xet_tuyen,diem_chuan
+BKA,Đại học Bách khoa Hà Nội,Hà Nội,Công nghệ thông tin,IT1,28.5
+NEU,Đại học Kinh tế Quốc dân,Hà Nội,Marketing,MKT01,27.5
+FPT,Trường Đại học FPT,Hà Nội,Kỹ thuật phần mềm,SE01,
 `;
   },
 };

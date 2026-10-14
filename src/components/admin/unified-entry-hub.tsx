@@ -74,7 +74,7 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
   const [majors, setMajors] = useState<Major[]>(initialMajors);
 
   // Form nhập nhanh 1 bản ghi
-  const [isNewSchoolMode, setIsNewSchoolMode] = useState(false);
+  const [isNewSchoolMode, setIsNewSchoolMode] = useState(initialSchools.length === 0);
   const [form, setForm] = useState({
     id: "",
     schoolCode: "",
@@ -707,8 +707,65 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
           <Panel className="p-6">
             <h2 className="text-lg font-bold text-slate-900">Nhập danh sách từ Excel (.xlsx) hoặc CSV</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Cách dễ nhất: Bạn chỉ cần điền 1 bảng Excel đơn giản. Nếu dòng nào chưa có điểm hoặc học phí, cứ để trống, hệ thống vẫn nạp thành công!
+              Cách dễ nhất: Bạn chỉ cần điền 1 bảng Excel 6 cột đơn giản. Nếu dòng nào chưa có điểm chuẩn, cứ để trống, hệ thống vẫn nạp thành công!
             </p>
+
+            {/* Hướng dẫn cấu trúc 6 cột chuẩn */}
+            <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary-900">
+                  Cơ chế 6 cột chuẩn siêu dễ (Excel hoặc CSV):
+                </span>
+                <span className="rounded-full bg-primary-100 px-2.5 py-0.5 text-[11px] font-semibold text-primary-800">
+                  Tự động tạo trường & ngành mới
+                </span>
+              </div>
+              <div className="mt-3 overflow-x-auto rounded-lg border border-primary-200 bg-white shadow-sm">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-primary-100/70 text-primary-900 font-bold">
+                    <tr>
+                      <th className="px-3 py-2">mã trường mới</th>
+                      <th className="px-3 py-2">tên trường</th>
+                      <th className="px-3 py-2">tỉnh</th>
+                      <th className="px-3 py-2">tên ngành</th>
+                      <th className="px-3 py-2">mã xét tuyển</th>
+                      <th className="px-3 py-2">điểm chuẩn</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    <tr>
+                      <td className="px-3 py-1.5 font-mono font-bold text-primary-700">BKA</td>
+                      <td className="px-3 py-1.5">Đại học Bách khoa Hà Nội</td>
+                      <td className="px-3 py-1.5">Hà Nội</td>
+                      <td className="px-3 py-1.5 font-medium">Công nghệ thông tin</td>
+                      <td className="px-3 py-1.5 font-mono">IT1</td>
+                      <td className="px-3 py-1.5 font-bold text-success-700">28.5</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-1.5 font-mono font-bold text-primary-700">NEU</td>
+                      <td className="px-3 py-1.5">Đại học Kinh tế Quốc dân</td>
+                      <td className="px-3 py-1.5">Hà Nội</td>
+                      <td className="px-3 py-1.5 font-medium">Marketing</td>
+                      <td className="px-3 py-1.5 font-mono">MKT01</td>
+                      <td className="px-3 py-1.5 font-bold text-success-700">27.5</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-1.5 font-mono font-bold text-primary-700">FPT</td>
+                      <td className="px-3 py-1.5">Trường Đại học FPT</td>
+                      <td className="px-3 py-1.5">Hà Nội</td>
+                      <td className="px-3 py-1.5 font-medium">Kỹ thuật phần mềm</td>
+                      <td className="px-3 py-1.5 font-mono">SE01</td>
+                      <td className="px-3 py-1.5 italic text-slate-400">(để trống chờ công bố)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <ul className="mt-2.5 space-y-1 text-xs text-slate-600">
+                <li>• <strong>Mã trường mới:</strong> Nếu trường chưa có trên hệ thống, Trovio sẽ tự động tạo trường mới theo tên và tỉnh bạn điền.</li>
+                <li>• <strong>Tên ngành:</strong> Tự động tạo ngành mới nếu chưa có trong danh mục.</li>
+                <li>• <strong>Điểm chuẩn:</strong> Thang 30. Nếu trường chưa công bố, bạn <strong>được để trống</strong>, hệ thống vẫn nạp thành công để cập nhật sau!</li>
+              </ul>
+            </div>
 
             <div
               onDragOver={(e) => (e.preventDefault(), setDrag(true))}
