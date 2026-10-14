@@ -11,8 +11,9 @@ import type { Program, PublicUser, School, Major } from "../domain/types";
 import { repositories } from "../repositories";
 import { MAX_SHEET_ROWS, parseCsv, parseXlsx } from "../lib/sheet";
 import { catalogAdminService, slugify } from "./catalog-admin.service";
-import { unifiedEntryService } from "./unified-entry.service";
+import { unifiedEntryService, type UnifiedEntryContext } from "./unified-entry.service";
 import { normalizeVi } from "../lib/text";
+import { findMajorForImport } from "./major-mapping.service";
 
 type Fail = { ok: false; status: number; field?: string; message: string };
 const now = () => new Date().toISOString();
@@ -647,12 +648,7 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
 
     let major = null as Ctx["majors"][number] | null;
     if (!existing) {
-      major =
-        ctx.majors.find(
-          (m) =>
-            (data.ma_nganh && m.code === data.ma_nganh.trim()) ||
-            (data.ten_chuong_trinh && normalizeVi(m.name).toLowerCase() === normalizeVi(data.ten_chuong_trinh).toLowerCase()),
-        ) ?? null;
+      major = findMajorForImport(ctx.majors, data.ten_chuong_trinh, data.ma_nganh) ?? null;
 
       if (!major) {
         if (data.ten_chuong_trinh) {
@@ -750,13 +746,31 @@ export const importService = {
       (r.action === "update" ? updates : creates).set(key, [...((r.action === "update" ? updates : creates).get(key) ?? []), r]);
     }
 
+    const [schools, majors, programs, majorGroups] = await Promise.all([
+      repositories.catalogAdmin.listSchools(),
+      repositories.catalogAdmin.listMajors(),
+      repositories.catalogAdmin.listPrograms(),
+      repositories.majors.findGroups(),
+    ]);
+
+    const batchCtx: UnifiedEntryContext = {
+      schools: [...schools],
+      majors: [...majors],
+      majorGroups,
+      programs: [...programs],
+      schoolsToSave: [],
+      majorsToSave: [],
+      programsToInsert: [],
+      skipAudit: true,
+    };
+
     const updatedPrograms: string[] = [];
 
     // Cập nhật các chương trình đã có (báo trùng và cập nhật)
     for (const [programId, rows] of updates) {
-      const p = await repositories.catalogAdmin.getProgram(programId);
+      const p = batchCtx.programs.find((x) => x.id === programId) ?? (await repositories.catalogAdmin.getProgram(programId));
       if (!p) continue;
-      const school = await repositories.schools.findById(p.schoolId);
+      const school = batchCtx.schools.find((s) => s.id === p.schoolId) ?? (await repositories.schools.findById(p.schoolId));
 
       const patch: Partial<Program> = {};
       const changes: { field: string; before: string; after: string }[] = [];
@@ -822,7 +836,15 @@ export const importService = {
     // Tạo mới các chương trình
     for (const rows of creates.values()) {
       const first = rows[0].data;
-      const score = num(first.diem_chuan);
+      const allCutoffs: { year: number; score: number }[] = [];
+      for (const r of rows) {
+        const y = Number(r.data.nam) || new Date().getFullYear();
+        const sc = num(r.data.diem_chuan);
+        if (sc != null && sc > 0 && sc <= 30) {
+          allCutoffs.push({ year: y, score: Math.round(sc * 100) / 100 });
+        }
+      }
+
       const res = await unifiedEntryService.save(actor, {
         schoolCode: first.ma_truong,
         schoolName: first.ten_truong || undefined,
@@ -832,33 +854,31 @@ export const importService = {
         majorCode: first.ma_nganh || undefined,
         admissionCode: first.ma_xet_tuyen,
         year: Number(first.nam) || new Date().getFullYear(),
-        score,
+        score: num(first.diem_chuan),
+        cutoffs: allCutoffs,
         tuitionMin: num(first.hoc_phi_min),
         tuitionMax: num(first.hoc_phi_max),
         quota: num(first.chi_tieu),
         combos: first.to_hop ? first.to_hop.split(" ").filter(Boolean) : undefined,
         source: first.nguon || `Nhập từ file ${preview.fileName}`,
-      });
+      }, batchCtx);
 
       if (res.ok) {
         created++;
-        if (rows.length > 1 && res.programId) {
-          for (let ri = 1; ri < rows.length; ri++) {
-            const extra = rows[ri].data;
-            const extraScore = num(extra.diem_chuan);
-            const extraYear = Number(extra.nam);
-            if (extraScore != null && extraYear) {
-              await unifiedEntryService.save(actor, {
-                id: res.programId,
-                schoolCode: extra.ma_truong,
-                majorName: extra.ten_chuong_trinh || first.ten_chuong_trinh,
-                year: extraYear,
-                score: extraScore,
-              });
-            }
-          }
-        }
       }
+    }
+
+    // Persist parents before programs so all foreign keys exist. Each collection is written in one batch.
+    if (batchCtx.schoolsToSave && batchCtx.schoolsToSave.length > 0) {
+      await repositories.catalogAdmin.saveSchoolsBatch(batchCtx.schoolsToSave);
+    }
+    if (batchCtx.majorsToSave && batchCtx.majorsToSave.length > 0) {
+      await repositories.catalogAdmin.saveMajorsBatch(batchCtx.majorsToSave);
+    }
+
+    // Ghi hàng loạt toàn bộ chương trình mới vào database trong 1 transaction duy nhất
+    if (batchCtx.programsToInsert && batchCtx.programsToInsert.length > 0) {
+      await repositories.catalogAdmin.createProgramsBatch(batchCtx.programsToInsert);
     }
 
     const batch = {

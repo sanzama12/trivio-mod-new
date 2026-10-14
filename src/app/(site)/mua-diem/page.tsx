@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { programService, timelineService } from "@/services";
-import { repositories } from "@/repositories";
+import { timelineService } from "@/services";
 import { toLiteMajor, toLiteProgram } from "@/services/lite";
 import { vnDay } from "@/services/analytics.service";
 import { isDemoMode } from "@/lib/env";
@@ -17,12 +16,7 @@ const DATE_RE = /^20\d{2}-\d{2}-\d{2}$/;
 export default async function PlanBPage({ searchParams }: { searchParams: Promise<{ ngay?: string }> }) {
   const { ngay } = await searchParams;
   const simulated = typeof ngay === "string" && DATE_RE.test(ngay) && !Number.isNaN(Date.parse(ngay)) ? ngay : null;
-  const [views, majors, timeline, supplementaryRounds] = await Promise.all([
-    programService.listAll(),
-    repositories.majors.findAll(),
-    timelineService.list(),
-    repositories.supplementary.list(),
-  ]);
+  const { views, majors, timeline, supplementaryRounds } = await timelineService.getPlanBData();
   return (
     <div className="container-page py-8">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Mốc tuyển sinh", href: "/moc-tuyen-sinh" }, { label: "Mùa công bố điểm" }]} />

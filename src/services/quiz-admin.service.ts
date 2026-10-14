@@ -29,6 +29,10 @@ function perType(questions: RiasecQuestion[]) {
 }
 
 export const quizAdminService = {
+  async getMajorOptions() {
+    return repositories.catalogAdmin.listMajors();
+  },
+
   async get() {
     const [cfg, questions] = await Promise.all([repositories.quizConfig.get(), repositories.quizConfig.listAll()]);
     const c = cfg ?? blank();

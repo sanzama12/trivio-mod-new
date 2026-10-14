@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { LuClock, LuFolderOpen, LuLayoutGrid, LuShieldCheck } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { catalogAdminService } from "@/services/catalog-admin.service";
-import { repositories } from "@/repositories";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody, AdminStat, StatGrid } from "@/components/admin/ui";
 import { MajorManager } from "@/components/admin/major-manager";
@@ -11,7 +10,7 @@ export const metadata: Metadata = { title: "Quản lý Danh mục ngành", robot
 
 export default async function AdminMajorsPage() {
   await adminPage("/quan-tri/nganh");
-  const [rows, groups] = await Promise.all([catalogAdminService.majors(), repositories.majors.findGroups()]);
+  const [rows, groups] = await Promise.all([catalogAdminService.majors(), catalogAdminService.getMajorGroups()]);
   return (
     <>
       <AdminHeader title="Quản lý Danh mục ngành" crumb="Ngành đào tạo" />

@@ -3,7 +3,6 @@ import { LuDownload, LuFileSpreadsheet } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { importService } from "@/services/import.service";
 import { unifiedEntryService } from "@/services/unified-entry.service";
-import { repositories } from "@/repositories";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody, fmtDate, Panel } from "@/components/admin/ui";
 import { UnifiedEntryHub } from "@/components/admin/unified-entry-hub";
@@ -16,12 +15,12 @@ export const metadata: Metadata = {
 
 export default async function AdminImportPage() {
   const user = await adminPage("/quan-tri/nhap-du-lieu");
-  const [history, schools, majors, unifiedRows] = await Promise.all([
+  const [history, options, unifiedRows] = await Promise.all([
     importService.history(10),
-    repositories.catalogAdmin.listSchools(),
-    repositories.catalogAdmin.listMajors(),
+    unifiedEntryService.getFormOptions(),
     unifiedEntryService.listAll(),
   ]);
+  const { schools, majors } = options;
 
   return (
     <>

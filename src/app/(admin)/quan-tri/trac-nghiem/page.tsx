@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { LuDownload } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { quizAdminService, MIN_PER_TYPE } from "@/services/quiz-admin.service";
-import { repositories } from "@/repositories";
 import { RIASEC_ORDER } from "@/domain/riasec";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody } from "@/components/admin/ui";
@@ -13,7 +12,7 @@ export const metadata: Metadata = { title: "Quản lý Trắc nghiệm RIASEC", 
 
 export default async function AdminQuizPage() {
   await adminPage("/quan-tri/trac-nghiem");
-  const [data, majors] = await Promise.all([quizAdminService.get(), repositories.catalogAdmin.listMajors()]);
+  const [data, majors] = await Promise.all([quizAdminService.get(), quizAdminService.getMajorOptions()]);
   const linked = Object.fromEntries(RIASEC_ORDER.map((t) => [t, majors.filter((m) => !m.hidden && m.riasec[0] === t).map((m) => m.name)]));
   return (
     <>

@@ -4,6 +4,9 @@ import { jsonBody, tooMany } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { importService } from "@/services/import.service";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 /** File mẫu CSV (hỗ trợ mẫu đơn giản qua ?type=simple). */
 export async function GET(req: Request) {
   const { error } = await requireAdmin();

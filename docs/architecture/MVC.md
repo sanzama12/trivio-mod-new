@@ -30,6 +30,14 @@ Controller không chứa truy vấn SQL và không chứa quy tắc nghiệp v�
 
 View không import repository hay `src/data`.
 
+## Read-model và hiệu năng
+
+- View server chỉ gọi service; không import Repository trực tiếp.
+- Route Handler chỉ chuyển request/params cho Controller. Controller gọi service và không chứa SQL.
+- Một màn hình có nhiều dữ liệu phải có một read-model trong service (`get…PageData`, `get…Options`) để View không tự ghép Repository.
+- Khi tổng hợp theo khoá, dùng `Map`/`Set` hoặc helper `src/lib/collections.ts`; không dùng `filter` lồng trong `map` trên danh sách lớn.
+- Danh sách override quản trị phải lấy theo lô (`listOverrideIds`) thay vì truy vấn từng bản ghi.
+
 ## Quy tắc dữ liệu
 
 1. PostgreSQL là nguồn dữ liệu runtime duy nhất.

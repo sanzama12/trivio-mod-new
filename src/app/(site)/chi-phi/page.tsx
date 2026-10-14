@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
+import { catalogService } from "@/services";
 import { Breadcrumb } from "@/components/ui/misc";
 import { CostCompare } from "@/components/program/cost-compare";
 import { FinancialAid } from "@/components/program/financial-aid";
-import { repositories } from "@/repositories";
 
 export const metadata: Metadata = { title: "Tính tổng chi phí học", description: "Ước tính tổng chi phí cả khoá và các hỗ trợ có thể nhận: học bổng, miễn giảm học phí, vay vốn sinh viên, ký túc xá." };
 
 export default async function CostPage() {
-  const financialAid = await repositories.catalog.findFinancialAid();
+  const financialAid = await catalogService.getFinancialAid();
   return (
     <div className="container-page py-8">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Tính tổng chi phí học" }]} />

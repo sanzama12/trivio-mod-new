@@ -3,12 +3,14 @@
  * Bản ghi gốc được ghi đè, bản ghi mới lưu riêng; "xoá" = tạm ẩn (giữ lịch sử, khôi phục được). Mọi thay đổi có nhật ký.
  */
 import { randomUUID } from "node:crypto";
-import type { AdmissionMethod, AuditEntry, Major, PublicUser, Program, RiasecType, School, SchoolType } from "../domain/types";
+import type { AdmissionMethod, AuditEntry, Major, MajorGroup, PublicUser, Program, RiasecType, School, SchoolType } from "../domain/types";
 import { PROVINCES, PROVINCE_REGION } from "../domain/provinces";
 import { RIASEC_ORDER } from "../domain/riasec";
 import { repositories } from "../repositories";
 import { normalizeVi } from "../lib/text";
 import { SCHOOL_TYPE_LABELS } from "./program.filters";
+
+import { countBy, groupBy } from '../lib/collections';
 
 type Fail = { ok: false; status: number; field?: string; message: string };
 const now = () => new Date().toISOString();
@@ -62,10 +64,15 @@ export const catalogAdminService = {
     return repositories.catalogAdmin.listMajors();
   },
 
+  async getMajorGroups(): Promise<MajorGroup[]> {
+    return repositories.majors.findGroups();
+  },
+
   async schools(): Promise<SchoolRow[]> {
     const [schools, programs] = await Promise.all([repositories.catalogAdmin.listSchools(), repositories.catalogAdmin.listPrograms()]);
+    const liveProgramsBySchool = groupBy(programs.filter((program) => !program.hidden), (program) => program.schoolId);
     return schools.map((school) => {
-      const ps = programs.filter((p) => p.schoolId === school.id && !p.hidden);
+      const ps = liveProgramsBySchool.get(school.id) ?? [];
       return { school, campuses: school.campuses.length, majors: new Set(ps.map((p) => p.majorId)).size, programs: ps.length };
     });
   },
@@ -138,7 +145,9 @@ export const catalogAdminService = {
 
   async majors(): Promise<MajorRow[]> {
     const [majors, groups, programs] = await Promise.all([repositories.catalogAdmin.listMajors(), repositories.majors.findGroups(), repositories.catalogAdmin.listPrograms()]);
-    return majors.map((major) => ({ major, groupName: groups.find((g) => g.id === major.groupId)?.name ?? major.groupId, programs: programs.filter((p) => p.majorId === major.id && !p.hidden).length }));
+    const groupNameById = new Map(groups.map((group) => [group.id, group.name]));
+    const programCountByMajor = countBy(programs.filter((program) => !program.hidden), (program) => program.majorId);
+    return majors.map((major) => ({ major, groupName: groupNameById.get(major.groupId) ?? major.groupId, programs: programCountByMajor.get(major.id) ?? 0 }));
   },
 
   async saveMajor(actor: PublicUser, input: Record<string, unknown>): Promise<{ ok: true; id: string } | Fail> {

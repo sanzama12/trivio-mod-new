@@ -84,10 +84,34 @@ export function validateProgramEdit(input: ProgramEditInput): { ok: true; patch:
 
 export const adminService = {
   async listPrograms() {
-    const views = await programService.listAllAdmin();
-    const edited = new Set<string>();
-    for (const v of views) if (await repositories.programAdmin.getOverride(v.program.id)) edited.add(v.program.id);
+    const [views, overrideIds] = await Promise.all([programService.listAllAdmin(), repositories.programAdmin.listOverrideIds()]);
+    const edited = new Set(overrideIds);
     return views.map((v) => ({ view: v, edited: edited.has(v.program.id) }));
+  },
+
+  /** Read-model duy nhất cho trang quản trị chương trình. */
+  async getProgramsPageData() {
+    const [rows, audit, schools, majors, combos] = await Promise.all([
+      this.listPrograms(),
+      this.listAudit(200),
+      repositories.catalogAdmin.listSchools(),
+      repositories.catalogAdmin.listMajors(),
+      repositories.catalog.findCombos(),
+    ]);
+    return { rows, audit, schools, majors, combos };
+  },
+
+  /** Chỉ thống kê dữ liệu hiện có; không thực hiện tác vụ đồng bộ ngầm. */
+  async getCatalogSyncStats() {
+    const [schools, majors, programs, majorGroups, quiz, users] = await Promise.all([
+      repositories.schools.findAll(),
+      repositories.majors.findAll(),
+      repositories.programs.findAll(),
+      repositories.majors.findGroups(),
+      repositories.quiz.findQuestions(),
+      repositories.users.list(),
+    ]);
+    return { schools: schools.length, majors: majors.length, programs: programs.length, majorGroups: majorGroups.length, quiz: quiz.length, users: users.length };
   },
 
   async getProgram(id: string) {

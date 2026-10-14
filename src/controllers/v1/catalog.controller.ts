@@ -1,10 +1,11 @@
 import type { NextRequest } from "next/server";
 import { apiError, apiOk, withApiErrors } from "@/lib/api-response";
-import { query } from "@/lib/db";
 import { catalogService } from "@/services/catalog.service";
 import { parseProgramFilters } from "@/services/program.filters";
 import { programService } from "@/services/program.service";
 import type { Region, SchoolType } from "@/domain/types";
+
+import { systemService } from '@/services/system.service';
 
 const positiveInteger = (value: string | null, fallback: number, max = 100): number => {
   const parsed = Number(value);
@@ -14,7 +15,7 @@ const positiveInteger = (value: string | null, fallback: number, max = 100): num
 export class V1CatalogController {
   static health(): Promise<Response> {
     return withApiErrors(async () => {
-      await query("SELECT 1 AS ready");
+      await systemService.checkDatabase();
       return apiOk({ status: "ready", database: "ready" });
     });
   }

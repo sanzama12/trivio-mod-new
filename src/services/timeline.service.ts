@@ -6,6 +6,8 @@ import { randomUUID } from "node:crypto";
 import type { PublicUser, TimelineConfig, TimelineEvent } from "../domain/types";
 import { repositories } from "../repositories";
 
+import { programService } from './program.service';
+
 export interface TimelineView {
   season: string;
   note: string;
@@ -40,6 +42,17 @@ const clean = (v: unknown, max: number) =>
 type Fail = { ok: false; field: string; message: string };
 
 export const timelineService = {
+  /** Read-model cho trang kế hoạch B; gom dữ liệu ở Model thay vì để View gọi repository. */
+  async getPlanBData() {
+    const [views, majors, timeline, supplementaryRounds] = await Promise.all([
+      programService.listAll(),
+      repositories.majors.findAll(),
+      this.list(),
+      repositories.supplementary.list(),
+    ]);
+    return { views, majors, timeline, supplementaryRounds };
+  },
+
   async list(): Promise<TimelineView> {
     const cfg = await repositories.timelineConfig.get();
     if (cfg) {

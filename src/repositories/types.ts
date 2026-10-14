@@ -115,6 +115,8 @@ export interface CommentRepository {
 /** Dữ liệu chương trình do quản trị viên chỉnh (ghi đè lên dữ liệu gốc) + nhật ký thay đổi. */
 export interface ProgramAdminRepository {
   getOverride(programId: string): Promise<ProgramPatch | null>;
+  /** IDs có bản ghi ghi đè; dùng để dựng danh sách quản trị bằng một truy vấn. */
+  listOverrideIds(): Promise<string[]>;
   setOverride(programId: string, patch: ProgramPatch | null, audit: AuditEntry): Promise<void>;
   listAudit(limit?: number): Promise<AuditEntry[]>;
 }
@@ -248,12 +250,15 @@ export interface OutcomeSurveyRepository {
 export interface CatalogAdminRepository {
   listSchools(): Promise<School[]>;
   saveSchool(school: School): Promise<void>;
+  saveSchoolsBatch(schools: School[]): Promise<void>;
   listMajors(): Promise<Major[]>;
   saveMajor(major: Major): Promise<void>;
+  saveMajorsBatch(majors: Major[]): Promise<void>;
   /** Toàn bộ chương trình (kể cả đang ẩn), đã áp phần ghi đè. */
   listPrograms(): Promise<Program[]>;
   getProgram(id: string): Promise<Program | null>;
   createProgram(program: Program): Promise<void>;
+  createProgramsBatch(programs: Program[]): Promise<void>;
 }
 
 export interface QuizConfigRepository {

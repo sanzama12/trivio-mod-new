@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { LuBookOpen, LuClock, LuFolderOpen, LuLandmark } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { adminService } from "@/services";
-import { repositories } from "@/repositories";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody, AdminStat, StatGrid } from "@/components/admin/ui";
 import { ProgramManager } from "@/components/admin/program-manager";
@@ -13,13 +12,7 @@ export const metadata: Metadata = { title: "Quản lý Chương trình đào t�
 export default async function AdminProgramsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await adminPage("/quan-tri/chuong-trinh");
   const { q } = await searchParams;
-  const [rows, audit, schools, majors, combos] = await Promise.all([
-    adminService.listPrograms(),
-    adminService.listAudit(200),
-    repositories.catalogAdmin.listSchools(),
-    repositories.catalogAdmin.listMajors(),
-    repositories.catalog.findCombos(),
-  ]);
+  const { rows, audit, schools, majors, combos } = await adminService.getProgramsPageData();
   const live = rows.filter((r) => !r.view.program.hidden);
   const month = new Date().toISOString().slice(0, 7);
   const names = Object.fromEntries(rows.map(({ view }) => [view.program.id, `${view.program.name} – ${view.school.shortName}`]));

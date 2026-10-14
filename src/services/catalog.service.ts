@@ -5,6 +5,9 @@ import type { Major, MajorGroup, Region, School, SchoolType } from "../domain/ty
 import { repositories } from "../repositories";
 import { firstLetterVi, matchesQuery } from "../lib/text";
 
+import { countBy } from '../lib/collections';
+import { programService } from './program.service';
+
 export interface MajorListItem {
   major: Major;
   group: MajorGroup;
@@ -25,6 +28,20 @@ export const catalogService = {
     return repositories.catalog.findCombos();
   },
 
+  async getFinancialAid() {
+    return repositories.catalog.findFinancialAid();
+  },
+
+  /** Dữ liệu nhẹ dùng chung cho các luồng định hướng; View không cần biết repository. */
+  async getGuidanceOptions() {
+    const [programs, majors, combos] = await Promise.all([
+      programService.listAll(),
+      repositories.majors.findAll(),
+      this.getCombos(),
+    ]);
+    return { programs, majors, combos };
+  },
+
   async getSubjects() {
     return repositories.catalog.findSubjects();
   },
@@ -35,7 +52,8 @@ export const catalogService = {
 
   async getGroupsWithCounts() {
     const [groups, majors] = await Promise.all([repositories.majors.findGroups(), repositories.majors.findAll()]);
-    return groups.map((g) => ({ group: g, majorCount: majors.filter((m) => m.groupId === g.id).length }));
+    const countByGroup = countBy(majors, (major) => major.groupId);
+    return groups.map((group) => ({ group, majorCount: countByGroup.get(group.id) ?? 0 }));
   },
 
   async listMajors(opts: { group?: string; q?: string; letter?: string } = {}): Promise<MajorListItem[]> {
@@ -66,6 +84,23 @@ export const catalogService = {
     const groups = await repositories.majors.findGroups();
     const defaultGroup: MajorGroup = { id: "khac", slug: "khac", name: "Khác", icon: "book", tone: "slate" };
     return { major, group: groups.find((g) => g.id === major.groupId) ?? defaultGroup };
+  },
+
+  async getSchoolByIdOrSlug(idOrSlug: string) {
+    const [byId, bySlug] = await Promise.all([repositories.schools.findById(idOrSlug), repositories.schools.findBySlug(idOrSlug)]);
+    return byId ?? bySlug;
+  },
+
+  async getSchoolDetail(idOrSlug: string) {
+    const school = await this.getSchoolByIdOrSlug(idOrSlug);
+    if (!school) return null;
+    return { school, programs: await repositories.programs.findBySchool(school.id) };
+  },
+
+  async getMajorDetail(slug: string) {
+    const detail = await this.getMajorBySlug(slug);
+    if (!detail) return null;
+    return { ...detail, programs: await repositories.programs.findByMajor(detail.major.id) };
   },
 
   async listSchools(): Promise<School[]> {

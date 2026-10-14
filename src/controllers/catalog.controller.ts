@@ -50,6 +50,22 @@ export class CatalogController {
     return NextResponse.json({ items });
   }
 
+  static async getSchoolDetail(_req: Request, params: { id: string }): Promise<Response> {
+    const detail = await catalogService.getSchoolDetail(params.id);
+    if (!detail) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    return NextResponse.json(detail, {
+      headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' },
+    });
+  }
+
+  static async getMajorDetail(_req: Request, params: { slug: string }): Promise<Response> {
+    const detail = await catalogService.getMajorDetail(params.slug);
+    if (!detail) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    return NextResponse.json(detail, {
+      headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' },
+    });
+  }
+
   static async getProgramDetail(_req: Request, params: { slug: string }): Promise<Response> {
     const detail = await programService.getBySlug(params.slug);
     if (!detail) return NextResponse.json({ error: "not_found" }, { status: 404 });

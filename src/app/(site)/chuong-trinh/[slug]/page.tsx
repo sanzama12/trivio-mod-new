@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LuBadgeCheck, LuBriefcase, LuCircleCheck, LuClock, LuFileText, LuFlag, LuShieldCheck, LuTrendingUp, LuUsers } from "react-icons/lu";
 import type { AdmissionMethodKey, Program, VerifyField } from "@/domain/types";
-import { ADMISSION_METHODS, cutoffFor, formatMethodScore, programService, SCHOOL_TYPE_LABELS } from "@/services";
+import { ADMISSION_METHODS, catalogService, cutoffFor, formatMethodScore, programService, SCHOOL_TYPE_LABELS } from "@/services";
 import { EstimatedTag } from "@/components/ui/estimated-tag";
 import { CostCalculator } from "@/components/program/cost-calculator";
 import { formatMonthVi, formatScore, formatTuition } from "@/lib/format";
@@ -20,7 +20,6 @@ import { FinanceBlock } from "@/components/program/finance-block";
 import { ReportButton } from "@/components/help/report-drawer";
 import { outcomeSurveyService, SURVEY_MIN_PUBLIC, type SurveyStats } from "@/services/community.service";
 import { verifiedStatus } from "@/services/verification";
-import { repositories } from "@/repositories";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -46,7 +45,7 @@ export default async function ProgramDetailPage({ params }: Props) {
   const latest = program.cutoffs[0];
   const [survey, financialAid] = await Promise.all([
     outcomeSurveyService.stats(program.id),
-    repositories.catalog.findFinancialAid(),
+    catalogService.getFinancialAid(),
   ]);
   const verified = verifiedStatus(program);
   // Từng nhóm số liệu trường xác nhận trên Cổng trường (còn hiệu lực 12 tháng); trường tham gia nhưng chưa xác nhận nhóm này → "chờ trường xác nhận".

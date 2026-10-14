@@ -65,6 +65,10 @@ interface DocumentRow<T> {
   payload: T;
 }
 
+interface DocumentIdRow {
+  id: string;
+}
+
 interface DocumentIndex {
   ownerId?: string | null;
   parentId?: string | null;
@@ -180,6 +184,13 @@ export const postgresAuditRepository: AuditRepository = {
 
 export const postgresProgramAdminRepository: ProgramAdminRepository = {
   getOverride: (programId) => getDocument<ProgramPatch>("program-patch", programId),
+  async listOverrideIds() {
+    const rows = await query<DocumentIdRow>(
+      'SELECT id FROM trovio.app_documents WHERE collection = $1 ORDER BY updated_at DESC LIMIT 10000',
+      ['program-patch'],
+    );
+    return rows.map((row) => row.id);
+  },
   async setOverride(programId, patch, audit) {
     if (patch) await putDocument("program-patch", programId, patch, { parentId: programId });
     else await deleteDocument("program-patch", programId);
