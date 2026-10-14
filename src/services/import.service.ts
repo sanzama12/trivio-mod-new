@@ -280,11 +280,11 @@ const COLUMN_ALIASES: Record<string, ImportColumn> = {
 };
 
 /** Đọc file thành dòng dữ liệu theo tên cột (hỗ trợ tiếng Việt và tiếng Anh). */
-export function readSheet(fileName: string, content: string): { ok: true; rows: ImportRowData[] } | Fail {
+export async function readSheet(fileName: string, content: string): Promise<{ ok: true; rows: ImportRowData[] } | Fail> {
   const lower = fileName.toLowerCase();
   let table: string[][];
   try {
-    if (lower.endsWith(".xlsx")) table = parseXlsx(Buffer.from(content, "base64"));
+    if (lower.endsWith(".xlsx")) table = await parseXlsx(Buffer.from(content, "base64"));
     else if (lower.endsWith(".csv") || lower.endsWith(".txt") || lower.endsWith(".tsv")) table = parseCsv(content);
     else return { ok: false, status: 400, field: "file", message: "Chỉ hỗ trợ file Excel (.xlsx) hoặc CSV (.csv / .tsv / .txt)." };
   } catch (err: unknown) {
@@ -434,7 +434,7 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
   // Thêm tất cả mã xét tuyển hiện có trong database của các trường vào usedCodesInSchool
   for (const p of ctx.programs) {
     const s = ctx.schools.find((x) => x.id === p.schoolId);
-    if (s) {
+    if (s && s.code && p?.admissionCode) {
       usedCodesInSchool.add(`${s.code.toUpperCase()}::${p.admissionCode.toUpperCase()}`);
     }
   }
@@ -510,6 +510,7 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
             (p) =>
               school &&
               p.schoolId === school.id &&
+              p.admissionCode &&
               p.admissionCode.toUpperCase() === baseMajorCode.toUpperCase() &&
               normalizeVi(p.name).toLowerCase() !== normName,
           );
@@ -716,7 +717,7 @@ export const importService = {
     if (typeof content !== "string" || content.length === 0) {
       return { ok: false, status: 400, field: "file", message: "Chọn file để tải lên." };
     }
-    const read = readSheet(fileName, content);
+    const read = await readSheet(fileName, content);
     if (!read.ok) return read;
     return { ok: true, preview: summarize(fileName, validateRows(read.rows, await context())) };
   },

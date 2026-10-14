@@ -45,7 +45,7 @@ interface Props {
   initialRows: UnifiedRowItem[];
 }
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 10 * 1024 * 1024;
 const fileSize = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 function readFile(f: File): Promise<string> {
@@ -363,7 +363,7 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
       return setFileErr("Tệp .xls (Excel 97-2003 cũ) không được hỗ trợ trực tiếp. Vui lòng mở tệp trong Excel và chọn 'Save As' dạng .xlsx hoặc .csv rồi tải lại.");
     }
     if (!/\.(csv|xlsx|tsv|txt)$/i.test(f.name)) return setFileErr("Chỉ hỗ trợ tệp Excel (.xlsx) hoặc CSV (.csv / .tsv / .txt).");
-    if (f.size > MAX_BYTES) return setFileErr("Tệp lớn hơn 2 MB.");
+    if (f.size > MAX_BYTES) return setFileErr("Tệp lớn hơn 10 MB.");
 
     let content: string;
     try {

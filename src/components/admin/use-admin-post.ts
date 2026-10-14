@@ -16,7 +16,7 @@ export function useAdminPost() {
       setBusy(true);
       try {
         const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        const data = (await res.json().catch(() => ({ ok: false, message: "Phản hồi không hợp lệ." }))) as PostResult;
+        const data = (await res.json().catch(() => ({ ok: false, message: `Máy chủ trả về mã lỗi HTTP ${res.status}.` }))) as PostResult;
         if (res.status === 401) {
           toast("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.", "warning");
           return { ok: false, message: "Phiên đã hết." };

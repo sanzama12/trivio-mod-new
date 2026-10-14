@@ -220,7 +220,7 @@ export const unifiedEntryService = {
     // Nếu trong trường đã có chương trình mang mã này nhưng tên khác, tự động sinh mã phân biệt: 2-..., 3-...
     let finalAdmissionCode = admissionCode;
     let codeSuffix = 2;
-    while (allPrograms.some((p) => p.schoolId === school.id && p.id !== existingProgram?.id && p.admissionCode.toUpperCase() === finalAdmissionCode.toUpperCase())) {
+    while (allPrograms.some((p) => p.schoolId === school.id && p.id !== existingProgram?.id && p.admissionCode && p.admissionCode.toUpperCase() === finalAdmissionCode.toUpperCase())) {
       finalAdmissionCode = `${codeSuffix}-${admissionCode.replace(/^\d+-/, "")}`;
       codeSuffix++;
     }

@@ -139,9 +139,9 @@ test("A07: đọc CSV/XLSX, lỗi & cảnh báo theo dòng, công bố bỏ qua 
   assert.ok((await importService.history()).length >= 1);
   // XLSX tối giản (zip deflate) đọc được chuỗi dùng chung.
   const xlsx = makeXlsx([["ma_xet_tuyen", "ma_truong", "nam", "diem_chuan"], ["7340115", "KHA", "2026", "27"]]);
-  assert.deepEqual(parseXlsx(xlsx)[1], ["7340115", "KHA", "2026", "27"]);
-  assert.ok(readSheet("a.xlsx", xlsx.toString("base64")).ok);
-  assert.equal(readSheet("a.pdf", "x").ok, false);
+  assert.deepEqual((await parseXlsx(xlsx))[1], ["7340115", "KHA", "2026", "27"]);
+  assert.ok((await readSheet("a.xlsx", xlsx.toString("base64"))).ok);
+  assert.equal((await readSheet("a.pdf", "x")).ok, false);
 });
 
 test("A08: khoá tài khoản chặn đăng nhập & thu hồi phiên, không tự khoá/xoá mình, cấp kiểm duyệt viên", async () => {

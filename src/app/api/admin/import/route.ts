@@ -22,20 +22,26 @@ export async function GET(req: Request) {
  * { step: "revalidate" | "publish", fileName, rows }
  */
 export async function POST(req: Request) {
-  const { user, error } = await requireAdmin();
-  if (error) return error;
-  const wait = rateLimit(`import:${user.id}`, 40, 600);
-  if (wait) return tooMany(wait);
-  const parsed = await jsonBody<Record<string, unknown>>(req, 3 * 1024 * 1024);
-  if (parsed.error) return parsed.error;
-  const b = parsed.body ?? {};
-  const res =
-    b.step === "preview"
-      ? await importService.previewFile(b.fileName, b.content)
-      : b.step === "revalidate"
-        ? await importService.revalidate(b.fileName, b.rows)
-        : b.step === "publish"
-          ? await importService.publish(user, b.fileName, b.rows)
-          : ({ ok: false, status: 400, message: "Thao tác không hợp lệ." } as const);
-  return NextResponse.json(res, { status: res.ok ? 200 : res.status });
+  try {
+    const { user, error } = await requireAdmin();
+    if (error) return error;
+    const wait = rateLimit(`import:${user.id}`, 40, 600);
+    if (wait) return tooMany(wait);
+    const parsed = await jsonBody<Record<string, unknown>>(req, 10 * 1024 * 1024);
+    if (parsed.error) return parsed.error;
+    const b = parsed.body ?? {};
+    const res =
+      b.step === "preview"
+        ? await importService.previewFile(b.fileName, b.content)
+        : b.step === "revalidate"
+          ? await importService.revalidate(b.fileName, b.rows)
+          : b.step === "publish"
+            ? await importService.publish(user, b.fileName, b.rows)
+            : ({ ok: false, status: 400, message: "Thao tác không hợp lệ." } as const);
+    return NextResponse.json(res, { status: res.ok ? 200 : res.status });
+  } catch (err: unknown) {
+    console.error("[api/admin/import] Error:", err);
+    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi khi xử lý dữ liệu tải lên.";
+    return NextResponse.json({ ok: false, status: 500, message: `Lỗi hệ thống: ${message}` }, { status: 500 });
+  }
 }

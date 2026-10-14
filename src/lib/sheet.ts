@@ -5,6 +5,7 @@
  * Có giới hạn kích thước giải nén để tránh "zip bomb".
  */
 import { inflateRawSync } from "node:zlib";
+import ExcelJS from "exceljs";
 
 export const MAX_SHEET_ROWS = 2000;
 const MAX_UNZIPPED = 8 * 1024 * 1024;
@@ -126,7 +127,60 @@ const colIndex = (ref: string) => {
 
 const cleanXml = (xml: string) => xml.replace(/<(\/)?([a-zA-Z0-9]+:)([a-zA-Z0-9_]+)/g, "<$1$3");
 
-export function parseXlsx(buf: Buffer): string[][] {
+export async function parseXlsx(buf: Buffer): Promise<string[][]> {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await workbook.xlsx.load(buf as any);
+
+    // Tìm sheet đầu tiên có dữ liệu
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) throw new Error("no-sheet");
+
+    const rows: string[][] = [];
+    worksheet.eachRow({ includeEmpty: false }, (row) => {
+      if (rows.length > MAX_SHEET_ROWS) return;
+      const values: string[] = [];
+      const cellCount = Math.max(row.cellCount || 0, row.actualCellCount || 0, 15);
+      for (let col = 1; col <= cellCount; col++) {
+        const cell = row.getCell(col);
+        let text = "";
+        if (cell.value != null) {
+          if (typeof cell.value === "object") {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const v = cell.value as any;
+            if (v.result != null) {
+              text = String(v.result);
+            } else if (Array.isArray(v.richText)) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              text = v.richText.map((t: any) => t.text || "").join("");
+            } else if (typeof v.text === "string") {
+              text = v.text;
+            } else if (cell.value instanceof Date) {
+              text = cell.value.toISOString();
+            } else {
+              text = String(cell.text || cell.value);
+            }
+          } else {
+            text = String(cell.value);
+          }
+        }
+        values.push(text.trim());
+      }
+      if (values.some((v) => v !== "")) {
+        rows.push(values);
+      }
+    });
+
+    if (rows.length > 0) return rows;
+  } catch (e) {
+    console.warn("[ExcelJS] Parse error, trying fallback parser:", e);
+  }
+
+  return parseXlsxFallback(buf);
+}
+
+function parseXlsxFallback(buf: Buffer): string[][] {
   const files = unzip(buf, (_, lower) => {
     return lower === "xl/sharedstrings.xml" || /worksheets\/[^\/]+\.xml$/.test(lower) || lower === "xl/workbook.xml";
   });
