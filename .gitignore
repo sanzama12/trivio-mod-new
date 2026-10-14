@@ -9,3 +9,5 @@ next-env.d.ts
 .data
 dev.log
 .worktrees
+
+.vercel

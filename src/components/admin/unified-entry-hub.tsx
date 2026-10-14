@@ -104,6 +104,29 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [confirmPublish, setConfirmPublish] = useState(false);
 
+  // Thông báo cập nhật bản ghi trùng hoặc thêm mới
+  const [updateNotice, setUpdateNotice] = useState<{
+    type: "update" | "create";
+    title: string;
+    message: string;
+    details?: string[];
+  } | null>(null);
+
+  // Phát hiện trùng ngành theo thời gian thực (Real-time duplicate detection)
+  const duplicateMajor = useMemo(() => {
+    if (!form.schoolCode.trim() || !form.majorName.trim() || form.id) return null;
+    const sCode = form.schoolCode.trim().toUpperCase();
+    const normMName = normalizeVi(form.majorName.trim()).toLowerCase();
+    const aCode = form.admissionCode.trim().toUpperCase();
+
+    return rows.find((r) => {
+      if (r.schoolCode.toUpperCase() !== sCode) return false;
+      if (normalizeVi(r.majorName).toLowerCase() === normMName) return true;
+      if (aCode && r.admissionCode.toUpperCase() === aCode) return true;
+      return false;
+    });
+  }, [form.schoolCode, form.majorName, form.admissionCode, form.id, rows]);
+
   // Bộ lọc cho Tab Danh sách
   const [filterStatus, setFilterStatus] = useState<"all" | "missing_score" | "missing_tuition" | "complete">("all");
   const [searchQ, setSearchQ] = useState("");
@@ -217,7 +240,23 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
         return;
       }
 
-      toast(data.message || "Đã lưu thành công!", "success");
+      // Thông báo cập nhật bản ghi trùng hoặc thêm mới
+      if (data.isDuplicate || data.action === "updated") {
+        toast(data.message || "Đã cập nhật thành công ngành trùng của trường!", "info");
+        setUpdateNotice({
+          type: "update",
+          title: "Thông báo cập nhật ngành trùng",
+          message: data.message || `Đã cập nhật thành công điểm chuẩn và thông tin cho ngành "${payload.majorName}" của trường ${payload.schoolCode}!`,
+        });
+      } else {
+        toast(data.message || "Đã lưu thành công!", "success");
+        setUpdateNotice({
+          type: "create",
+          title: "Thêm mới thành công",
+          message: data.message || `Đã thêm mới ngành "${payload.majorName}" vào trường ${payload.schoolCode}.`,
+        });
+      }
+
       resetForm();
       setDrawerOpen(false);
       await reloadData();
@@ -318,7 +357,27 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
     );
     setConfirmPublish(false);
     if (res.ok) {
-      toast(`Công bố thành công: ${res.created} chương trình mới, ${res.updated} cập nhật.`, "success");
+      const updatedCount = Number(res.updated) || 0;
+      const createdCount = Number(res.created) || 0;
+      const updatedPrograms = (res.updatedPrograms as string[]) || [];
+
+      if (updatedCount > 0) {
+        toast(`🔔 ĐÃ CẬP NHẬT: ${updatedCount} ngành trùng của trường đã được cập nhật thành công! (Tạo mới: ${createdCount})`, "info");
+        setUpdateNotice({
+          type: "update",
+          title: "Thông báo cập nhật ngành trùng từ File",
+          message: `Hệ thống đã tự động phát hiện và cập nhật dữ liệu điểm chuẩn/thông tin cho ${updatedCount} ngành trùng của các trường, đồng thời tạo mới ${createdCount} ngành.`,
+          details: updatedPrograms,
+        });
+      } else {
+        toast(`Công bố thành công: ${createdCount} chương trình mới.`, "success");
+        setUpdateNotice({
+          type: "create",
+          title: "Công bố dữ liệu thành công",
+          message: `Đã nạp thành công ${createdCount} chương trình đào tạo mới vào hệ thống.`,
+        });
+      }
+
       setFile(null);
       setPreview(null);
       await reloadData();
@@ -328,6 +387,48 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
 
   return (
     <div className="space-y-6">
+      {/* ── Banner Thông báo Cập nhật ngành trùng / Thêm mới ─────────────── */}
+      {updateNotice && (
+        <div
+          className={cn(
+            "flex items-start justify-between gap-3 rounded-2xl p-4 shadow-sm border animate-fadeIn",
+            updateNotice.type === "update"
+              ? "border-amber-300 bg-amber-50 text-amber-950"
+              : "border-emerald-300 bg-emerald-50 text-emerald-950",
+          )}
+        >
+          <div className="flex items-start gap-3">
+            {updateNotice.type === "update" ? (
+              <LuTriangleAlert className="size-5 shrink-0 text-amber-600 mt-0.5" />
+            ) : (
+              <LuCheck className="size-5 shrink-0 text-emerald-600 mt-0.5" />
+            )}
+            <div>
+              <p className="font-bold text-sm">{updateNotice.title}</p>
+              <p className="mt-0.5 text-xs text-slate-700">{updateNotice.message}</p>
+              {updateNotice.details && updateNotice.details.length > 0 && (
+                <div className="mt-2 rounded-lg border border-amber-200 bg-white/80 p-2.5 text-xs text-slate-800">
+                  <span className="font-bold text-amber-900">Chi tiết ngành đã cập nhật ({updateNotice.details.length}):</span>
+                  <ul className="mt-1 list-disc list-inside space-y-0.5 max-h-32 overflow-y-auto font-mono text-[11px] text-slate-700">
+                    {updateNotice.details.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUpdateNotice(null)}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-black/5"
+            aria-label="Đóng thông báo"
+          >
+            <LuX className="size-4" />
+          </button>
+        </div>
+      )}
+
       {/* ── Thống kê tổng quan ────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <div
@@ -612,6 +713,28 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                   <p className="mt-1 text-[11px] text-slate-400">Để trống hệ thống sẽ tự sinh mã.</p>
                 </div>
               </div>
+
+              {/* Báo trùng ngành của trường nếu phát hiện */}
+              {duplicateMajor && !form.id && (
+                <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 shadow-sm">
+                  <LuTriangleAlert className="size-5 shrink-0 text-amber-600 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-900">
+                      ⚠️ BÁO TRÙNG NGÀNH: Trường {duplicateMajor.schoolName || duplicateMajor.schoolCode} đã có ngành "{duplicateMajor.majorName}"!
+                    </p>
+                    <p className="text-amber-800">
+                      • Mã xét tuyển hiện tại: <span className="font-mono font-bold text-amber-950">{duplicateMajor.admissionCode}</span>
+                      {" · "}
+                      • Điểm chuẩn hiện tại: <span className="font-bold text-amber-950">{duplicateMajor.latestScore != null ? duplicateMajor.latestScore : "Chưa có"}</span>
+                      {" · "}
+                      • Cơ sở: <span>{duplicateMajor.campus || duplicateMajor.schoolCity}</span>
+                    </p>
+                    <p className="font-medium text-amber-800/90">
+                      👉 <strong>Cơ chế cập nhật:</strong> Khi bạn bấm <strong>Cập nhật ngành trùng này</strong>, hệ thống sẽ <strong>tự động CẬP NHẬT</strong> điểm chuẩn ({form.score.trim() || "giữ nguyên"}) và các thông tin mới cho ngành này, đồng thời hiện thông báo xác nhận cập nhật thành công (không tạo bản ghi dư thừa).
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 3. Phần Điểm chuẩn & Học phí */}
@@ -692,7 +815,11 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                 Hủy bỏ
               </Button>
               <Button type="submit" disabled={busy} className="px-6 py-2.5 font-bold">
-                {busy ? "Đang lưu..." : "Lưu dữ liệu vào hệ thống ✓"}
+                {busy
+                  ? "Đang lưu..."
+                  : duplicateMajor && !form.id
+                    ? "Cập nhật ngành trùng này ✓"
+                    : "Lưu dữ liệu vào hệ thống ✓"}
               </Button>
             </div>
           </form>
@@ -839,13 +966,24 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
             <Panel className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-base font-bold text-slate-900">Kết quả xem trước ({preview.summary.total} dòng)</h3>
-                <div className="flex gap-2 text-xs font-bold">
-                  <span className="rounded-md bg-success-50 px-2.5 py-1 text-success-700">{preview.summary.valid} dòng sẵn sàng ✓</span>
+                <div className="flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="rounded-md bg-success-50 px-2.5 py-1 text-success-700 border border-success-200">
+                    {preview.summary.create} ngành mới ✨
+                  </span>
+                  {preview.summary.update > 0 && (
+                    <span className="rounded-md bg-amber-100 px-2.5 py-1 text-amber-900 border border-amber-300">
+                      ⚠️ {preview.summary.update} ngành trùng (sẽ cập nhật)
+                    </span>
+                  )}
                   {preview.summary.warnings > 0 && (
-                    <span className="rounded-md bg-amber-50 px-2.5 py-1 text-amber-700">{preview.summary.warnings} dòng chờ bổ sung ⚠</span>
+                    <span className="rounded-md bg-amber-50 px-2.5 py-1 text-amber-700 border border-amber-200">
+                      {preview.summary.warnings} dòng chờ bổ sung
+                    </span>
                   )}
                   {preview.summary.errors > 0 && (
-                    <span className="rounded-md bg-danger-50 px-2.5 py-1 text-danger-700">{preview.summary.errors} lỗi cần sửa ✗</span>
+                    <span className="rounded-md bg-danger-50 px-2.5 py-1 text-danger-700 border border-danger-200">
+                      {preview.summary.errors} lỗi cần sửa ✗
+                    </span>
                   )}
                 </div>
               </div>
@@ -865,8 +1003,18 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                   <tbody className="divide-y divide-slate-100">
                     {preview.rows.slice(0, 50).map((r, i) => {
                       const hasErr = r.errors.length > 0;
+                      const isDupUpdate = r.action === "update";
                       return (
-                        <tr key={i} className={hasErr ? "bg-danger-50/40" : "hover:bg-slate-50"}>
+                        <tr
+                          key={i}
+                          className={cn(
+                            hasErr
+                              ? "bg-danger-50/40"
+                              : isDupUpdate
+                                ? "bg-amber-50/40 hover:bg-amber-50/70"
+                                : "hover:bg-slate-50",
+                          )}
+                        >
                           <td className={td}>{r.line}</td>
                           <td className={td}>
                             <span className="font-bold text-slate-900">{r.data.ma_truong}</span>
@@ -892,9 +1040,25 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                           </td>
                           <td className={td}>
                             {hasErr ? (
-                              <span className="text-danger-700">{r.errors.map((e) => e.message).join(", ")}</span>
+                              <span className="font-semibold text-danger-700">{r.errors.map((e) => e.message).join(", ")}</span>
+                            ) : isDupUpdate ? (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 border border-amber-300">
+                                  <LuTriangleAlert className="size-3 text-amber-600" /> Báo trùng ngành (Sẽ cập nhật)
+                                </span>
+                                <span className="block text-[10px] text-amber-700">
+                                  Đã có ở trường → Cập nhật điểm/thông tin
+                                </span>
+                              </div>
                             ) : (
-                              <span className="text-success-700">Hợp lệ ✓</span>
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900 border border-emerald-300">
+                                  <LuPlus className="size-3 text-emerald-600" /> Ngành mới
+                                </span>
+                                <span className="block text-[10px] text-emerald-700">
+                                  Sẵn sàng tạo mới
+                                </span>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -923,19 +1087,47 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
           <Dialog
             open={confirmPublish}
             onClose={() => setConfirmPublish(false)}
-            title="Xác nhận công bố dữ liệu vào hệ thống"
-            subtitle="Dữ liệu các trường, ngành, điểm và học phí sẽ được đồng bộ ngay."
+            title="Xác nhận lưu & nạp dữ liệu vào hệ thống"
+            subtitle="Hệ thống đã tự động kiểm tra và phân loại ngành mới / ngành trùng."
             footer={
               <>
                 <Button variant="outline" onClick={() => setConfirmPublish(false)}>
                   Quay lại
                 </Button>
                 <Button onClick={handlePublishFile} disabled={busy} className="font-bold">
-                  {busy ? "Đang lưu..." : "Đồng ý công bố"}
+                  {busy ? "Đang xử lý..." : "Đồng ý nạp & cập nhật"}
                 </Button>
               </>
             }
-          />
+          >
+            {preview && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <span className="font-bold text-emerald-800">✨ Ngành hoàn toàn mới:</span>
+                    <p className="mt-1 text-2xl font-bold text-emerald-900">{preview.summary.create}</p>
+                    <p className="text-emerald-700">Sẽ tạo mới chương trình đào tạo.</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <span className="font-bold text-amber-800">⚠️ Ngành trùng trường:</span>
+                    <p className="mt-1 text-2xl font-bold text-amber-900">{preview.summary.update}</p>
+                    <p className="text-amber-700">Sẽ cập nhật điểm chuẩn & thông tin.</p>
+                  </div>
+                </div>
+                {preview.summary.update > 0 && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3 text-xs text-amber-900">
+                    <p className="font-bold flex items-center gap-1.5">
+                      <LuTriangleAlert className="size-4 text-amber-600 shrink-0" />
+                      Thông báo cập nhật bản ghi trùng:
+                    </p>
+                    <p className="mt-1">
+                      Phát hiện <strong>{preview.summary.update}</strong> ngành trùng với các ngành đã có trong trường. Khi bạn đồng ý, hệ thống sẽ <strong>cập nhật điểm chuẩn và thông tin mới</strong> cho các ngành này (không tạo trùng lặp).
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </Dialog>
         </div>
       )}
 

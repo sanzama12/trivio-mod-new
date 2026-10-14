@@ -229,12 +229,45 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
       errors.push({ field: "diem_chuan", message: "Điểm chuẩn > 30 (thang 30)" });
     }
 
-    const existing = school && code ? ctx.programs.find((p) => p.schoolId === school.id && p.admissionCode.toUpperCase() === code) : undefined;
-    const key = `${school?.id ?? data.ma_truong}::${code}::${y}`;
-    if (code && seen.has(key)) {
-      errors.push({ field: "row", message: `Trùng với dòng ${seen.get(key)} (cùng trường, mã, năm)` });
+    // Tìm ngành đã có trong trường (Báo trùng ngành của trường đó)
+    let existing = school && code ? ctx.programs.find((p) => p.schoolId === school.id && p.admissionCode.toUpperCase() === code) : undefined;
+    
+    // Nếu chưa khớp mã xét tuyển, kiểm tra theo tên ngành / tên chương trình trong trường đó
+    if (!existing && school && data.ten_chuong_trinh) {
+      const normInputName = normalizeVi(data.ten_chuong_trinh).toLowerCase();
+      existing = ctx.programs.find((p) => {
+        if (p.schoolId !== school.id) return false;
+        if (normalizeVi(p.name).toLowerCase() === normInputName) return true;
+        const m = ctx.majors.find((maj) => maj.id === p.majorId);
+        return Boolean(m && normalizeVi(m.name).toLowerCase() === normInputName);
+      });
+    }
+
+    // Nếu có mã ngành, kiểm tra xem trường đã có ngành này chưa
+    if (!existing && school && data.ma_nganh) {
+      const mCode = data.ma_nganh.trim();
+      existing = ctx.programs.find((p) => {
+        if (p.schoolId !== school.id) return false;
+        const m = ctx.majors.find((maj) => maj.id === p.majorId);
+        return Boolean(m && m.code === mCode);
+      });
+    }
+
+    // Báo trùng ngành của trường: ghi nhận cảnh báo và chỉ định cập nhật thay vì tạo mới
+    if (existing) {
+      warnings.push({
+        field: "ten_chuong_trinh",
+        message: `Trùng ngành đã có của trường "${school?.shortName || school?.name || data.ma_truong}": "${existing.name}" (Mã: ${existing.admissionCode}). Hệ thống sẽ cập nhật thông tin và điểm chuẩn mới.`,
+      });
+    }
+
+    // Kiểm tra trùng dòng nội bộ trong cùng file (cùng trường, cùng ngành/mã, cùng năm)
+    const normName = data.ten_chuong_trinh ? normalizeVi(data.ten_chuong_trinh).toLowerCase() : "";
+    const dedupeKey = `${school?.id ?? data.ma_truong.toUpperCase()}::${code || normName}::${y}`;
+    if ((code || normName) && seen.has(dedupeKey)) {
+      errors.push({ field: "row", message: `Trùng ngành với dòng ${seen.get(dedupeKey)} trong file (cùng trường, cùng ngành/mã xét tuyển, năm ${y})` });
     } else {
-      seen.set(key, i + 2);
+      seen.set(dedupeKey, i + 2);
     }
 
     const tMin = num(data.hoc_phi_min);
@@ -297,7 +330,7 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
       action: ok ? (existing ? "update" : "create") : null,
       programId: existing?.id ?? null,
       label: existing
-        ? `${existing.name} – ${school?.shortName ?? ""}`
+        ? `${existing.name} – ${school?.shortName || school?.code || ""} (Trùng ngành - Sẽ cập nhật)`
         : major && school
           ? `${data.ten_chuong_trinh || major.name} – ${school.shortName}`
           : data.ten_chuong_trinh || code,
@@ -342,7 +375,7 @@ export const importService = {
   },
 
   /** Công bố các dòng hợp lệ. Hỗ trợ tự tạo trường/ngành mới và chấp nhận thiếu điểm/học phí. */
-  async publish(actor: PublicUser, fileNameInput: unknown, rowsInput: unknown): Promise<{ ok: true; created: number; updated: number; batchId: string } | Fail> {
+  async publish(actor: PublicUser, fileNameInput: unknown, rowsInput: unknown): Promise<{ ok: true; created: number; updated: number; batchId: string; updatedPrograms?: string[]; message?: string } | Fail> {
     const check = await this.revalidate(fileNameInput, rowsInput);
     if (!check.ok) return check;
     const { preview } = check;
@@ -362,10 +395,13 @@ export const importService = {
       (r.action === "update" ? updates : creates).set(key, [...((r.action === "update" ? updates : creates).get(key) ?? []), r]);
     }
 
-    // Cập nhật các chương trình đã có
+    const updatedPrograms: string[] = [];
+
+    // Cập nhật các chương trình đã có (báo trùng và cập nhật)
     for (const [programId, rows] of updates) {
       const p = await repositories.catalogAdmin.getProgram(programId);
       if (!p) continue;
+      const school = await repositories.schools.findById(p.schoolId);
 
       const patch: Partial<Program> = {};
       const changes: { field: string; before: string; after: string }[] = [];
@@ -424,6 +460,8 @@ export const importService = {
         changes: changes.length ? changes.map((c) => ({ ...c, field: `[Nhập file] ${c.field}` })) : [{ field: "[Nhập file] Cập nhật", before: "—", after: "Đã lưu" }],
       });
       updated++;
+      const sName = school ? (school.shortName || school.code) : p.schoolId;
+      updatedPrograms.push(`${p.name} (${sName})`);
     }
 
     // Tạo mới các chương trình
@@ -476,7 +514,16 @@ export const importService = {
       changes: [{ field: `Công bố "${batch.fileName}"`, before: `${preview.summary.total} dòng`, after: `${created} mới, ${updated} cập nhật` }],
     });
 
-    return { ok: true, created, updated, batchId: batch.id };
+    return {
+      ok: true,
+      created,
+      updated,
+      batchId: batch.id,
+      updatedPrograms,
+      message: updated > 0
+        ? `Đã cập nhật ${updated} ngành trùng của trường và tạo mới ${created} ngành thành công!`
+        : `Đã công bố thành công ${created} ngành mới!`,
+    };
   },
 
   history: (limit = 20) => repositories.importBatches.list(limit),

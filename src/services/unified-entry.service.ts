@@ -186,7 +186,7 @@ export const unifiedEntryService = {
     const allPrograms = await repositories.catalogAdmin.listPrograms();
     const admissionCode = str(input.admissionCode, 20).toUpperCase() || (rawMajorCode ? rawMajorCode.toUpperCase() : slugify(rawMajorName).toUpperCase());
     
-    // Tìm chương trình đã có
+    // Tìm chương trình đã có trong trường (khớp mã xét tuyển, mã ngành hoặc tên ngành)
     let existingProgram = input.id ? allPrograms.find((p) => p.id === input.id) : null;
     if (!existingProgram) {
       existingProgram = allPrograms.find((p) => p.schoolId === school.id && p.admissionCode.toUpperCase() === admissionCode) ?? null;
@@ -194,6 +194,12 @@ export const unifiedEntryService = {
     if (!existingProgram) {
       existingProgram = allPrograms.find((p) => p.schoolId === school.id && p.majorId === major.id) ?? null;
     }
+    if (!existingProgram && rawMajorName) {
+      const normInputName = normalizeVi(rawMajorName).toLowerCase();
+      existingProgram = allPrograms.find((p) => p.schoolId === school.id && normalizeVi(p.name).toLowerCase() === normInputName) ?? null;
+    }
+
+    const isDuplicate = Boolean(existingProgram && !input.id);
 
     // Xử lý điểm chuẩn (nếu có; nếu null/trống thì lưu [] hoặc giữ nguyên)
     const scoreVal = cleanNum(input.score);
@@ -247,17 +253,24 @@ export const unifiedEntryService = {
         changes: [{ field: "Cập nhật tích hợp", before: "—", after: `${school.code} · ${rawMajorName}` }],
       });
 
+      const scoreNote = scoreVal != null ? `điểm chuẩn ${targetYear}: ${scoreVal}` : "giữ nguyên điểm chuẩn";
       return {
         ok: true,
         action: "updated" as const,
+        isDuplicate,
         programId: existingProgram.id,
         schoolId: school.id,
-        majorId: major.id,
+        schoolName: school.name,
+        schoolCode: school.code,
+        majorName: rawMajorName,
+        admissionCode: existingProgram.admissionCode,
         isNewSchool,
         isNewMajor,
         hasScore: scoreVal != null || updatedCutoffs.length > 0,
         hasTuition: tMin > 0,
-        message: `Đã cập nhật ngành "${rawMajorName}" của ${school.shortName || school.code}.`,
+        message: isDuplicate
+          ? `Báo trùng ngành: Trường ${school.shortName || school.code} đã có ngành "${existingProgram.name}" (Mã: ${existingProgram.admissionCode}) → Đã cập nhật thành công ${scoreNote} & thông tin mới!`
+          : `Đã cập nhật ngành "${rawMajorName}" của ${school.shortName || school.code}.`,
       };
     } else {
       // ── Tạo chương trình mới ─────────────────────────────────────────────────
@@ -315,9 +328,13 @@ export const unifiedEntryService = {
       return {
         ok: true,
         action: "created" as const,
+        isDuplicate: false,
         programId,
         schoolId: school.id,
-        majorId: major.id,
+        schoolName: school.name,
+        schoolCode: school.code,
+        majorName: rawMajorName,
+        admissionCode,
         isNewSchool,
         isNewMajor,
         hasScore: scoreVal != null,
