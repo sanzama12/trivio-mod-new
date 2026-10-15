@@ -7,7 +7,7 @@
 import { inflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
 
-export const MAX_SHEET_ROWS = 2000;
+export const MAX_SHEET_ROWS = 20000;
 const MAX_UNZIPPED = 8 * 1024 * 1024;
 
 export function parseCsv(text: string): string[][] {

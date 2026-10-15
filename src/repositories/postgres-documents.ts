@@ -69,6 +69,11 @@ interface DocumentIdRow {
   id: string;
 }
 
+interface DocumentPayloadRow<T> {
+  id: string;
+  payload: T;
+}
+
 interface DocumentIndex {
   ownerId?: string | null;
   parentId?: string | null;
@@ -184,6 +189,16 @@ export const postgresAuditRepository: AuditRepository = {
 
 export const postgresProgramAdminRepository: ProgramAdminRepository = {
   getOverride: (programId) => getDocument<ProgramPatch>("program-patch", programId),
+  async getOverrides(programIds) {
+    if (programIds.length === 0) return new Map();
+    const rows = await query<DocumentPayloadRow<ProgramPatch>>(
+      `SELECT id, payload
+       FROM trovio.app_documents
+       WHERE collection = 'program-patch' AND id = ANY($1::text[])`,
+      [programIds],
+    );
+    return new Map(rows.map((row) => [row.id, row.payload]));
+  },
   async listOverrideIds() {
     const rows = await query<DocumentIdRow>(
       'SELECT id FROM trovio.app_documents WHERE collection = $1 ORDER BY updated_at DESC LIMIT 10000',
@@ -195,6 +210,36 @@ export const postgresProgramAdminRepository: ProgramAdminRepository = {
     if (patch) await putDocument("program-patch", programId, patch, { parentId: programId });
     else await deleteDocument("program-patch", programId);
     await postgresAuditRepository.append(audit);
+  },
+  async setOverridesBatch(entries) {
+    if (entries.length === 0) return;
+    await query(
+      `WITH items AS MATERIALIZED (
+         SELECT item FROM jsonb_array_elements($1::jsonb) AS data(item)
+       ), upsert_patches AS (
+         INSERT INTO trovio.app_documents (collection, id, owner_id, parent_id, status, payload)
+         SELECT 'program-patch', item->>'programId', NULL, item->>'programId', NULL, item->'patch'
+         FROM items
+         ON CONFLICT (collection, id) DO UPDATE SET
+           owner_id = EXCLUDED.owner_id,
+           parent_id = EXCLUDED.parent_id,
+           status = EXCLUDED.status,
+           payload = EXCLUDED.payload,
+           updated_at = now()
+         RETURNING id
+       )
+       INSERT INTO trovio.app_documents (collection, id, owner_id, parent_id, status, payload)
+       SELECT 'audit', item->'audit'->>'id', item->'audit'->>'actorId', item->'audit'->>'programId',
+              COALESCE(item->'audit'->>'targetType', 'program'), item->'audit'
+       FROM items
+       ON CONFLICT (collection, id) DO UPDATE SET
+         owner_id = EXCLUDED.owner_id,
+         parent_id = EXCLUDED.parent_id,
+         status = EXCLUDED.status,
+         payload = EXCLUDED.payload,
+         updated_at = now()`,
+      [JSON.stringify(entries)],
+    );
   },
   listAudit: (limit = 50) => postgresAuditRepository.list(limit, { targetType: "program" }),
 };

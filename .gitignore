@@ -11,3 +11,5 @@ dev.log
 .worktrees
 
 .vercel
+scratch
+.claude

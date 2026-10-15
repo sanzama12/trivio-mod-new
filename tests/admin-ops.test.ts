@@ -131,11 +131,12 @@ test("A07: đọc CSV/XLSX, lỗi & cảnh báo theo dòng, công bố bỏ qua 
   const rows = pv.preview.rows;
   assert.equal(rows[1].errors[0].message, "Thiếu mã xét tuyển");
   assert.ok(rows[2].errors.some((e) => e.message.includes("> 30")));
-  assert.ok(rows[3].errors.some((e) => e.field === "ma_truong"));
+  assert.equal(rows[3].errors.length, 0, "trường mới chỉ có mã vẫn được tạo tạm để bổ sung sau");
+  assert.ok(rows[3].warnings.some((w) => w.field === "ma_truong"));
   assert.ok(rows[4].warnings.some((w) => w.message.includes("chưa chính thức")));
   const pub = await importService.publish(admin, "diem.csv", rows.map((r) => r.data));
   assert.ok(pub.ok);
-  assert.equal(pub.ok && pub.created, 1);
+  assert.equal(pub.ok && pub.created, 2);
   assert.ok((await importService.history()).length >= 1);
   // XLSX tối giản (zip deflate) đọc được chuỗi dùng chung.
   const xlsx = makeXlsx([["ma_xet_tuyen", "ma_truong", "nam", "diem_chuan"], ["7340115", "KHA", "2026", "27"]]);

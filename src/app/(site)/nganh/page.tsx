@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LuArrowRight, LuBookOpen, LuSearch } from "react-icons/lu";
+import { LuArrowRight, LuBookOpen } from "react-icons/lu";
 import { catalogService } from "@/services";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { buttonClass } from "@/components/ui/button";
 import { Card, SectionHeading } from "@/components/ui/card";
 import { GroupIcon } from "@/components/ui/group-icon";
 import { Breadcrumb, EmptyState } from "@/components/ui/misc";
+import { MajorSchoolSearch } from "@/components/catalog/major-school-search";
 
 export const metadata: Metadata = { title: "Khám phá ngành học" };
 
@@ -20,7 +21,7 @@ export default async function MajorsPage({ searchParams }: Props) {
   const group = sp.group || undefined;
   const q = sp.q?.trim() || undefined;
   const letter = sp.letter || undefined;
-  const [groups, items] = await Promise.all([catalogService.getGroupsWithCounts(), catalogService.listMajors({ group, q, letter })]);
+  const [groups, items, schools] = await Promise.all([catalogService.getGroupsWithCounts(), catalogService.listMajors({ group, q, letter }), catalogService.listSchools()]);
   const qs = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ group, q, letter, ...patch }).filter(([, v]) => v) as [string, string][]);
     const s = p.toString();
@@ -36,14 +37,19 @@ export default async function MajorsPage({ searchParams }: Props) {
             <span className="inline-flex rounded-full bg-primary-600 px-3 py-1 text-[11px] font-bold tracking-wider text-white uppercase">Hệ thống phân loại ngành đào tạo</span>
             <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">Khám phá ngành học</h1>
             <p className="mx-auto mt-3 max-w-2xl text-slate-600">Tìm hiểu chi tiết về các ngành đào tạo tại Việt Nam, nhu cầu thị trường và cơ hội việc làm tương lai.</p>
-            <form action="/nganh" role="search" className="mx-auto mt-7 flex max-w-xl items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
-              <LuSearch className="ml-3 size-5 text-slate-400" aria-hidden />
-              <label htmlFor="m-q" className="sr-only">
-                Tìm ngành
-              </label>
-              <input id="m-q" name="q" defaultValue={q} placeholder="Tìm theo tên ngành hoặc mã ngành…" className="h-11 min-w-0 flex-1 bg-transparent focus:outline-none" />
-              <button className={buttonClass()}>Tìm kiếm</button>
-            </form>
+            <MajorSchoolSearch
+              defaultQuery={q}
+              schools={schools.map((s) => ({
+                id: s.id,
+                slug: s.slug,
+                name: s.name,
+                shortName: s.shortName,
+                code: s.code,
+                city: s.city,
+                region: s.region,
+                type: s.type,
+              }))}
+            />
           </div>
         </div>
       </section>

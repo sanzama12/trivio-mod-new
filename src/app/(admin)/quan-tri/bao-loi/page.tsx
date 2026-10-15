@@ -10,7 +10,7 @@ import { ReportQueue } from "@/components/admin/report-queue";
 export const metadata: Metadata = { title: "Báo lỗi dữ liệu", robots: { index: false, follow: false } };
 
 export default async function AdminReportsPage() {
-  await adminPage("/quan-tri/bao-loi", { staff: true });
+  await adminPage("/quan-tri/bao-loi");
   const [items, audit] = await Promise.all([dataReportService.list(), adminService.listAudit(200)]);
   const names = Object.fromEntries(items.map((r) => [r.id, `${REPORT_TOPICS[r.topic]}${r.page ? ` – ${r.page}` : ""}`]));
   return (

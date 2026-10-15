@@ -29,14 +29,21 @@ export function findMajorForImport(majors: Major[], name: string, code?: string)
 const NAME_RULES: ReadonlyArray<{ groupId: string; keywords: readonly string[] }> = [
   { groupId: "giao-duc", keywords: ["su pham", "giao duc", "giang day", "dao tao giao vien"] },
   { groupId: "y-duoc", keywords: ["rang ham mat", "phuc hoi chuc nang", "ky thuat xet nghiem", "y khoa", "y hoc", "duoc", "dieu duong", "ho sinh", "suc khoe", "dinh duong", "y te"] },
-  { groupId: "nong-lam", keywords: ["quan ly tai nguyen", "moi truong", "nong nghiep", "lam nghiep", "thuy san", "chan nuoi", "thu y", "bao ve thuc vat", "nong hoc"] },
-  { groupId: "cntt", keywords: ["cong nghe thong tin", "khoa hoc may tinh", "ky thuat phan mem", "an toan thong tin", "tri tue nhan tao", "du lieu", "may tinh", "phan mem", "he thong thong tin", "mang may tinh", "thuong mai dien tu"] },
+  { groupId: "nong-lam", keywords: ["quan ly tai nguyen", "moi truong", "nong nghiep", "lam nghiep", "thuy san", "chan nuoi", "thu y", "bao ve thuc vat", "nong hoc", "sinh hoc", "cong nghe sinh hoc"] },
+  { groupId: "cntt", keywords: ["cong nghe thong tin", "khoa hoc may tinh", "ky thuat phan mem", "an toan thong tin", "tri tue nhan tao", "khoa hoc du lieu", "co so du lieu", "ky thuat du lieu", "phan tich du lieu", "may tinh", "phan mem", "he thong thong tin", "mang may tinh"] },
   { groupId: "nghe-thuat", keywords: ["thiet ke do hoa", "thiet ke thoi trang", "my thuat", "hoi hoa", "am nhac", "dien anh", "san khau", "nhiep anh", "nghe thuat", "thoi trang"] },
   { groupId: "kinh-te", keywords: ["quan tri", "kinh doanh", "kinh te", "ke toan", "kiem toan", "tai chinh", "ngan hang", "marketing", "thuong mai", "logistics", "du lich", "khach san", "bao hiem", "bat dong san"] },
   { groupId: "xa-hoi", keywords: ["quan he quoc te", "cong tac xa hoi", "bao chi", "truyen thong", "tam ly", "ngon ngu", "luat", "xa hoi", "van hoc", "lich su", "triet hoc", "chinh tri", "van hoa", "dong phuong hoc"] },
-  { groupId: "ky-thuat", keywords: ["vi mach", "ban dan", "tu dong hoa", "co khi", "dien tu", "ky thuat", "xay dung", "kien truc", "vat lieu", "hoa hoc", "giao thong", "hang khong", "o to", "cong nghe thuc pham"] },
+  { groupId: "ky-thuat", keywords: ["vi mach", "ban dan", "tu dong hoa", "co khi", "dien tu", "ky thuat", "xay dung", "kien truc", "vat lieu", "hoa hoc", "toan hoc", "giao thong", "hang khong", "o to", "cong nghe thuc pham"] },
 ];
 
+/** Sư phạm luôn thuộc Giáo dục, kể cả khi tên còn chứa môn của nhóm khác. */
+const EDUCATION_ANCHORS = ["su pham", "giang day", "dao tao giao vien"] as const;
+
+/**
+ * Ba số đầu của mã ngành 7 số (Thông tư 09/2022/TT-BGDĐT) là nhóm chuẩn.
+ * Cùng một mã không được đổi nhóm vì từ khóa trong tên.
+ */
 const CODE_PREFIX_GROUPS: ReadonlyArray<[string, string]> = [
   ["714", "giao-duc"],
   ["721", "nghe-thuat"],
@@ -46,6 +53,9 @@ const CODE_PREFIX_GROUPS: ReadonlyArray<[string, string]> = [
   ["734", "kinh-te"],
   ["736", "xa-hoi"],
   ["738", "xa-hoi"],
+  ["742", "nong-lam"],
+  ["744", "ky-thuat"],
+  ["746", "ky-thuat"],
   ["748", "cntt"],
   ["751", "ky-thuat"],
   ["752", "ky-thuat"],
@@ -58,26 +68,34 @@ const CODE_PREFIX_GROUPS: ReadonlyArray<[string, string]> = [
   ["781", "kinh-te"],
   ["784", "ky-thuat"],
   ["785", "nong-lam"],
+  ["786", "xa-hoi"],
 ];
+
+function hasPhrase(text: string, phrase: string): boolean {
+  return ` ${text} `.includes(` ${phrase} `);
+}
 
 export function inferMajorGroupId(name: string, code: string | undefined, groups: MajorGroup[]): string {
   const available = new Set(groups.map((group) => group.id));
-  const normalizedName = normalizeMajorIdentity(name);
-  let best: { groupId: string; score: number } | undefined;
+  const digits = String(code ?? "").replace(/\D/g, "");
+  const byCode = CODE_PREFIX_GROUPS.find(([prefix, groupId]) => digits.startsWith(prefix) && available.has(groupId));
+  if (byCode) return byCode[1];
 
+  const normalizedName = normalizeMajorIdentity(name);
+  if (available.has("giao-duc") && EDUCATION_ANCHORS.some((keyword) => hasPhrase(normalizedName, keyword))) {
+    return "giao-duc";
+  }
+
+  let best: { groupId: string; score: number } | undefined;
   for (const rule of NAME_RULES) {
     if (!available.has(rule.groupId)) continue;
     const score = rule.keywords.reduce(
-      (total, keyword) => total + (normalizedName.includes(keyword) ? keyword.length : 0),
+      (total, keyword) => total + (hasPhrase(normalizedName, keyword) ? keyword.length : 0),
       0,
     );
     if (score > 0 && (!best || score > best.score)) best = { groupId: rule.groupId, score };
   }
   if (best) return best.groupId;
-
-  const digits = String(code ?? "").replace(/\D/g, "");
-  const byCode = CODE_PREFIX_GROUPS.find(([prefix, groupId]) => digits.startsWith(prefix) && available.has(groupId));
-  if (byCode) return byCode[1];
 
   return groups.find((group) => group.id === "xa-hoi")?.id ?? groups[0]?.id ?? "xa-hoi";
 }

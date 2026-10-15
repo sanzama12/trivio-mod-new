@@ -38,7 +38,8 @@ export class AccountController {
   static async deleteAccount(): Promise<Response> {
     const { user, error } = await requireUser();
     if (error) return error;
-    await authService.deleteAccount(user.id);
+    const deleted = await authService.deleteAccount(user.id);
+    if (!deleted) return NextResponse.json({ ok: false, message: "Không tìm thấy tài khoản để xoá." }, { status: 404 });
     return clearSession(NextResponse.json({ ok: true }));
   }
 

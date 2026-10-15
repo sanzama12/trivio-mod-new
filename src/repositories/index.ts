@@ -33,8 +33,10 @@ import {
 } from "./postgres-documents";
 import { postgresCatalogAdminRepository, postgresReferenceCatalogRepository, postgresTimelineRepository } from "./postgres-catalog";
 import { postgresMajorRepository, postgresProgramRepository, postgresQuizRepository, postgresSchoolRepository, postgresUserRepository } from "./postgres";
+import { postgresAdminDashboardRepository } from "./postgres-admin-dashboard";
 
 export const repositories = {
+  adminDashboard: postgresAdminDashboardRepository,
   schools: postgresSchoolRepository,
   majors: postgresMajorRepository,
   programs: postgresProgramRepository,

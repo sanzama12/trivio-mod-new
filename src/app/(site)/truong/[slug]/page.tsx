@@ -184,7 +184,7 @@ export default async function SchoolPage({ params }: Props) {
             </p>
           </div>
         </div>
-        <dl className="mt-8 grid grid-cols-3 gap-4 border-t border-white/20 pt-6">
+        <dl className="mt-8 grid grid-cols-1 gap-4 border-t border-white/20 pt-6 sm:grid-cols-3">
           <div>
             <dd className="text-2xl font-bold">{programs.length}</dd>
             <dt className="text-xs text-primary-100">Chương trình trên Trovio</dt>
@@ -194,7 +194,7 @@ export default async function SchoolPage({ params }: Props) {
             <dt className="text-xs text-primary-100">Sinh viên đang học</dt>
           </div>
           <div>
-            <dd className="text-2xl font-bold">{school.highlight}</dd>
+            <dd className="text-2xl font-bold break-words">{school.highlight}</dd>
             <dt className="text-xs text-primary-100">Điểm nổi bật</dt>
           </div>
         </dl>

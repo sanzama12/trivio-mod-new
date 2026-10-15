@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { LuCircleCheck, LuLandmark, LuTriangleAlert } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { dataOpsService } from "@/services/data-ops.service";
-import { schoolPortalService } from "@/services/school-portal.service";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody, AdminStat, Panel, StatGrid, ago } from "@/components/admin/ui";
 import { DataIssues } from "@/components/admin/data-issues";
@@ -18,7 +17,8 @@ const DOT: Record<string, string> = { import: "bg-success-500", program: "bg-pri
 export default async function AdminOverviewPage() {
   const user = await adminPage("/quan-tri", { staff: true });
   if (!user.admin) redirect("/quan-tri/cam-nhan"); // kiểm duyệt viên chỉ có mục kiểm duyệt
-  const [data, submissions] = await Promise.all([dataOpsService.overview(), schoolPortalService.listSubmissions("pending")]);
+  const data = await dataOpsService.overview();
+  const submissions = data.submissions;
   const { stats, progress } = data;
   const total = progress.verified + progress.pending + progress.missing || 1;
   const pct = (n: number) => Math.round((n / total) * 100);

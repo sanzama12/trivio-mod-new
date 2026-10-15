@@ -14,7 +14,7 @@ import { Dialog } from "./overlay";
 import { useAdminPost } from "./use-admin-post";
 import { inputCls, Panel, td, th } from "./ui";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 10 * 1024 * 1024;
 const EDIT_FIELDS: [keyof ImportRowData, string][] = [
   ["ma_xet_tuyen", "Mã XT"],
   ["ten_chuong_trinh", "Tên chương trình"],
@@ -70,7 +70,7 @@ export function ImportManager({ userName }: { userName: string }) {
     setFileErr(null);
     setPreview(null);
     if (!/\.(csv|xlsx)$/i.test(f.name)) return setFileErr("Chỉ hỗ trợ tệp .csv hoặc .xlsx.");
-    if (f.size > MAX_BYTES) return setFileErr("Tệp lớn hơn 2 MB — hãy tách thành nhiều tệp nhỏ.");
+    if (f.size > MAX_BYTES) return setFileErr("Tệp lớn hơn 10 MB — hãy tách thành nhiều tệp nhỏ.");
     let content: string;
     try {
       content = await readFile(f);
@@ -136,7 +136,7 @@ export function ImportManager({ userName }: { userName: string }) {
             <LuCloudUpload className="size-5" />
           </span>
           <p className="mt-3 text-[15px] font-semibold text-slate-900">Kéo thả tệp hoặc nhấn để chọn tệp</p>
-          <p className="mt-1 text-[13px] text-slate-500">Hỗ trợ định dạng: .csv, .xlsx (kích thước tối đa: 2 MB, 2.000 dòng)</p>
+          <p className="mt-1 text-[13px] text-slate-500">Hỗ trợ định dạng: .csv, .xlsx (kích thước tối đa: 10 MB, 20.000 dòng)</p>
           <input ref={input} id="import-file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
           <Button size="sm" className="mt-4" disabled={busy} onClick={() => input.current?.click()}>
             {busy && !preview ? "Đang kiểm tra…" : "Chọn tệp"}

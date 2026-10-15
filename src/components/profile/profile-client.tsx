@@ -18,7 +18,7 @@ import { RadarChart } from "@/components/riasec/radar-chart";
 import { RiasecPill } from "@/components/riasec/riasec-pill";
 import { StylePills } from "@/components/work-style/style-bits";
 import { Avatar } from "@/components/ui/avatar";
-import { Input, Label } from "@/components/ui/field";
+import { FieldError, Input, Label } from "@/components/ui/field";
 import { ProfileFields, type ProfileFormValue } from "@/components/account/profile-fields";
 import { LoginMethods } from "@/components/account/login-methods";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -47,17 +47,26 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
     parentConsent: user.parentConsent,
   });
   const [formError, setFormError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [askDiscard, setAskDiscard] = useState(false);
   const initialFields = { role: user.role, gradYear: user.gradYear, province: user.province, under16: user.under16, parentConsent: user.parentConsent };
-  const dirty = name !== user.name || JSON.stringify(fields) !== JSON.stringify(initialFields);
+  const dirty = name.trim() !== user.name || JSON.stringify(fields) !== JSON.stringify(initialFields);
   const discard = () => {
     setName(user.name);
     setFields(initialFields);
     setFormError(null);
+    setNameError(null);
     setEditing(false);
     setAskDiscard(false);
   };
+
+  useEffect(() => {
+    if (editing) return;
+    setName(user.name);
+    setFields({ role: user.role, gradYear: user.gradYear, province: user.province, under16: user.under16, parentConsent: user.parentConsent });
+  }, [editing, user]);
 
   useEffect(() => {
     if (notice?.linked === "google") toast("Đã liên kết tài khoản Google", "success");
@@ -73,19 +82,37 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
 
   const saveProfile = async () => {
     setSaving(true);
-    const res = await fetch("/api/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, ...fields }) });
-    const data = await res.json();
-    setSaving(false);
-    if (!data.ok) return setFormError(data.message);
-    setEditing(false);
     setFormError(null);
+    setNameError(null);
+    const res = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), ...fields }),
+    }).catch(() => null);
+    setSaving(false);
+    if (!res) return setFormError("Không lưu được, thử lại sau.");
+    const data = await res.json().catch(() => null);
+    if (!data?.ok) {
+      const message = typeof data?.message === "string" ? data.message : "Không lưu được hồ sơ.";
+      if (data?.field === "name") setNameError(message);
+      else setFormError(message);
+      return;
+    }
+    setEditing(false);
     toast("Đã cập nhật hồ sơ", "success");
     router.refresh();
   };
 
   const deleteAccount = async () => {
-    const res = await fetch("/api/account", { method: "DELETE" });
-    if (!res.ok) return toast("Không xoá được tài khoản, vui lòng thử lại", "warning");
+    if (deleting) return;
+    setDeleting(true);
+    const res = await fetch("/api/account", { method: "DELETE" }).catch(() => null);
+    const data = await res?.json().catch(() => null);
+    setDeleting(false);
+    if (!res?.ok || data?.ok === false) {
+      setConfirmDelete(false);
+      return toast(typeof data?.message === "string" ? data.message : "Không xoá được tài khoản, vui lòng thử lại", "warning");
+    }
     toast("Đã xoá tài khoản và toàn bộ dữ liệu", "info");
     router.push("/");
     router.refresh();
@@ -100,105 +127,130 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
   const budgetLabel = (max: number | null) =>
     max == null ? "Không giới hạn" : (Object.values(TUITION_RANGES).find((r) => r.max === max)?.label ?? `${max} triệu`);
 
+  const missing = [
+    !user.role && "vai trò",
+    user.gradYear == null && (user.role === "parent" ? "năm con tốt nghiệp" : "năm tốt nghiệp THPT"),
+    !user.province && "tỉnh/thành",
+  ].filter((item): item is string => Boolean(item));
+
+  const facts: [string, string][] = [
+    ["Email", user.email],
+    ...(user.role ? [["Vai trò", ROLE_LABELS[user.role]] as [string, string]] : []),
+    ...(user.gradYear != null
+      ? [[user.role === "parent" ? "Con tốt nghiệp THPT" : "Năm tốt nghiệp THPT", String(user.gradYear)] as [string, string]]
+      : []),
+    ...(user.province ? [["Tỉnh/thành", user.province] as [string, string]] : []),
+    ["Ngày tạo", formatDateVi(user.createdAt)],
+    ...(user.lastLoginAt ? [["Đăng nhập gần nhất", formatDateVi(user.lastLoginAt)] as [string, string]] : []),
+  ];
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-      <aside className="lg:sticky lg:top-24 lg:self-start">
-        <Card className="p-5">
-          <div className="flex flex-col items-center text-center">
-            <Avatar name={user.name} src={user.avatarUrl} className="size-20 text-2xl" />
-            <p className="mt-3 font-bold text-slate-900">{user.name}</p>
-            <p className="text-[13px] text-slate-500">{user.email}</p>
-            {user.verified && (
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-semibold text-success-700">
-                <LuBadgeCheck className="size-3.5" aria-hidden /> Tài khoản đã xác thực
-              </span>
-            )}
+    <div className="mx-auto max-w-3xl space-y-4">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Avatar name={user.name} src={user.avatarUrl} className="size-14 text-lg sm:size-16" />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xl font-bold tracking-tight text-slate-900">Hồ sơ cá nhân</h1>
+            <p className="truncate font-semibold text-slate-900">{user.name}</p>
+            <p className="truncate text-sm text-slate-500">{user.email}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {user.verified && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-semibold text-success-700">
+                  <LuBadgeCheck className="size-3.5" aria-hidden /> Đã xác thực email
+                </span>
+              )}
+              {user.role && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">{ROLE_LABELS[user.role]}</span>}
+            </div>
           </div>
-          <nav aria-label="Mục hồ sơ" className="mt-5 space-y-1 border-t border-slate-100 pt-4">
-            {NAV.map((n) => (
-              <a key={n.href} href={n.href} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700">
-                <n.icon className="size-4" aria-hidden /> {n.label}
-              </a>
-            ))}
-          </nav>
+          <div className="flex flex-wrap gap-2">
+            {!editing && (
+              <Button size="sm" onClick={() => setEditing(true)}>
+                Chỉnh sửa
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={logout}>
+              <LuLogOut className="size-4" aria-hidden /> Đăng xuất
+            </Button>
+          </div>
+        </div>
+        <nav aria-label="Mục hồ sơ" className="mt-4 flex gap-2 overflow-x-auto border-t border-slate-100 pt-3">
+          {NAV.map((n) => (
+            <a key={n.href} href={n.href} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-primary-50 hover:text-primary-700">
+              <n.icon className="size-3.5" aria-hidden /> {n.label}
+            </a>
+          ))}
           {(user.admin || user.moderator) && (
-            <Link href={user.admin ? "/quan-tri" : "/quan-tri/cam-nhan"} className="mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50">
-              <LuDatabase className="size-4" aria-hidden /> {user.admin ? "Quản trị dữ liệu" : "Kiểm duyệt nội dung"}
+            <Link href={user.admin ? "/quan-tri" : "/quan-tri/cam-nhan"} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-[13px] font-semibold text-primary-700">
+              <LuDatabase className="size-3.5" aria-hidden /> {user.admin ? "Quản trị" : "Kiểm duyệt"}
             </Link>
           )}
           {user.schoolStaff?.status === "approved" && (
-            <Link href="/cong-truong" className="mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50">
-              <LuDatabase className="size-4" aria-hidden /> Cổng trường
+            <Link href="/cong-truong" className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-[13px] font-semibold text-primary-700">
+              <LuDatabase className="size-3.5" aria-hidden /> Cổng trường
             </Link>
           )}
-          <button type="button" onClick={logout} className="mt-3 flex w-full items-center gap-2.5 rounded-lg border-t border-slate-100 px-3 pt-4 pb-1 text-sm font-semibold text-danger-700">
-            <LuLogOut className="size-4" aria-hidden /> Đăng xuất
-          </button>
-        </Card>
-      </aside>
+        </nav>
+      </section>
 
-      <div className="min-w-0 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-[28px]">Hồ sơ cá nhân</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý thông tin, điều kiện tìm kiếm và kết quả trắc nghiệm của bạn.</p>
-        </div>
-
-        <Card id="tong-quan" className="scroll-mt-24 p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Thông tin cơ bản</h2>
-            {!editing && (
-              <button type="button" onClick={() => setEditing(true)} className="text-sm font-semibold text-primary-600 hover:underline">
-                Chỉnh sửa
-              </button>
-            )}
-          </div>
-          {editing ? (
-            <div className="mt-4 space-y-5">
-              <div>
-                <Label htmlFor="pf-name">Họ và tên</Label>
-                <Input id="pf-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
-              </div>
-              <ProfileFields value={fields} onChange={(v) => (setFields(v), setFormError(null))} error={formError} />
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => (dirty ? setAskDiscard(true) : setEditing(false))}>
-                  Huỷ
-                </Button>
-                <Button size="sm" onClick={saveProfile} disabled={saving}>
-                  {saving ? "Đang lưu…" : "Lưu thay đổi"}
-                </Button>
-              </div>
-              <ConfirmDialog
-                open={askDiscard}
-                tone="warning"
-                title="Chưa lưu thay đổi"
-                confirmLabel="Lưu thay đổi"
-                cancelLabel="Huỷ"
-                secondary={{ label: "Không lưu", onClick: discard }}
-                onCancel={() => setAskDiscard(false)}
-                onConfirm={() => (setAskDiscard(false), void saveProfile())}
-              >
-                Bạn vừa thay đổi thông tin hồ sơ nhưng chưa lưu lại. Bạn có muốn lưu trước khi thoát?
-              </ConfirmDialog>
+      <Card id="tong-quan" className="scroll-mt-24 p-5 sm:p-6">
+        <h2 className="text-lg font-bold">Thông tin cơ bản</h2>
+        {editing ? (
+          <div className="mt-4 space-y-5">
+            <div>
+              <Label htmlFor="pf-name">Họ và tên</Label>
+              <Input id="pf-name" value={name} onChange={(e) => (setName(e.target.value), setNameError(null))} autoComplete="name" invalid={!!nameError} />
+              <FieldError>{nameError}</FieldError>
             </div>
-          ) : (
-            <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
-              {[
-                ["Tên đầy đủ", user.name],
-                ["Email", user.email],
-                ["Vai trò", user.role ? ROLE_LABELS[user.role] : "Chưa cập nhật"],
-                [user.role === "parent" ? "Con tốt nghiệp THPT" : "Năm tốt nghiệp THPT", user.gradYear ?? "Chưa cập nhật"],
-                ["Tỉnh/thành", user.province ?? "Chưa cập nhật"],
-                ["Ngày tạo tài khoản", formatDateVi(user.createdAt)],
-              ].map(([k, v]) => (
-                <div key={String(k)}>
+            <div>
+              <Label htmlFor="pf-email">Email</Label>
+              <Input id="pf-email" value={user.email} disabled readOnly />
+              <p className="mt-1 text-xs text-slate-500">Email không đổi tại đây. Đăng nhập Google và mật khẩu dùng chung địa chỉ này.</p>
+            </div>
+            <ProfileFields value={fields} onChange={(v) => (setFields(v), setFormError(null))} error={formError} />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => (dirty ? setAskDiscard(true) : setEditing(false))} disabled={saving}>
+                Huỷ
+              </Button>
+              <Button size="sm" onClick={saveProfile} disabled={saving || !dirty}>
+                {saving ? "Đang lưu…" : "Lưu thay đổi"}
+              </Button>
+            </div>
+            <ConfirmDialog
+              open={askDiscard}
+              tone="warning"
+              title="Chưa lưu thay đổi"
+              confirmLabel="Lưu thay đổi"
+              cancelLabel="Huỷ"
+              secondary={{ label: "Không lưu", onClick: discard }}
+              onCancel={() => setAskDiscard(false)}
+              onConfirm={() => (setAskDiscard(false), void saveProfile())}
+            >
+              Bạn vừa thay đổi thông tin hồ sơ nhưng chưa lưu lại. Bạn có muốn lưu trước khi thoát?
+            </ConfirmDialog>
+          </div>
+        ) : (
+          <>
+            <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+              {facts.map(([k, v]) => (
+                <div key={k} className="min-w-0">
                   <dt className="text-slate-500">{k}</dt>
-                  <dd className="mt-0.5 font-semibold text-slate-900">{v}</dd>
+                  <dd className="mt-0.5 truncate font-semibold text-slate-900">{v}</dd>
                 </div>
               ))}
             </dl>
-          )}
-        </Card>
+            {missing.length > 0 && (
+              <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                Chưa có {missing.join(", ")}. Bấm Chỉnh sửa để bổ sung — để trống nghĩa là chưa có, không phải giá trị mặc định.
+              </p>
+            )}
+            {user.under16 && (
+              <p className="mt-3 text-sm text-slate-600">Đã ghi nhận dưới 16 tuổi{user.parentConsent ? ", có đồng ý của cha mẹ hoặc người giám hộ" : ""}.</p>
+            )}
+          </>
+        )}
+      </Card>
 
+      <div className="space-y-4">
         <LoginMethods user={user} googleConfigured={googleConfigured} error={notice?.error} />
 
         <Card id="dieu-kien" className="scroll-mt-24 p-6">
@@ -321,25 +373,21 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
         <Card id="cai-dat" className="scroll-mt-24 border-danger-100 p-6">
           <h2 className="text-lg font-bold text-danger-700">Xoá tài khoản</h2>
           <p className="mt-1 text-sm text-slate-600">Xoá vĩnh viễn tài khoản, hồ sơ, danh sách đã lưu, nguyện vọng và kết quả trắc nghiệm. Hành động này không thể hoàn tác.</p>
-          {confirmDelete ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-danger-50 p-4">
-              <p className="flex-1 text-sm font-medium text-danger-700">Bạn chắc chắn muốn xoá tài khoản {user.email}?</p>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={deleteAccount}
-              >
-                Xác nhận xoá
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-                Huỷ
-              </Button>
-            </div>
-          ) : (
-            <Button variant="danger" size="sm" className="mt-3" onClick={() => setConfirmDelete(true)}>
-              Xoá tài khoản
-            </Button>
-          )}
+          <Button variant="danger" size="sm" className="mt-3" onClick={() => setConfirmDelete(true)} disabled={deleting}>
+            Xoá tài khoản
+          </Button>
+          <ConfirmDialog
+            open={confirmDelete}
+            tone="danger"
+            title="Xoá tài khoản"
+            confirmLabel={deleting ? "Đang xoá…" : "Xác nhận xoá"}
+            onCancel={() => {
+              if (!deleting) setConfirmDelete(false);
+            }}
+            onConfirm={() => void deleteAccount()}
+          >
+            Xoá vĩnh viễn tài khoản {user.email}, hồ sơ, danh sách đã lưu, nguyện vọng và kết quả trắc nghiệm. Không hoàn tác được.
+          </ConfirmDialog>
         </Card>
       </div>
     </div>

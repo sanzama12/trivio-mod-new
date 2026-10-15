@@ -243,7 +243,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
                 <input type="checkbox" className="mt-0.5 size-4 accent-primary-600" checked={view.moderator} disabled={busy} onChange={async (e) => (await act(view, { action: "moderator", value: e.target.checked }, e.target.checked ? "Đã cấp quyền kiểm duyệt viên." : "Đã thu quyền kiểm duyệt viên.")).ok && setView({ ...view, moderator: !view.moderator })} />
                 <span>
                   <span className="font-semibold text-slate-900">Kiểm duyệt viên</span>
-                  <span className="block text-[13px] text-slate-500">Được duyệt cảm nhận, hỏi đáp sinh viên và xử lý báo lỗi dữ liệu. Không sửa được số liệu tuyển sinh.</span>
+                  <span className="block text-[13px] text-slate-500">Được duyệt cảm nhận và hỏi đáp sinh viên. Không sửa được số liệu tuyển sinh hoặc gửi email khách hàng.</span>
                 </span>
               </label>
             )}

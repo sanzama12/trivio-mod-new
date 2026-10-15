@@ -14,12 +14,12 @@ import {
   LuBriefcase,
   LuCalendarClock,
   LuChartNoAxesColumn,
-  LuFlag,
   LuFolderOpen,
   LuHouse,
   LuLandmark,
   LuLayoutGrid,
   LuLogOut,
+  LuMail,
   LuMenu,
   LuMessageCircleQuestion,
   LuMessageSquareText,
@@ -50,7 +50,7 @@ const DATA_ITEMS: Item[] = [
 const OPS_ITEMS: Item[] = [
   { key: "reviews", href: "/quan-tri/cam-nhan", label: "Duyệt cảm nhận", Icon: LuMessageSquareText, staff: true },
   { key: "qa", href: "/quan-tri/hoi-dap", label: "Hỏi đáp sinh viên", Icon: LuMessageCircleQuestion, staff: true },
-  { key: "reports", href: "/quan-tri/bao-loi", label: "Báo lỗi dữ liệu", Icon: LuFlag, staff: true },
+  { key: "emails", href: "/quan-tri/email-khach-hang", label: "Email khách hàng", Icon: LuMail },
   { key: "outcomes", href: "/quan-tri/viec-lam", label: "Việc làm & thu nhập", Icon: LuBriefcase },
   { key: "timeline", href: "/quan-tri/moc-tuyen-sinh", label: "Mốc tuyển sinh", Icon: LuCalendarClock },
   { key: "chatbot", href: "/quan-tri/chatbot", label: "Chatbot", Icon: LuBot },
@@ -173,8 +173,8 @@ export function AdminShell({
         <span className="flex-1 text-base font-extrabold text-white">
           Trovio <span className="text-xs font-bold tracking-widest text-accent-500">ADMIN</span>
         </span>
-        <Link href="/" className="flex items-center gap-1.5 rounded-lg border border-white/15 px-2.5 py-1.5 text-[13px] font-semibold text-slate-200 hover:bg-white/10" aria-label="Về trang chủ Trovio">
-          <LuHouse className="size-4" aria-hidden /> Trang chủ
+        <Link href="/" className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 px-2.5 py-1.5 text-[13px] font-semibold text-slate-200 hover:bg-white/10" aria-label="Về trang chủ Trovio">
+          <LuHouse className="size-4" aria-hidden /> <span className="hidden min-[380px]:inline">Trang chủ</span>
         </Link>
       </div>
       {open && (

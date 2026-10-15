@@ -102,7 +102,7 @@ Authorization: Bearer <CRON_SECRET>
 - **Vercel**: thêm `vercel.json` → `{ "crons": [{ "path": "/api/cron/reminders", "schedule": "0 0 * * *" }] }` (00:00 UTC = 7:00 VN); Vercel tự gửi header `Authorization: Bearer $CRON_SECRET` khi biến môi trường `CRON_SECRET` được đặt.
 - **Máy chủ riêng**: crontab `0 7 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://ten-mien/api/cron/reminders`.
 - Chưa đặt `CRON_SECRET` → route trả 503 (tắt). Chạy thử thủ công: nút “Gửi email nhắc hạn đến hạn hôm nay” ở `/quan-tri/moc-tuyen-sinh`. Chạy nhiều lần trong ngày không gửi trùng (có nhật ký).
-- Email đi qua `services/mailer.ts` (bản demo in ra terminal) — nối SMTP/dịch vụ email khi triển khai.
+- Email đi qua `services/mailer.ts`: đặt `RESEND_API_KEY` và `MAIL_FROM` để gửi thật qua Resend; nếu chưa cấu hình thì môi trường phát triển chỉ in email ra terminal.
 
 ## Tốc độ khi demo
 
@@ -110,7 +110,7 @@ Authorization: Bearer <CRON_SECRET>
 
 ## Quản trị A01–A09 & Cổng trường (đồng bộ Figma 10/2026)
 
-`/quan-tri` dùng thanh bên theo Figma: Tổng quan dữ liệu · Trường & Cơ sở · Ngành · Chương trình · Điểm & Học phí · Bài test RIASEC · Nhập & Kiểm duyệt (CSV/XLSX) · Người dùng · Quy tắc gợi ý (có chạy thử), cùng nhóm Cộng đồng & vận hành. Mọi thao tác lưu vào database và ghi nhật ký; “xoá” trường/ngành/chương trình là **tạm ẩn** (khôi phục được). Kiểm duyệt viên chỉ thấy mục cảm nhận, hỏi đáp, báo lỗi. Cán bộ tuyển sinh (email đúng tên miền trường, quản trị viên duyệt) xác nhận số liệu hoặc gửi bản sửa ở `/cong-truong`. Bản Mini App: `/zalo`. Chi tiết: `docs/TIEP-TUC-TROVIO.md` mục 11.
+`/quan-tri` dùng thanh bên theo Figma: Tổng quan dữ liệu · Trường & Cơ sở · Ngành · Chương trình · Điểm & Học phí · Bài test RIASEC · Nhập & Kiểm duyệt (CSV/XLSX) · Người dùng · Quy tắc gợi ý (có chạy thử), cùng nhóm Cộng đồng & vận hành và biểu mẫu **Email khách hàng**. Mọi thao tác lưu vào database và ghi nhật ký; “xoá” trường/ngành/chương trình là **tạm ẩn** (khôi phục được). Kiểm duyệt viên chỉ thấy mục cảm nhận và hỏi đáp. Cán bộ tuyển sinh (email đúng tên miền trường, quản trị viên duyệt) xác nhận số liệu hoặc gửi bản sửa ở `/cong-truong`. Bản Mini App: `/zalo`. Chi tiết: `docs/TIEP-TUC-TROVIO.md` mục 11.
 
 ## Phong cách làm việc · MBTI tham khảo · câu hỏi theo tình huống (10/2026)
 
@@ -133,7 +133,7 @@ Authorization: Bearer <CRON_SECRET>
 - Giới hạn tần suất theo IP dựa vào header `X-Forwarded-For`: khi deploy phải đặt sau proxy/CDN **ghi đè** header này (Vercel, Nginx `proxy_set_header`), nếu không kẻ xấu có thể đổi IP giả để vượt giới hạn.
 - **Báo lỗi / khảo sát / sự kiện phễu** (công khai): body ≤ 8 KB / 4 KB / 512 B, giới hạn tần suất theo IP, bẫy bot; phễu giới hạn 20.000 mã/sự kiện/ngày để file dữ liệu không phình. **Xuất CSV** chặn “CSV injection” (ô bắt đầu bằng `= + - @`).
 - **Cron nhắc hạn**: so khớp `CRON_SECRET` bằng `timingSafeEqual`; không đặt → tắt.
-- Khi triển khai thật: đặt `SESSION_SECRET`, xoá tài khoản demo, cấp admin qua `ADMIN_EMAILS`, nối `mailer.ts` với dịch vụ email, thay rate-limit bộ nhớ bằng Redis nếu chạy nhiều instance.
+- Khi triển khai thật: đặt `SESSION_SECRET`, xoá tài khoản demo, cấp admin qua `ADMIN_EMAILS`, cấu hình `RESEND_API_KEY` + `MAIL_FROM`, thay rate-limit bộ nhớ bằng Redis nếu chạy nhiều instance.
 
 ## Đăng nhập & dữ liệu người dùng
 

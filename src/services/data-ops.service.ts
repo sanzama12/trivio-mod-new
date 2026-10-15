@@ -130,15 +130,15 @@ async function setPatch(actor: PublicUser, p: Program, patch: Parameters<typeof 
 export const dataOpsService = {
   /** A01 — tổng quan chất lượng dữ liệu. */
   async overview() {
-    const [programs, schools, submissions, reports, audit, batches] = await Promise.all([
-      repositories.catalogAdmin.listPrograms(),
-      repositories.catalogAdmin.listSchools(),
-      repositories.schoolSubmissions.list({ status: "pending" }),
+    const [catalog, submissions, reports, audit, batches] = await Promise.all([
+      repositories.adminDashboard.overviewCatalog(),
+      repositories.adminDashboard.pendingSubmissions(),
       repositories.dataReports.list({ status: ["moi", "dang-xu-ly"] }),
       repositories.programAdmin.listAudit(12),
       repositories.importBatches.list(5),
     ]);
-    const names = new Map(schools.map((s) => [s.id, s.shortName]));
+    const programs = catalog.programs.map((item) => item.program);
+    const names = new Map(catalog.programs.map((item) => [item.program.schoolId, item.schoolName]));
     const live = programs.filter((p) => !p.hidden);
     const statuses = live.map((p) => dataStatus(p));
     const count = (s: DataStatus) => statuses.filter((x) => x === s).length;
@@ -147,7 +147,7 @@ export const dataOpsService = {
 
     const issues: DataIssue[] = [];
     const codes = new Map<string, Program[]>();
-    const majorNames = new Map((await repositories.catalogAdmin.listMajors()).map((m) => [m.id, m.name]));
+    const majorNames = new Map(catalog.programs.map((item) => [item.program.majorId, item.majorName]));
     const target = (p: Program) => `${names.get(p.schoolId) ?? p.schoolId} · ${majorNames.get(p.majorId) ?? p.name}`;
     for (const p of live) {
       const key = `${p.schoolId}::${p.admissionCode.toUpperCase()}`;
@@ -185,7 +185,7 @@ export const dataOpsService = {
 
     return {
       stats: {
-        schools: schools.filter((s) => !s.hidden).length,
+        schools: catalog.schoolCount,
         programs: live.length,
         verifiedPct: live.length ? Math.round((progress.verified / live.length) * 100) : 0,
         pending: progress.pending,
@@ -196,6 +196,7 @@ export const dataOpsService = {
       issueCounts: Object.fromEntries((Object.keys(ISSUE_LABELS) as IssueKind[]).map((k) => [k, issues.filter((i) => i.kind === k).length])) as Record<IssueKind, number>,
       progress,
       activity,
+      submissions,
     };
   },
 

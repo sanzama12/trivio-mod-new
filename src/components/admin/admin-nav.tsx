@@ -13,7 +13,7 @@ export type AdminSection =
   | "rules"
   | "reviews"
   | "qa"
-  | "reports"
+  | "emails"
   | "outcomes"
   | "timeline"
   | "chatbot"

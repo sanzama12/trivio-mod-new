@@ -31,11 +31,11 @@ export default async function AdminImportPage() {
         actions={
           <div className="flex items-center gap-2">
             <a
-              href="/api/admin/import?type=simple"
+              href="/api/admin/import?format=xlsx"
               download
               className={buttonClass({ variant: "outline", size: "sm" })}
             >
-              <LuDownload className="size-4" aria-hidden /> Tải mẫu Excel siêu dễ
+              <LuDownload className="size-4" aria-hidden /> Tải mẫu Excel đầy đủ
             </a>
           </div>
         }

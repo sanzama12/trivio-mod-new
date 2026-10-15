@@ -115,9 +115,13 @@ export interface CommentRepository {
 /** Dữ liệu chương trình do quản trị viên chỉnh (ghi đè lên dữ liệu gốc) + nhật ký thay đổi. */
 export interface ProgramAdminRepository {
   getOverride(programId: string): Promise<ProgramPatch | null>;
+  /** Đọc nhiều bản ghi ghi đè trong một round-trip, dùng cho import lớn. */
+  getOverrides(programIds: string[]): Promise<Map<string, ProgramPatch>>;
   /** IDs có bản ghi ghi đè; dùng để dựng danh sách quản trị bằng một truy vấn. */
   listOverrideIds(): Promise<string[]>;
   setOverride(programId: string, patch: ProgramPatch | null, audit: AuditEntry): Promise<void>;
+  /** Ghi các bản cập nhật và nhật ký tương ứng trong một transaction/query duy nhất. */
+  setOverridesBatch(entries: { programId: string; patch: ProgramPatch; audit: AuditEntry }[]): Promise<void>;
   listAudit(limit?: number): Promise<AuditEntry[]>;
 }
 

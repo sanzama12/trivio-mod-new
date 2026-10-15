@@ -19,12 +19,12 @@ import { useTrovio } from "@/stores/trovio-store";
 import { buttonClass } from "@/components/ui/button";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Logo } from "./logo";
+import { TOOL_LINKS } from "./tool-links";
 
 const NAV = [
   { href: "/chuong-trinh", label: "Tìm chương trình", match: ["/chuong-trinh", "/truong", "/diem-cua-toi"] },
   { href: "/nganh", label: "Khám phá ngành", match: ["/nganh"] },
   { href: "/trac-nghiem", label: "Trắc nghiệm sở thích", match: ["/trac-nghiem"] },
-  { href: "/viec-lam", label: "Việc làm", match: ["/viec-lam"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
   { href: "/moc-tuyen-sinh", label: "Mốc tuyển sinh", match: ["/moc-tuyen-sinh"] },
 ];
@@ -43,9 +43,12 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   const { wishlist, saved, hydrated } = useTrovio();
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   /** null = chưa đo (trước khi JS chạy) → dùng breakpoint CSS. */
   const [mode, setMode] = useState<Mode | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const toolsRef = useRef<HTMLDivElement>(null);
+  const mobileToolsRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
@@ -55,13 +58,24 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   useEffect(() => {
     setOpen(false);
     setMenu(false);
+    setToolsOpen(false);
   }, [pathname]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(false);
+      if (
+        toolsRef.current &&
+        !toolsRef.current.contains(e.target as Node) &&
+        !mobileToolsRef.current?.contains(e.target as Node)
+      ) setToolsOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenu(false);
+        setToolsOpen(false);
+      }
+    };
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -107,6 +121,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   }, [remeasure]);
 
   const isActive = (m: string[]) => m.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const toolsActive = TOOL_LINKS.some((tool) => isActive([...tool.match]));
   const onSavedPage = pathname.startsWith("/da-luu");
   const mobile = mode === "mobile";
   // Chưa đo (HTML từ server, trước khi JS chạy): dùng mức gọn (2) để không tràn ngang trên điện thoại lẫn màn 1280px.
@@ -142,12 +157,66 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
           <div ref={leftRef} className={cn("flex shrink-0 items-center", level <= 1 ? "gap-10" : "gap-6")}>
             <Logo compact={!showTagline} taglineFromSm />
             <nav aria-label="Điều hướng chính" className={cn("items-center whitespace-nowrap", navVisible, navText, navGap)}>
-              {NAV.map((n) => (
+              {NAV.slice(0, 3).map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}
                   aria-current={isActive(n.match) ? "page" : undefined}
                   data-tour={n.href === "/trac-nghiem" ? "nav-quiz" : undefined}
+                  className={cn(
+                    "relative py-2 transition-colors",
+                    isActive(n.match) ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
+                  )}
+                >
+                  {n.label}
+                  {isActive(n.match) && <span aria-hidden className="absolute inset-x-0 -bottom-[22px] h-0.5 rounded-full bg-primary-600" />}
+                </Link>
+              ))}
+              <div ref={toolsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setToolsOpen((value) => !value)}
+                  aria-expanded={toolsOpen}
+                  aria-haspopup="menu"
+                  aria-controls="menu-cong-cu"
+                  className={cn(
+                    "relative flex items-center gap-1 py-2 transition-colors",
+                    toolsActive ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
+                  )}
+                >
+                  Công cụ
+                  <LuChevronDown className={cn("size-4 transition-transform", toolsOpen && "rotate-180")} aria-hidden />
+                  {toolsActive && <span aria-hidden className="absolute inset-x-0 -bottom-[22px] h-0.5 rounded-full bg-primary-600" />}
+                </button>
+                {toolsOpen && (
+                  <div
+                    id="menu-cong-cu"
+                    role="menu"
+                    className="absolute left-1/2 top-full z-50 mt-3 grid w-[390px] -translate-x-1/2 grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-elevated"
+                  >
+                    {TOOL_LINKS.map((tool) => (
+                      <Link
+                        key={tool.href}
+                        role="menuitem"
+                        href={tool.href}
+                        className={cn(
+                          "rounded-xl px-3 py-2.5 text-sm whitespace-normal transition-colors",
+                          isActive([...tool.match])
+                            ? "bg-primary-50 font-semibold text-primary-700"
+                            : "font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-700",
+                        )}
+                      >
+                        {tool.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {NAV.slice(3).map((n) => (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  aria-current={isActive(n.match) ? "page" : undefined}
                   className={cn(
                     "relative py-2 transition-colors",
                     isActive(n.match) ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
@@ -241,7 +310,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                 )}
               </div>
             ) : (
-              <Link href={`/dang-nhap?next=${encodeURIComponent(pathname)}`} className={buttonClass({ size: "sm", className: "h-10 px-5" })}>
+              <Link href={`/dang-nhap?next=${encodeURIComponent(pathname)}`} className={buttonClass({ size: "sm", className: "h-10 px-3 sm:px-5" })}>
                 Đăng nhập
               </Link>
             )}
@@ -262,7 +331,48 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
         {open && (
           <nav id="menu-di-dong" aria-label="Menu di động" className="border-t border-slate-200 bg-white">
             <div className="container-page grid gap-1 py-2 sm:grid-cols-2">
-              {[...NAV, { href: "/da-luu", label: `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
+              {NAV.slice(0, 3).map((n) => (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  aria-current={isActive(n.match) ? "page" : undefined}
+                  className={cn("rounded-lg px-3 py-3 text-[15px]", isActive(n.match) ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50")}
+                >
+                  {n.label}
+                </Link>
+              ))}
+              <div ref={mobileToolsRef} className="sm:col-span-2">
+                <button
+                  type="button"
+                  onClick={() => setToolsOpen((value) => !value)}
+                  aria-expanded={toolsOpen}
+                  aria-controls="menu-cong-cu-di-dong"
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-[15px]",
+                    toolsActive ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50",
+                  )}
+                >
+                  Công cụ
+                  <LuChevronDown className={cn("size-4 transition-transform", toolsOpen && "rotate-180")} aria-hidden />
+                </button>
+                {toolsOpen && (
+                  <div id="menu-cong-cu-di-dong" className="mt-1 grid gap-1 rounded-xl bg-slate-50 p-2 sm:grid-cols-2">
+                    {TOOL_LINKS.map((tool) => (
+                      <Link
+                        key={tool.href}
+                        href={tool.href}
+                        className={cn(
+                          "rounded-lg px-3 py-2.5 text-sm",
+                          isActive([...tool.match]) ? "bg-white font-semibold text-primary-700 shadow-sm" : "text-slate-700 hover:bg-white",
+                        )}
+                      >
+                        {tool.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {[...NAV.slice(3), { href: "/da-luu", label: `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}

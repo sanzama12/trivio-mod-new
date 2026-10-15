@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LuFacebook, LuLinkedin, LuMail, LuMapPin, LuPhone, LuYoutube } from "react-icons/lu";
 import { Logo } from "./logo";
+import { TOOL_LINKS } from "./tool-links";
 
 const cols = [
   {
@@ -30,18 +31,6 @@ const cols = [
       { label: "Quy trình giải quyết khiếu nại", href: "/tro-giup#lien-he" },
     ],
   },
-];
-
-/** Công cụ mới (10/2026) — một hàng riêng để giữ nguyên bố cục 4 cột như thiết kế Figma. */
-const tools = [
-  { label: "Gợi ý dành cho bạn", href: "/goi-y" },
-  { label: "Mùa điểm & Plan B", href: "/mua-diem" },
-  { label: "Chọn môn lớp 10", href: "/chon-mon" },
-  { label: "Ma trận quyết định", href: "/so-sanh?tab=ma-tran" },
-  { label: "Học bổng & vay vốn", href: "/chi-phi#ho-tro" },
-  { label: "Kênh giáo viên", href: "/lop-hoc" },
-  { label: "Phản hồi sau 1 năm học", href: "/phan-hoi-nganh" },
-  { label: "Bản nhẹ cho mạng yếu", href: "/nhe" },
 ];
 
 export function SiteFooter() {
@@ -90,7 +79,7 @@ export function SiteFooter() {
       <nav aria-label="Công cụ" className="container-page -mt-4 pb-8">
         <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]">
           <li className="font-bold text-white">Công cụ:</li>
-          {tools.map((t) => (
+          {TOOL_LINKS.map((t) => (
             <li key={t.href}>
               <Link href={t.href} className="hover:text-white">
                 {t.label}

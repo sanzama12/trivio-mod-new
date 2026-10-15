@@ -50,13 +50,29 @@ test("định danh ngành không phụ thuộc dấu và dấu câu", () => {
   assert.equal(findMajorForImport([major("software", "Kỹ thuật phần mềm")], "Ky thuat phan-mem")?.id, "software");
 });
 
-test("ngành mới được phân vào đúng nhóm theo tên, sau đó mới dự phòng theo mã", () => {
+test("ngành mới giữ đúng nhóm theo mã chuẩn, không nhảy nhóm vì từ trong tên", () => {
   assert.equal(inferMajorGroupId("Kỹ thuật phần mềm", "7480201", groups), "cntt");
   assert.equal(inferMajorGroupId("Kế toán", "7340301", groups), "kinh-te");
   assert.equal(inferMajorGroupId("Điều dưỡng", "7720301", groups), "y-duoc");
   assert.equal(inferMajorGroupId("Sư phạm Toán học", "7140209", groups), "giao-duc");
+  assert.equal(inferMajorGroupId("Sư phạm Ngôn ngữ Anh", "7140231", groups), "giao-duc");
+  assert.equal(inferMajorGroupId("Luật kinh tế", "7380107", groups), "xa-hoi");
+  assert.equal(inferMajorGroupId("Kỹ thuật môi trường", "7520320", groups), "ky-thuat");
+  assert.equal(inferMajorGroupId("Thương mại điện tử", "7340122", groups), "kinh-te");
+  assert.equal(inferMajorGroupId("Logistics và quản lý chuỗi cung ứng", "7510605", groups), "ky-thuat");
+  assert.equal(inferMajorGroupId("Toán học", "7460101", groups), "ky-thuat");
+  assert.equal(inferMajorGroupId("Sinh học", "7420201", groups), "nong-lam");
+  assert.equal(inferMajorGroupId("Hóa học", "7440112", groups), "ky-thuat");
   assert.equal(inferMajorGroupId("Quản lý tài nguyên và môi trường", "7850101", groups), "nong-lam");
   assert.equal(inferMajorGroupId("Ngành chưa đặt tên", "7489999", groups), "cntt");
+});
+
+test("khi không có mã thuộc nhóm nào thì mới phân theo tên, vẫn không nhảy ngẫu nhiên", () => {
+  assert.equal(inferMajorGroupId("Kế toán", "", groups), "kinh-te");
+  assert.equal(inferMajorGroupId("Sư phạm Ngôn ngữ Anh", "", groups), "giao-duc");
+  assert.equal(inferMajorGroupId("Thương mại điện tử", "", groups), "kinh-te");
+  assert.equal(inferMajorGroupId("Kinh tế dữ liệu", "7990001", groups), "kinh-te");
+  assert.equal(inferMajorGroupId("Điều dưỡng", undefined, groups), "y-duoc");
 });
 
 test("RIASEC mặc định thay đổi theo nhóm ngành", () => {

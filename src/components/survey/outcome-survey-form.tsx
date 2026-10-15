@@ -117,7 +117,7 @@ export function OutcomeSurveyForm({ options, initialProgramId, cohorts }: { opti
 
         <fieldset>
           <legend className="mb-2 text-sm font-semibold text-slate-700">Mức hài lòng với ngành đang học</legend>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 gap-1 sm:gap-2">
             {SAT.map((s) => (
               <button
                 key={s.v}

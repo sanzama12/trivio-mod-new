@@ -26,6 +26,14 @@ export const TIMELINE_CATEGORIES: Record<TimelineEvent["category"], string> = {
   dgnl: "Đánh giá năng lực",
 };
 
+const TIMELINE_TTL_MS = 60 * 1000;
+let timelineCache: { at: number; view: TimelineView } | null = null;
+
+function rememberTimeline(view: TimelineView): TimelineView {
+  timelineCache = { at: Date.now(), view };
+  return view;
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** Ngày dạng YYYY-MM-DD có thật (JS tự "lăn" 30/02 thành 02/03 nên phải so lại chuỗi). */
 const validDate = (s: unknown): s is string => {
@@ -54,14 +62,15 @@ export const timelineService = {
   },
 
   async list(): Promise<TimelineView> {
+    if (timelineCache && Date.now() - timelineCache.at < TIMELINE_TTL_MS) return timelineCache.view;
     const cfg = await repositories.timelineConfig.get();
     if (cfg) {
       const events = [...cfg.events].sort((a, b) => a.start.localeCompare(b.start));
-      return { season: cfg.season, note: cfg.note, events, official: cfg.official, sourceUrl: cfg.sourceUrl, updatedAt: cfg.updatedAt };
+      return rememberTimeline({ season: cfg.season, note: cfg.note, events, official: cfg.official, sourceUrl: cfg.sourceUrl, updatedAt: cfg.updatedAt });
     }
     const events = await repositories.timeline.findAll();
     const season = events[0]?.start.slice(0, 4) ?? String(new Date().getFullYear());
-    return { season, note: "Lịch tuyển sinh được đọc từ cơ sở dữ liệu.", events, official: false, sourceUrl: null, updatedAt: null };
+    return rememberTimeline({ season, note: "Lịch tuyển sinh được đọc từ cơ sở dữ liệu.", events, official: false, sourceUrl: null, updatedAt: null });
   },
 
   /** Quản trị viên lưu lịch mới. Đánh dấu "chính thức" bắt buộc có link https tới văn bản của Bộ GD&ĐT/ĐHQG. */
@@ -101,6 +110,7 @@ export const timelineService = {
     const before = await this.list();
     const cfg: TimelineConfig = { season, official, sourceUrl, note, events, updatedAt: new Date().toISOString(), updatedBy: admin.id };
     await repositories.timelineConfig.set(cfg);
+    timelineCache = null;
     await repositories.audit.append({
       id: randomUUID(),
       at: cfg.updatedAt,
@@ -122,6 +132,7 @@ export const timelineService = {
     const had = !!(await repositories.timelineConfig.get());
     if (!had) return false;
     await repositories.timelineConfig.set(null);
+    timelineCache = null;
     await repositories.audit.append({
       id: randomUUID(),
       at: new Date().toISOString(),

@@ -594,11 +594,11 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
 
                     <div className="mt-3 text-center">
                       <Link
-                        href="/chuong-trinh"
+                        href="/truong"
                         onClick={() => setIsOpen(false)}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline"
                       >
-                        Xem tất cả {schools.length} trường đại học <LuArrowRight className="size-3" />
+                        Xem tất cả {schools.length} trường <LuArrowRight className="size-3" />
                       </Link>
                     </div>
                   </div>

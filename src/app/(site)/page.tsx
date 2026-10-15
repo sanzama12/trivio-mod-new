@@ -54,7 +54,7 @@ export default async function HomePage() {
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 md:text-lg">
             Hỗ trợ sĩ tử tìm kiếm cơ hội học tập, so sánh điểm chuẩn, học phí và cấu trúc chương trình đào tạo của các trường đại học toàn quốc.
           </p>
-          <form action="/chuong-trinh" method="get" role="search" data-tour="search" className="mx-auto mt-8 flex max-w-2xl items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
+          <form action="/chuong-trinh" method="get" role="search" data-tour="search" className="mx-auto mt-8 flex max-w-2xl flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated min-[420px]:flex-row min-[420px]:items-center">
             <LuSearch className="ml-3 size-5 shrink-0 text-slate-400" aria-hidden />
             <label htmlFor="hero-q" className="sr-only">
               Tìm trường, ngành, chương trình
@@ -65,7 +65,7 @@ export default async function HomePage() {
               placeholder="Tìm trường, ngành, chương trình đào tạo…"
               className="h-11 min-w-0 flex-1 bg-transparent text-[15px] placeholder:text-slate-500 focus:outline-none"
             />
-            <button type="submit" className={buttonClass({ className: "px-6" })}>
+            <button type="submit" className={buttonClass({ className: "w-full shrink-0 px-6 min-[420px]:w-auto" })}>
               Tìm kiếm
             </button>
           </form>

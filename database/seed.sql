@@ -88,7 +88,7 @@ INSERT INTO work_axes (code, left_label, right_label, position) VALUES
 
 INSERT INTO system_roles (code, name, description) VALUES
   ('admin', 'Quản trị viên', 'Toàn quyền dữ liệu tuyển sinh, người dùng, quy tắc gợi ý (A01–A09)'),
-  ('moderator', 'Kiểm duyệt viên', 'Chỉ duyệt cảm nhận, hỏi đáp, báo lỗi dữ liệu'),
+  ('moderator', 'Kiểm duyệt viên', 'Chỉ duyệt cảm nhận và hỏi đáp'),
   ('school_staff', 'Cán bộ tuyển sinh', 'Xác nhận số liệu / gửi bản sửa cho trường của mình ở Cổng trường');
 
 

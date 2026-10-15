@@ -32,6 +32,14 @@ let cachedGroups: MajorGroup[] = [];
 let cachedQuiz: RiasecQuestion[] = [];
 let catalogIndex: CatalogIndex = buildCatalogIndex(cachedSchools, cachedMajors, cachedPrograms);
 let catalogLoad: Promise<void> | null = null;
+/** Lần nạp thành công gần nhất, kể cả khi danh mục rỗng. */
+let catalogLoadedAt = 0;
+let catalogHasData = false;
+let catalogFailedAt = 0;
+
+const CATALOG_FRESH_MS = 2 * 60 * 1000;
+const CATALOG_EMPTY_FRESH_MS = 30 * 1000;
+const CATALOG_FAIL_BACKOFF_MS = 15 * 1000;
 
 function rebuildIndex(): void {
   catalogIndex = buildCatalogIndex(cachedSchools, cachedMajors, cachedPrograms);
@@ -203,15 +211,41 @@ export async function refreshPostgresCache(): Promise<void> {
   }));
   cachedGroups = groups;
   cachedPrograms = programs;
+  catalogHasData = cachedSchools.length > 0 && cachedMajors.length > 0 && cachedPrograms.length > 0;
+  catalogLoadedAt = Date.now();
   rebuildIndex();
 }
 
+function catalogIsFresh(): boolean {
+  if (!catalogLoadedAt) return false;
+  const ttl = catalogHasData ? CATALOG_FRESH_MS : CATALOG_EMPTY_FRESH_MS;
+  return Date.now() - catalogLoadedAt < ttl;
+}
+
+function startCatalogRefresh(): Promise<void> {
+  catalogLoad ??= refreshPostgresCache()
+    .then(() => {
+      catalogFailedAt = 0;
+    })
+    .catch((err: unknown) => {
+      catalogFailedAt = Date.now();
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[PostgreSQL] Không tải được danh mục:", message);
+    })
+    .finally(() => {
+      catalogLoad = null;
+    });
+  return catalogLoad;
+}
+
 async function ensureCatalogLoaded(): Promise<void> {
-  if (cachedSchools.length && cachedMajors.length && cachedPrograms.length) return;
-  catalogLoad ??= refreshPostgresCache().finally(() => {
-    catalogLoad = null;
-  });
-  await catalogLoad;
+  if (catalogIsFresh()) return;
+  if (catalogFailedAt && Date.now() - catalogFailedAt < CATALOG_FAIL_BACKOFF_MS) return;
+  if (catalogLoadedAt) {
+    void startCatalogRefresh();
+    return;
+  }
+  await startCatalogRefresh();
 }
 
 export function invalidatePostgresCache() {
@@ -219,6 +253,9 @@ export function invalidatePostgresCache() {
   cachedMajors = [];
   cachedPrograms = [];
   cachedGroups = [];
+  catalogLoadedAt = 0;
+  catalogHasData = false;
+  catalogFailedAt = 0;
   rebuildIndex();
 }
 
@@ -506,7 +543,26 @@ export const postgresUserRepository: UserRepository = {
   },
 
   async delete(id: string): Promise<boolean> {
-    const rows = await query<{ id: string }>(`DELETE FROM trovio.users WHERE id = $1 RETURNING id`, [id]);
-    return rows.length > 0;
+    return withTransaction(async (client) => {
+      await client.query(
+        `UPDATE trovio.app_documents
+         SET payload = jsonb_set(
+           payload,
+           '{helpful}',
+           COALESCE(
+             (SELECT jsonb_agg(elem) FROM jsonb_array_elements(COALESCE(payload->'helpful', '[]'::jsonb)) elem WHERE elem #>> '{}' <> $1),
+             '[]'::jsonb
+           )
+         )
+         WHERE collection = 'review' AND COALESCE(payload->'helpful', '[]'::jsonb) @> to_jsonb($1::text)`,
+        [id],
+      );
+      await client.query(
+        `DELETE FROM trovio.app_documents WHERE owner_id = $1 OR (collection = 'user-data' AND id = $1)`,
+        [id],
+      );
+      const result = await client.query(`DELETE FROM trovio.users WHERE id = $1 RETURNING id`, [id]);
+      return result.rows.length > 0;
+    });
   },
 };

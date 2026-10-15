@@ -25,7 +25,11 @@ export function applyProgramPatch(program: Program, patch?: ProgramPatch | null)
     ...(next.cutoffs.length ? ["thpt"] : []),
     ...next.altCutoffs.map((cutoff) => cutoff.method),
   ]);
-  const methods = next.methods.filter((method) => !method.key || available.has(method.key));
+  // Khi import truyền danh sách phương thức rõ ràng, giữ cả phương thức chưa có điểm
+  // để quản trị viên có thể bổ sung điểm sau. Luồng cũ vẫn tự đồng bộ theo cutoff.
+  const methods = patch.methods
+    ? [...patch.methods]
+    : next.methods.filter((method) => !method.key || available.has(method.key));
   for (const key of available) {
     const template = METHOD_TEMPLATES[key];
     if (template && !methods.some((method) => method.key === key)) {

@@ -15,7 +15,6 @@ import {
   LuCloudUpload,
   LuDownload,
   LuFileSpreadsheet,
-  LuFileText,
   LuFilter,
   LuLandmark,
   LuPencil,
@@ -47,6 +46,137 @@ interface Props {
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const fileSize = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+type ImportPhase = "reading" | "checking" | "publishing";
+
+const IMPORT_PHASE_LABEL: Record<ImportPhase, string> = {
+  reading: "Đang đọc tệp dữ liệu…",
+  checking: "Đang kiểm tra trường, ngành và phương thức…",
+  publishing: "Đang nạp dữ liệu vào hệ thống…",
+};
+
+const IMPORT_PHASES: ImportPhase[] = ["reading", "checking", "publishing"];
+const IMPORT_PHASE_SHORT: Record<ImportPhase, string> = {
+  reading: "Đọc file",
+  checking: "Kiểm tra",
+  publishing: "Lưu dữ liệu",
+};
+
+function ImportProgress({ phase }: { phase: ImportPhase }) {
+  const activeIndex = IMPORT_PHASES.indexOf(phase);
+
+  return (
+    <div
+      className="mx-auto flex w-full max-w-xl flex-col items-center py-1"
+      role="status"
+      aria-live="polite"
+      aria-label={IMPORT_PHASE_LABEL[phase]}
+    >
+      <div className="import-loader-scene" aria-hidden>
+        <span className="import-loader-glow" />
+        <span className="import-loader-ring import-loader-ring-outer" />
+        <span className="import-loader-ring import-loader-ring-inner" />
+        <span className="import-loader-core">
+          <LuFileSpreadsheet className="size-7" />
+        </span>
+        <span className="import-loader-spark import-loader-spark-one" />
+        <span className="import-loader-spark import-loader-spark-two" />
+        <span className="import-loader-spark import-loader-spark-three" />
+      </div>
+
+      <div className="mt-4 flex items-center gap-2 text-base font-extrabold text-slate-900">
+        <LuSparkles className="size-4 animate-pulse text-primary-600" aria-hidden />
+        {IMPORT_PHASE_LABEL[phase]}
+      </div>
+      <p className="mt-1 text-xs text-slate-500">Vui lòng giữ trang này mở, hệ thống đang xử lý tự động.</p>
+
+      <div className="import-progress-track mt-5 h-2 w-full overflow-hidden rounded-full bg-primary-100 shadow-inner" aria-hidden />
+      <div className="mt-3 grid w-full grid-cols-3 gap-2" aria-hidden>
+        {IMPORT_PHASES.map((item, index) => (
+          <div
+            key={item}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-[11px] font-bold transition-colors",
+              index < activeIndex && "bg-emerald-50 text-emerald-700",
+              index === activeIndex && "bg-primary-100 text-primary-800 ring-1 ring-primary-200",
+              index > activeIndex && "bg-white/70 text-slate-400",
+            )}
+          >
+            <span
+              className={cn(
+                "flex size-4 items-center justify-center rounded-full text-[9px]",
+                index < activeIndex ? "bg-emerald-600 text-white" : index === activeIndex ? "bg-primary-600 text-white" : "bg-slate-200 text-slate-500",
+              )}
+            >
+              {index < activeIndex ? <LuCheck className="size-2.5" /> : index + 1}
+            </span>
+            {IMPORT_PHASE_SHORT[item]}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const BULK_IMPORT_COLUMNS: { key: keyof ImportRowData; label: string; required?: boolean }[] = [
+  { key: "ma_xet_tuyen", label: "mã xét tuyển", required: true },
+  { key: "ten_chuong_trinh", label: "tên chương trình" },
+  { key: "ma_truong", label: "mã trường" },
+  { key: "ten_truong", label: "tên trường" },
+  { key: "tinh_thanh", label: "tỉnh/thành" },
+  { key: "co_so", label: "cơ sở" },
+  { key: "ma_nganh", label: "mã ngành" },
+  { key: "nam", label: "năm" },
+  { key: "diem_chuan", label: "điểm chuẩn" },
+  { key: "hoc_phi_min", label: "học phí min" },
+  { key: "hoc_phi_max", label: "học phí max" },
+  { key: "chi_tieu", label: "chỉ tiêu" },
+  { key: "to_hop", label: "tổ hợp" },
+  { key: "nguon", label: "nguồn" },
+  { key: "phuong_thuc", label: "phương thức" },
+  { key: "diem_rieng", label: "điểm riêng" },
+  { key: "ghi_chu", label: "ghi chú" },
+];
+
+const BULK_IMPORT_EXAMPLES: ImportRowData[] = [
+  {
+    ma_xet_tuyen: "7480201",
+    ten_chuong_trinh: "Công nghệ thông tin",
+    ma_truong: "CEA",
+    ten_truong: "Trường Đại học Nghệ An",
+    tinh_thanh: "Nghệ An",
+    co_so: "",
+    ma_nganh: "7480201",
+    nam: "2026",
+    diem_chuan: "17",
+    hoc_phi_min: "",
+    hoc_phi_max: "",
+    chi_tieu: "",
+    to_hop: "A00 A01",
+    nguon: "",
+    phuong_thuc: "Điểm thi THPT",
+    diem_rieng: "",
+    ghi_chu: "",
+  },
+  {
+    ma_xet_tuyen: "7340115",
+    ten_chuong_trinh: "Marketing",
+    ma_truong: "CEA",
+    ten_truong: "Trường Đại học Nghệ An",
+    tinh_thanh: "Nghệ An",
+    co_so: "",
+    ma_nganh: "7340115",
+    nam: "2026",
+    diem_chuan: "",
+    hoc_phi_min: "",
+    hoc_phi_max: "",
+    chi_tieu: "",
+    to_hop: "",
+    nguon: "",
+    phuong_thuc: "Điểm ĐGNL HSA",
+    diem_rieng: "68",
+    ghi_chu: "",
+  },
+];
 
 function readFile(f: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -118,6 +248,7 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
   const [fileErr, setFileErr] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [importPhase, setImportPhase] = useState<ImportPhase | null>(null);
 
   // Thông báo cập nhật bản ghi trùng hoặc thêm mới
   const [updateNotice, setUpdateNotice] = useState<{
@@ -365,27 +496,35 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
     if (!/\.(csv|xlsx|tsv|txt)$/i.test(f.name)) return setFileErr("Chỉ hỗ trợ tệp Excel (.xlsx) hoặc CSV (.csv / .tsv / .txt).");
     if (f.size > MAX_BYTES) return setFileErr("Tệp lớn hơn 10 MB.");
 
-    let content: string;
-    try {
-      content = await readFile(f);
-    } catch {
-      return setFileErr("Không đọc được tệp.");
-    }
-
-    const res = await post("/api/admin/import", { step: "preview", fileName: f.name, content }, { refresh: false });
-    if (!res.ok) return setFileErr(res.message ?? "Tệp không hợp lệ.");
     setFile({ name: f.name, size: f.size });
-    setPreview(res.preview as ImportPreview);
+    setImportPhase("reading");
+    try {
+      const content = await readFile(f);
+      setImportPhase("checking");
+      const res = await post("/api/admin/import", { step: "preview", fileName: f.name, content }, { refresh: false });
+      if (!res.ok) {
+        setFile(null);
+        return setFileErr(res.message ?? "Tệp không hợp lệ.");
+      }
+      setPreview(res.preview as ImportPreview);
+    } catch {
+      setFile(null);
+      setFileErr("Không đọc được tệp.");
+    } finally {
+      setImportPhase(null);
+    }
   };
 
   // Công bố file
   const handlePublishFile = async () => {
     if (!preview) return;
+    setImportPhase("publishing");
     const res = await post(
       "/api/admin/import",
       { step: "publish", fileName: preview.fileName, rows: preview.rows.map((r) => r.data) },
       { refresh: true },
     );
+    setImportPhase(null);
     setConfirmPublish(false);
     if (res.ok) {
       const updatedCount = Number(res.updated) || 0;
@@ -393,11 +532,11 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
       const updatedPrograms = (res.updatedPrograms as string[]) || [];
 
       if (updatedCount > 0) {
-        toast(`🔔 ĐÃ CẬP NHẬT: ${updatedCount} ngành trùng của trường đã được cập nhật thành công! (Tạo mới: ${createdCount})`, "info");
+        toast(`🔔 ĐÃ CẬP NHẬT: ${updatedCount} bản ghi khớp ID đã được cập nhật thành công! (Tạo mới: ${createdCount})`, "info");
         setUpdateNotice({
           type: "update",
-          title: "Thông báo cập nhật ngành trùng từ File",
-          message: `Hệ thống đã tự động phát hiện và cập nhật dữ liệu điểm chuẩn/thông tin cho ${updatedCount} ngành trùng của các trường, đồng thời tạo mới ${createdCount} ngành.`,
+          title: "Thông báo cập nhật theo ID từ file",
+          message: `Hệ thống đã cập nhật dữ liệu cho ${updatedCount} bản ghi khớp mã trường + mã xét tuyển, đồng thời tạo mới ${createdCount} bản ghi.`,
           details: updatedPrograms,
         });
       } else {
@@ -567,11 +706,11 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
         {activeTab === "import" && (
           <div className="flex items-center gap-2">
             <a
-              href="/api/admin/import?type=simple"
+              href="/api/admin/import?format=xlsx"
               download
               className="flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-700 hover:bg-primary-100"
             >
-              <LuDownload className="size-3.5" /> Tải mẫu Excel siêu dễ (1 dòng)
+              <LuDownload className="size-3.5" /> Tải mẫu Excel đầy đủ
             </a>
           </div>
         )}
@@ -880,103 +1019,108 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
           <Panel className="p-6">
             <h2 className="text-lg font-bold text-slate-900">Nhập danh sách từ Excel (.xlsx) hoặc CSV</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Cách dễ nhất: Bạn chỉ cần điền 1 bảng Excel 6 cột đơn giản. Nếu dòng nào chưa có điểm chuẩn, cứ để trống, hệ thống vẫn nạp thành công!
+              Mỗi dòng dùng mã xét tuyển làm ID. Mã trường giúp phân biệt khi cùng mã xuất hiện ở nhiều trường; các ô chưa có dữ liệu được để trống và bổ sung sau.
             </p>
 
-            {/* Hướng dẫn cấu trúc 6 cột chuẩn */}
+            {/* Hướng dẫn cấu trúc đầy đủ theo khóa mã xét tuyển */}
             <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50/60 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-primary-900">
-                  Cơ chế 6 cột chuẩn siêu dễ (Excel hoặc CSV):
+                  Cấu trúc đầy đủ theo ID (Excel hoặc CSV):
                 </span>
                 <span className="rounded-full bg-primary-100 px-2.5 py-0.5 text-[11px] font-semibold text-primary-800">
-                  Tự động tạo trường & ngành mới
+                  Mã xét tuyển là khóa bắt buộc
                 </span>
               </div>
               <div className="mt-3 overflow-x-auto rounded-lg border border-primary-200 bg-white shadow-sm">
-                <table className="w-full text-left text-xs">
+                <table className="min-w-[1780px] text-left text-xs">
                   <thead className="bg-primary-100/70 text-primary-900 font-bold">
                     <tr>
-                      <th className="px-3 py-2">mã trường mới</th>
-                      <th className="px-3 py-2">tên trường</th>
-                      <th className="px-3 py-2">tỉnh</th>
-                      <th className="px-3 py-2">tên ngành</th>
-                      <th className="px-3 py-2">mã xét tuyển</th>
-                      <th className="px-3 py-2">điểm chuẩn</th>
+                      {BULK_IMPORT_COLUMNS.map((column) => (
+                        <th key={column.key} className="whitespace-nowrap px-3 py-2">
+                          {column.label}{column.required ? " *" : ""}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
-                    <tr>
-                      <td className="px-3 py-1.5 font-mono font-bold text-primary-700">BKA</td>
-                      <td className="px-3 py-1.5">Đại học Bách khoa Hà Nội</td>
-                      <td className="px-3 py-1.5">Hà Nội</td>
-                      <td className="px-3 py-1.5 font-medium">Công nghệ thông tin</td>
-                      <td className="px-3 py-1.5 font-mono">IT1</td>
-                      <td className="px-3 py-1.5 font-bold text-success-700">28.5</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-1.5 font-mono font-bold text-primary-700">NEU</td>
-                      <td className="px-3 py-1.5">Đại học Kinh tế Quốc dân</td>
-                      <td className="px-3 py-1.5">Hà Nội</td>
-                      <td className="px-3 py-1.5 font-medium">Marketing</td>
-                      <td className="px-3 py-1.5 font-mono">MKT01</td>
-                      <td className="px-3 py-1.5 font-bold text-success-700">27.5</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-1.5 font-mono font-bold text-primary-700">FPT</td>
-                      <td className="px-3 py-1.5">Trường Đại học FPT</td>
-                      <td className="px-3 py-1.5">Hà Nội</td>
-                      <td className="px-3 py-1.5 font-medium">Kỹ thuật phần mềm</td>
-                      <td className="px-3 py-1.5 font-mono">SE01</td>
-                      <td className="px-3 py-1.5 italic text-slate-400">(để trống chờ công bố)</td>
-                    </tr>
+                    {BULK_IMPORT_EXAMPLES.map((example, index) => (
+                      <tr key={index}>
+                        {BULK_IMPORT_COLUMNS.map((column) => (
+                          <td
+                            key={column.key}
+                            className={cn(
+                                "max-w-64 whitespace-normal break-words px-3 py-1.5",
+                              column.key === "ma_xet_tuyen" && "font-mono font-bold text-primary-700",
+                              !example[column.key] && "italic text-slate-400",
+                            )}
+                          >
+                            {example[column.key] || "để trống"}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
               <ul className="mt-2.5 space-y-1 text-xs text-slate-600">
-                <li>• <strong>Mã trường mới:</strong> Nếu trường chưa có trên hệ thống, Trovio sẽ tự động tạo trường mới theo tên và tỉnh bạn điền.</li>
-                <li>• <strong>Tên ngành:</strong> Tự động tạo ngành mới nếu chưa có trong danh mục.</li>
-                <li>• <strong>Điểm chuẩn:</strong> Thang 30. Nếu trường chưa công bố, bạn <strong>được để trống</strong>, hệ thống vẫn nạp thành công để cập nhật sau!</li>
+                <li>• <strong>Mã xét tuyển:</strong> khóa bắt buộc. ID đã có sẽ cập nhật đúng bản ghi, kể cả khi tên chương trình thay đổi.</li>
+                <li>• <strong>Mã trường:</strong> nên nhập để tạo khóa duy nhất theo trường; bắt buộc khi cùng mã xét tuyển có ở nhiều trường.</li>
+                <li>• <strong>Các cột còn lại:</strong> được để trống. Khi nhập lại cùng ID, ô có dữ liệu sẽ được cập nhật, ô trống giữ nguyên dữ liệu cũ.</li>
               </ul>
             </div>
 
             <div
-              onDragOver={(e) => (e.preventDefault(), setDrag(true))}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!importPhase) setDrag(true);
+              }}
               onDragLeave={() => setDrag(false)}
               onDrop={(e) => {
                 e.preventDefault();
                 setDrag(false);
-                pickFile(e.dataTransfer.files[0]);
+                if (!importPhase) pickFile(e.dataTransfer.files[0]);
               }}
               className={cn(
-                "mt-4 flex flex-col items-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition",
-                drag ? "border-primary-600 bg-primary-50" : "border-primary-300 bg-primary-50/30",
+                "relative mt-4 flex min-h-64 flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed px-6 py-9 text-center transition",
+                importPhase
+                  ? "border-primary-400 bg-gradient-to-br from-white via-primary-50/70 to-cyan-50/70 shadow-[inset_0_0_40px_rgba(99,102,241,0.06)]"
+                  : drag
+                    ? "border-primary-600 bg-primary-50"
+                    : "border-primary-300 bg-primary-50/30",
               )}
             >
-              <span className="flex size-12 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-                <LuCloudUpload className="size-6" />
-              </span>
-              <p className="mt-3 text-base font-bold text-slate-900">Kéo thả tệp Excel/CSV vào đây hoặc bấm để chọn</p>
-              <p className="mt-1 text-xs text-slate-500">Hỗ trợ .xlsx, .csv (tối đa 2.000 dòng)</p>
               <input
                 id="file-upload"
                 type="file"
                 accept=".csv,.xlsx,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="sr-only"
+                disabled={Boolean(importPhase) || busy}
                 onChange={(e) => pickFile(e.target.files?.[0])}
               />
-              <div className="mt-4 flex gap-3">
-                <Button size="sm" onClick={() => document.getElementById("file-upload")?.click()} disabled={busy}>
-                  Chọn file từ máy
-                </Button>
-                <a
-                  href="/api/admin/import?type=simple"
-                  download
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  <LuDownload className="size-3.5" /> Tải file mẫu mẫu (.csv)
-                </a>
-              </div>
+              {importPhase ? (
+                <ImportProgress phase={importPhase} />
+              ) : (
+                <>
+                  <span className="flex size-12 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+                    <LuCloudUpload className="size-6" />
+                  </span>
+                  <p className="mt-3 text-base font-bold text-slate-900">Kéo thả tệp Excel/CSV vào đây hoặc bấm để chọn</p>
+                  <p className="mt-1 text-xs text-slate-500">Hỗ trợ .xlsx, .csv (tối đa 20.000 dòng)</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-3">
+                    <Button size="sm" onClick={() => document.getElementById("file-upload")?.click()} disabled={busy}>
+                      Chọn file từ máy
+                    </Button>
+                    <a
+                      href="/api/admin/import?format=xlsx"
+                      download
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <LuDownload className="size-3.5" /> Tải file mẫu Excel (.xlsx)
+                    </a>
+                  </div>
+                </>
+              )}
             </div>
 
             {fileErr && (
@@ -1013,17 +1157,25 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-base font-bold text-slate-900">Kết quả xem trước ({preview.summary.total} dòng)</h3>
                 <div className="flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                    {preview.summary.valid} dòng hợp lệ ✓
+                  </span>
                   <span className="rounded-md bg-success-50 px-2.5 py-1 text-success-700 border border-success-200">
                     {preview.summary.create} ngành mới ✨
                   </span>
                   {preview.summary.update > 0 && (
                     <span className="rounded-md bg-amber-100 px-2.5 py-1 text-amber-900 border border-amber-300">
-                      ⚠️ {preview.summary.update} ngành trùng (sẽ cập nhật)
+                      ⚠️ {preview.summary.update} bản ghi khớp ID (sẽ cập nhật)
                     </span>
                   )}
                   {preview.summary.warnings > 0 && (
                     <span className="rounded-md bg-amber-50 px-2.5 py-1 text-amber-700 border border-amber-200">
-                      {preview.summary.warnings} dòng chờ bổ sung
+                      {preview.summary.warnings} ngành chờ bổ sung
+                    </span>
+                  )}
+                  {preview.summary.skipped > 0 && (
+                    <span className="rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-slate-700">
+                      {preview.summary.skipped} dòng trùng đã bỏ qua
                     </span>
                   )}
                   {preview.summary.errors > 0 && (
@@ -1034,21 +1186,44 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                 </div>
               </div>
 
+              {(preview.summary.create > 0 || preview.summary.update > 0) && preview.summary.valid > preview.summary.create + preview.summary.update && (
+                <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800">
+                  <strong>{preview.summary.valid} dòng hợp lệ</strong> sẽ được gom theo trường và ID thành <strong>{preview.summary.create + preview.summary.update} ngành</strong>. Một ngành có thể giữ nhiều dòng khi các phương thức xét tuyển khác nhau.
+                </div>
+              )}
+
+              {preview.summary.errors > 0 && (
+                <div className="mt-4 rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-800">
+                  <p className="font-bold">Dấu X là dòng có dữ liệu không hợp lệ và cần sửa.</p>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {preview.rows.filter((row) => row.errors.length > 0).slice(0, 5).map((row) => (
+                      <li key={row.line}>Dòng {row.line}: {row.errors.map((error) => error.message).join("; ")}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {preview.summary.skipped > 0 && (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  Đã tự bỏ qua <strong>{preview.summary.skipped}</strong> dòng trùng đúng bộ ba <code className="font-bold">ma_truong + ma_xet_tuyen + phuong_thuc</code>. Khác trường hoặc khác phương thức vẫn được nhập bình thường.
+                </div>
+              )}
+
               <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full text-left text-xs">
+                <table className="min-w-[2300px] table-fixed text-left text-xs">
                   <thead className="bg-slate-50 text-slate-500">
                     <tr>
                       <th className={th}>Dòng</th>
-                      <th className={th}>Trường</th>
-                      <th className={th}>Ngành / Mã XT</th>
-                      <th className={th}>Điểm chuẩn</th>
-                      <th className={th}>Học phí</th>
+                      {BULK_IMPORT_COLUMNS.map((column) => (
+                        <th key={column.key} className={th}>{column.label}{column.required ? " *" : ""}</th>
+                      ))}
                       <th className={th}>Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {preview.rows.slice(0, 50).map((r, i) => {
                       const hasErr = r.errors.length > 0;
+                      const isSkipped = !hasErr && r.action === null;
                       const isDupUpdate = r.action === "update";
                       return (
                         <tr
@@ -1056,44 +1231,45 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                           className={cn(
                             hasErr
                               ? "bg-danger-50/40"
+                              : isSkipped
+                                ? "bg-slate-50/80 text-slate-500"
                               : isDupUpdate
                                 ? "bg-amber-50/40 hover:bg-amber-50/70"
                                 : "hover:bg-slate-50",
                           )}
                         >
                           <td className={td}>{r.line}</td>
-                          <td className={td}>
-                            <span className="font-bold text-slate-900">{r.data.ma_truong}</span>
-                            {r.data.ten_truong && <span className="block text-[11px] text-slate-500">{r.data.ten_truong}</span>}
-                          </td>
-                          <td className={td}>
-                            <span className="font-semibold text-slate-800">{r.data.ten_chuong_trinh || r.data.ma_xet_tuyen}</span>
-                            <span className="block text-[11px] text-slate-400">Mã: {r.data.ma_xet_tuyen}</span>
-                          </td>
-                          <td className={td}>
-                            {r.data.diem_chuan ? (
-                              <span className="font-bold text-success-700">{r.data.diem_chuan}</span>
-                            ) : (
-                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">Chờ điểm</span>
-                            )}
-                          </td>
-                          <td className={td}>
-                            {r.data.hoc_phi_min ? (
-                              <span>{r.data.hoc_phi_min} tr</span>
-                            ) : (
-                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">Chờ học phí</span>
-                            )}
-                          </td>
-                          <td className={td}>
+                          {BULK_IMPORT_COLUMNS.map((column) => (
+                            <td
+                              key={column.key}
+                              className={cn(
+                                td,
+                                "max-w-64 align-top whitespace-normal break-words",
+                                column.key === "ma_xet_tuyen" && "font-mono font-bold text-primary-700",
+                                !r.data[column.key] && "italic text-slate-400",
+                              )}
+                              title={r.data[column.key] || undefined}
+                            >
+                              <span className="block max-h-16 overflow-hidden">{r.data[column.key] || "—"}</span>
+                            </td>
+                          ))}
+                          <td className={`${td} min-w-72`}>
                             {hasErr ? (
                               <span className="font-semibold text-danger-700">{r.errors.map((e) => e.message).join(", ")}</span>
+                            ) : isSkipped ? (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1 rounded border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
+                                  Bỏ qua dòng trùng
+                                </span>
+                                <span className="block text-[10px] text-slate-500">{r.warnings.find((warning) => warning.field === "row")?.message}</span>
+                              </div>
                             ) : isDupUpdate ? (
                               <div className="space-y-0.5">
                                 <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 border border-amber-300">
-                                  <LuTriangleAlert className="size-3 text-amber-600" /> Báo trùng ngành (Sẽ cập nhật)
+                                  <LuTriangleAlert className="size-3 text-amber-600" /> Khớp ID (sẽ cập nhật)
                                 </span>
                                 <span className="block text-[10px] text-amber-700">
-                                  Đã có ở trường → Cập nhật điểm/thông tin
+                                  Ô có dữ liệu sẽ cập nhật, ô trống được giữ nguyên
                                 </span>
                               </div>
                             ) : (
@@ -1134,7 +1310,7 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
             open={confirmPublish}
             onClose={() => setConfirmPublish(false)}
             title="Xác nhận lưu & nạp dữ liệu vào hệ thống"
-            subtitle="Hệ thống đã tự động kiểm tra và phân loại ngành mới / ngành trùng."
+            subtitle="Hệ thống đã kiểm tra và phân loại bản ghi mới / bản ghi khớp ID."
             footer={
               <>
                 <Button variant="outline" onClick={() => setConfirmPublish(false)}>
@@ -1155,7 +1331,7 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                     <p className="text-emerald-700">Sẽ tạo mới chương trình đào tạo.</p>
                   </div>
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <span className="font-bold text-amber-800">⚠️ Ngành trùng trường:</span>
+                    <span className="font-bold text-amber-800">⚠️ Bản ghi khớp ID:</span>
                     <p className="mt-1 text-2xl font-bold text-amber-900">{preview.summary.update}</p>
                     <p className="text-amber-700">Sẽ cập nhật điểm chuẩn & thông tin.</p>
                   </div>
@@ -1164,10 +1340,10 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                   <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3 text-xs text-amber-900">
                     <p className="font-bold flex items-center gap-1.5">
                       <LuTriangleAlert className="size-4 text-amber-600 shrink-0" />
-                      Thông báo cập nhật bản ghi trùng:
+                      Thông báo cập nhật theo ID:
                     </p>
                     <p className="mt-1">
-                      Phát hiện <strong>{preview.summary.update}</strong> ngành trùng với các ngành đã có trong trường. Khi bạn đồng ý, hệ thống sẽ <strong>cập nhật điểm chuẩn và thông tin mới</strong> cho các ngành này (không tạo trùng lặp).
+                      Phát hiện <strong>{preview.summary.update}</strong> bản ghi trùng khóa mã trường + mã xét tuyển. Khi bạn đồng ý, hệ thống chỉ cập nhật các ô có dữ liệu và giữ nguyên các ô đang để trống.
                     </p>
                   </div>
                 )}

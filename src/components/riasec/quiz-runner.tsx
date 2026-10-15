@@ -125,7 +125,7 @@ export function QuizRunner({ questions }: { questions: RiasecQuestion[] }) {
               <p className="text-sm font-bold text-primary-700">Câu {q.id}</p>
               <p className="mt-1 font-medium text-slate-900">{q.text}</p>
             </div>
-            <div className="mt-4 grid grid-cols-5 gap-2 md:mt-0 md:w-[420px]">
+            <div className="mt-4 grid grid-cols-5 gap-1 sm:gap-2 md:mt-0 md:w-[420px]">
               {LIKERT_LABELS.map((label, i) => {
                 const v = i + 1;
                 const selected = answers[q.id] === v;
@@ -134,7 +134,7 @@ export function QuizRunner({ questions }: { questions: RiasecQuestion[] }) {
                     <input type="radio" name={`q-${q.id}`} value={v} checked={selected} onChange={() => answer(q.id, v)} className="peer sr-only" aria-label={label} />
                     <span
                       className={cn(
-                        "flex size-11 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors peer-focus-visible:ring-4 peer-focus-visible:ring-primary-200",
+                        "flex size-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors peer-focus-visible:ring-4 peer-focus-visible:ring-primary-200 sm:size-11",
                         selected ? "border-primary-600 bg-primary-600 text-white" : "border-slate-300 text-slate-500 hover:border-primary-300",
                       )}
                     >

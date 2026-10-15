@@ -249,7 +249,7 @@ export interface User {
   disabled?: boolean;
   /** Lần đăng nhập gần nhất (thống kê quản trị). */
   lastLoginAt?: string | null;
-  /** Kiểm duyệt viên: vào được mục kiểm duyệt cảm nhận, hỏi đáp, báo lỗi. */
+  /** Kiểm duyệt viên: vào được mục kiểm duyệt cảm nhận và hỏi đáp. */
   moderator?: boolean;
   schoolStaff?: SchoolStaff | null;
   /** Đồng ý nhận lời mời khảo sát sau 1 năm (mặc định tắt). */
@@ -401,7 +401,7 @@ export interface ShareComment {
 }
 
 /** Phần dữ liệu chương trình quản trị viên được phép chỉnh (lưu dạng ghi đè lên dữ liệu gốc). */
-export type ProgramPatch = Partial<Pick<Program, "cutoffs" | "altCutoffs" | "tuitionMin" | "tuitionMax" | "quota" | "source" | "updatedAt" | "schoolVerifiedAt" | "schoolVerifiedNote" | "verifiedFields" | "sourceUrl" | "sourceCheckedAt" | "sourceNote" | "adminVerifiedAt" | "hidden" | "combos" | "name" | "admissionCode" | "trainingType" | "campus" | "durationYears">>;
+export type ProgramPatch = Partial<Pick<Program, "cutoffs" | "altCutoffs" | "methods" | "tuitionMin" | "tuitionMax" | "quota" | "source" | "updatedAt" | "schoolVerifiedAt" | "schoolVerifiedNote" | "verifiedFields" | "sourceUrl" | "sourceCheckedAt" | "sourceNote" | "adminVerifiedAt" | "hidden" | "combos" | "name" | "admissionCode" | "trainingType" | "campus" | "durationYears">>;
 
 export interface AuditEntry {
   id: string;

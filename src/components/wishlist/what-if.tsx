@@ -82,7 +82,7 @@ export function WhatIfSimulator({ items, profile }: { items: StrategyItem[]; pro
         {delta === 0 ? "Điểm hiện tại" : `${delta > 0 ? "+" : "−"}${formatMethodScore(Math.abs(delta), now.method)} điểm`}
       </p>
 
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[13px]">
+      <div className="mt-3 grid grid-cols-1 gap-2 text-center text-[13px] min-[400px]:grid-cols-3">
         {(["thu-suc", "vua-suc", "an-toan"] as FitLevel[]).map((l) => (
           <div key={l} className={cn("rounded-xl px-2 py-2", LEVEL_CLASS[l])}>
             <p className="font-semibold">{FIT_LABELS[l]}</p>

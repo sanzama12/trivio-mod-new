@@ -222,7 +222,7 @@ function ClassView({ dash, onChanged, onRemoved }: { dash: Dashboard; onChanged:
             {copied ? <LuCheck className="size-4" aria-hidden /> : <LuCopy className="size-4" aria-hidden />} {copied ? "Đã chép lời mời" : "Mã mời lớp"}
           </Button>
         </div>
-        <div className="grid grid-cols-3 gap-3 px-6">
+        <div className="grid grid-cols-1 gap-3 px-6 sm:grid-cols-3">
           {tiles.map((t) => (
             <div key={t.label} className="rounded-xl bg-slate-50 p-4">
               <p className={cn("text-2xl font-bold", t.cls)}>{t.value}</p>

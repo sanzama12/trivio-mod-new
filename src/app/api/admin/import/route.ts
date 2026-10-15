@@ -7,11 +7,21 @@ import { importService } from "@/services/import.service";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** File mẫu CSV (hỗ trợ mẫu đơn giản qua ?type=simple). */
+/** Tải file mẫu đầy đủ. Mặc định giữ CSV cũ; dùng ?format=xlsx cho mẫu Excel. */
 export async function GET(req: Request) {
   const { error } = await requireAdmin();
   if (error) return error;
   const { searchParams } = new URL(req.url);
+  if (searchParams.get("format") === "xlsx") {
+    const content = await importService.templateXlsx();
+    return new NextResponse(new Uint8Array(content), {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": "attachment; filename=trovio-mau-nhap-du-lieu-theo-id.xlsx",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
   const isSimple = searchParams.get("type") === "simple";
   const content = isSimple ? importService.templateSimpleCsv() : importService.templateCsv();
   const filename = isSimple ? "trovio-mau-nhap-de-nhat.csv" : "trovio-mau-nhap-du-lieu.csv";

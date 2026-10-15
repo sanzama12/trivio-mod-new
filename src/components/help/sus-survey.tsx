@@ -98,7 +98,7 @@ export function SusSurvey({ questions, roles }: { questions: readonly string[]; 
               <p aria-hidden className="text-[15px] font-semibold text-slate-900">
                 <span className="text-primary-700">{i + 1}.</span> {q}
               </p>
-              <div className="mt-3 grid grid-cols-5 gap-2">
+              <div className="mt-3 grid grid-cols-5 gap-1 sm:gap-2">
                 {SCALE.map((label, k) => {
                   const v = k + 1;
                   const checked = answers[i] === v;

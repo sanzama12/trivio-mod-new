@@ -219,8 +219,18 @@ async function createProgram(program: Program): Promise<void> {
     );
     for (const combo of program.combos) {
       await client.query(
-        `INSERT INTO trovio.program_combos (program_id, combo_code) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+        `INSERT INTO trovio.program_combos (program_id, combo_code)
+         SELECT $1,$2 WHERE EXISTS (SELECT 1 FROM trovio.combos WHERE code = $2)
+         ON CONFLICT DO NOTHING`,
         [program.id, combo],
+      );
+    }
+    for (const [position, method] of program.methods.entries()) {
+      await client.query(
+        `INSERT INTO trovio.program_admission_methods
+           (program_id, method_code, name, description, requirement, tag, position)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [program.id, method.key ?? null, method.name, method.desc, method.requirement, method.tag, position],
       );
     }
     for (const cutoff of program.cutoffs) {
@@ -285,7 +295,26 @@ async function createProgramsBatch(programs: Program[]): Promise<void> {
        SELECT program.item->>'id', combo.code
        FROM jsonb_array_elements($1::jsonb) AS program(item)
        CROSS JOIN LATERAL jsonb_array_elements_text(program.item->'combos') AS combo(code)
+       INNER JOIN trovio.combos AS catalog_combo ON catalog_combo.code = combo.code
        ON CONFLICT DO NOTHING`,
+      [payload],
+    );
+    await client.query(
+      `DELETE FROM trovio.program_admission_methods
+       WHERE program_id IN (
+         SELECT item->>'id' FROM jsonb_array_elements($1::jsonb) AS data(item)
+       )`,
+      [payload],
+    );
+    await client.query(
+      `INSERT INTO trovio.program_admission_methods
+         (program_id, method_code, name, description, requirement, tag, position)
+       SELECT program.item->>'id', NULLIF(method.item->>'key', ''), method.item->>'name',
+              COALESCE(method.item->>'desc', ''), COALESCE(method.item->>'requirement', ''),
+              COALESCE(method.item->>'tag', ''), (method.position - 1)::smallint
+       FROM jsonb_array_elements($1::jsonb) AS program(item)
+       CROSS JOIN LATERAL jsonb_array_elements(program.item->'methods')
+         WITH ORDINALITY AS method(item, position)`,
       [payload],
     );
     await client.query(
