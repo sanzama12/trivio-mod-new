@@ -26,6 +26,8 @@ const NAV = [
   { href: "/nganh", label: "Khám phá ngành", match: ["/nganh"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
   { href: "/moc-tuyen-sinh", label: "Mốc tuyển sinh", match: ["/moc-tuyen-sinh"] },
+  { href: "/tin-tuc", label: "Tin tức", match: ["/tin-tuc"] },
+  { href: "/tai-lieu", label: "Tài liệu", match: ["/tai-lieu"] },
 ];
 
 /** 0 = rộng rãi nhất … 4 = gọn nhất (chữ 13px); "mobile" = menu ☰. */

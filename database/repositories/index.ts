@@ -30,8 +30,12 @@ import { postgresMajorRepository, postgresProgramRepository, postgresQuizReposit
 import { postgresAdminDashboardRepository } from "./postgres-admin-dashboard";
 
 import { postgresProgramAdminRepository } from "./postgres-program-admin";
+import { postgresNewsRepository } from "./postgres-news";
+import { postgresMaterialsRepository } from "./postgres-materials";
 
 export const repositories = {
+  materials: postgresMaterialsRepository,
+  news: postgresNewsRepository,
   adminDashboard: postgresAdminDashboardRepository,
   schools: postgresSchoolRepository,
   majors: postgresMajorRepository,

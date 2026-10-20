@@ -241,6 +241,11 @@
 }
 
 /* Trình soạn và bản xem trước email kiểu Word. */
+.news-rich-content { overflow-wrap: anywhere; overflow-x: auto; }
+.news-rich-content img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0; }
+.news-rich-content hr { margin: 1.5rem 0; border-top: 1px solid #cbd5e1; }
+.news-rich-content sub { vertical-align: sub; font-size: smaller; }
+.news-rich-content sup { vertical-align: super; font-size: smaller; }
 .email-rich-editor:empty::before {
   color: #94a3b8;
   content: attr(data-placeholder);

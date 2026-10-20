@@ -20,6 +20,7 @@ import {
   LuLogOut,
   LuMail,
   LuMenu,
+  LuNewspaper,
   LuMessageCircleQuestion,
   LuSettings,
   LuShieldCheck,
@@ -44,6 +45,8 @@ const DATA_ITEMS: Item[] = [
   { key: "rules", href: "/quan-tri/quy-tac-goi-y", label: "Quy tắc gợi ý", Icon: LuSettings },
 ];
 const OPS_ITEMS: Item[] = [
+  { key: "materials", href: "/quan-tri/tai-lieu", label: "Tài liệu học tập", Icon: LuBookOpen },
+  { key: "news", href: "/quan-tri/tin-tuc", label: "Tin tức & Video", Icon: LuNewspaper },
   { key: "qa", href: "/quan-tri/hoi-dap", label: "Hỏi đáp sinh viên", Icon: LuMessageCircleQuestion, staff: true },
   { key: "emails", href: "/quan-tri/email-khach-hang", label: "Email khách hàng", Icon: LuMail },
   { key: "timeline", href: "/quan-tri/moc-tuyen-sinh", label: "Mốc tuyển sinh", Icon: LuCalendarClock },

@@ -23,7 +23,11 @@
     "db:typecheck": "tsc --noEmit -p database/tsconfig.json",
     "db:export": "node --conditions=react-server --import tsx database/scripts/export-sql.ts --production",
     "admissions:parse": "tsx database/scripts/parse-all-ts247.ts",
-    "db:smoke": "node --conditions=react-server --import tsx database/scripts/smoke.ts"
+    "db:smoke": "node --conditions=react-server --import tsx database/scripts/smoke.ts",
+    "db:verify:news": "node --conditions=react-server --import tsx database/scripts/verify-news.ts",
+    "db:smoke:news": "node --import tsx database/scripts/smoke-news-http.ts",
+    "db:verify:materials": "node --conditions=react-server --import tsx database/scripts/verify-materials.ts",
+    "db:smoke:materials": "node --import tsx database/scripts/smoke-materials-http.ts"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",
@@ -33,6 +37,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
+    "sanitize-html": "^2.18.1",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
@@ -40,6 +45,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/sanitize-html": "^2.16.2",
     "dotenv": "^18.0.7",
     "tailwindcss": "^4.1.0",
     "tsx": "^4.19.0",

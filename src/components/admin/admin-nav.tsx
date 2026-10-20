@@ -13,6 +13,8 @@ export type AdminSection =
   | "qa"
   | "emails"
   | "timeline"
+  | "news"
+  | "materials"
   | "chatbot"
   | "stats";
 
