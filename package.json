@@ -7,20 +7,23 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "demo": "next build && TROVIO_DEMO=true next start -p 3000",
     "typecheck": "tsc --noEmit",
-    "test": "node --env-file=.env.local --conditions=react-server --import tsx --test tests/*.test.ts",
-    "db:migrate": "tsx scripts/migrate-pg.ts",
-    "db:status": "tsx scripts/migrate-pg.ts --status",
-    "admissions:programs": "tsx scripts/crawl-admissions.ts --resume",
-    "admissions:export": "tsx scripts/export-tong-hop.ts",
-    "admissions:publish": "tsx scripts/publish-catalog.ts",
-    "admissions:transform": "tsx scripts/transform-admissions.ts",
-    "admissions:import": "tsx scripts/import-admissions.ts",
-    "admissions:validate": "tsx scripts/validate-admissions.ts"
+    "db:migrate": "tsx database/scripts/migrate-pg.ts",
+    "db:status": "tsx database/scripts/migrate-pg.ts --status",
+    "admissions:export": "tsx database/scripts/export-tong-hop.ts",
+    "admissions:publish": "tsx database/scripts/publish-catalog.ts",
+    "db:audit": "tsx database/scripts/audit.ts",
+    "db:test": "node --conditions=react-server --import tsx --test database/tests/*.test.ts",
+    "db:verify": "tsx database/scripts/verify-migrations.ts",
+    "db:check": "tsx database/scripts/check-pg.ts",
+    "db:typecheck": "tsc --noEmit -p database/tsconfig.json",
+    "db:export": "node --conditions=react-server --import tsx database/scripts/export-sql.ts --production",
+    "admissions:parse": "tsx database/scripts/parse-all-ts247.ts",
+    "db:smoke": "node --conditions=react-server --import tsx database/scripts/smoke.ts"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",

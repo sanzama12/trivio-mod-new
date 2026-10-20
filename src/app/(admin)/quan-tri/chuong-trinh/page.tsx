@@ -48,7 +48,7 @@ export default async function AdminProgramsPage({ searchParams }: { searchParams
           }))}
         />
         <div id="nhat-ky">
-          <AuditLog entries={audit.filter((a) => (a.targetType ?? "program") === "program").slice(0, 30)} names={names} />
+          <AuditLog entries={audit.filter((a) => (a.targetType ?? "program") === "program")} names={names} compact limit={10} />
         </div>
       </AdminBody>
     </>

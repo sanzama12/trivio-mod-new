@@ -60,7 +60,7 @@ BASE_URL=http://localhost:3100 CRON_SECRET=e2e-secret node tests/e2e/smoke.mjs  
 | Giáo viên (lớp mẫu `DEMO12`) | gv@trovio.vn | Trovio@2026 |
 | Sinh viên email trường (trả lời hỏi đáp NEU) | linh@st.neu.edu.vn | Trovio@2026 |
 | Cán bộ tuyển sinh NEU (đã duyệt, `/cong-truong`) | tuyensinh@neu.edu.vn | Trovio@2026 |
-| Kiểm duyệt viên (chỉ cảm nhận / hỏi đáp / báo lỗi) | kiemduyet@trovio.vn | Trovio@2026 |
+| Kiểm duyệt viên (chỉ hỏi đáp / báo lỗi) | kiemduyet@trovio.vn | Trovio@2026 |
 
 Env (xem `.env.example`): `SESSION_SECRET`, `APP_URL`, `TROVIO_DEMO` (mặc định bật ở dev, tắt ở `npm start`), `ADMIN_EMAILS`, `CRON_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `CHATBOT_LLM`/`ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` (mặc định tắt), `TROVIO_DB_FILE`.
 
@@ -69,10 +69,10 @@ Env (xem `.env.example`): `SESSION_SECRET`, `APP_URL`, `TROVIO_DEMO` (mặc đ�
 ## 4. Kiến trúc phân lớp
 
 ```
-src/domain        kiểu & hằng số nghiệp vụ (types.ts, reviews.ts, sus.ts, chat.ts, riasec…)
-src/data          dữ liệu gốc: 16 trường, 24 ngành, 52 chương trình, lịch, việc làm, users demo, reviews demo
+src/domain        kiểu & hằng số nghiệp vụ (types.ts, sus.ts, chat.ts, riasec…)
+src/data          dữ liệu gốc: 16 trường, 24 ngành, 52 chương trình, lịch và users demo
 src/repositories  types.ts (22 interface) · json-file.ts (dữ liệu người dùng) · memory.ts (tĩnh) · index.ts (điểm cắm duy nhất)
-src/services      nghiệp vụ: scoring, recommendation, wishlist-strategy, share, auth, admin, outcome, review,
+src/services      nghiệp vụ: scoring, recommendation, wishlist-strategy, share, auth, admin, outcome,
                   chatbot(+chatbot-llm), data-report, notification, timeline, reminder, analytics, mailer…
 src/app/api       route handler (requireUser/requireAdmin, rateLimit, jsonBody giới hạn size)
 src/app, src/components   giao diện; src/stores/trovio-store.tsx = state client (localStorage khách, đồng bộ khi đăng nhập)
@@ -86,15 +86,15 @@ src/proxy.ts      chống CSRF (Origin/Sec-Fetch-Site) + header bảo mật
 
 ## 5. Chức năng đã có (tóm tắt)
 
-**Khám phá:** trang chủ (lộ trình 5 bước, “Dành cho bạn”), `/chuong-trinh` (lọc theo 4 phương thức; trang tìm kiếm nằm trong route group `(tim-kiem)` cùng `loading.tsx`), chi tiết chương trình (điểm 3 năm, An toàn/Vừa sức/Thử sức: chênh ≥ +1 / ≥ −0,5, tính tổng chi phí, nút Báo dữ liệu sai), trường (tabs, Cảm nhận SV, Việc làm SV), ngành, so sánh ≤ 3.
+**Khám phá:** trang chủ (lộ trình 5 bước, “Dành cho bạn”), `/chuong-trinh` (lọc theo 4 phương thức; trang tìm kiếm nằm trong route group `(tim-kiem)` cùng `loading.tsx`), chi tiết chương trình (điểm 3 năm, An toàn/Vừa sức/Thử sức: chênh ≥ +1 / ≥ −0,5, tính tổng chi phí, nút Báo dữ liệu sai), trường (tabs), ngành, so sánh ≤ 3.
 
 **Cá nhân hoá:** RIASEC 60 câu, `/diem-cua-toi` (THPT/học bạ 30, ĐGNL HN 150, HCM 1200, điểm ưu tiên giảm khi ≥ 22,5), gợi ý (RIASEC 45% · trúng tuyển 35% · vị trí 10% · nhóm ngành 10%), `/da-luu` (kiểm tra chiến lược NV, “nếu điểm thay đổi ±2”, xuất PDF), chia sẻ phụ huynh `/chia-se/[id]` (7/30 ngày, góp ý), `/moc-tuyen-sinh` (Nhắc tôi, .ics, banner ≤14 ngày, **email nhắc trước 7 & 1 ngày**), `/chi-phi`.
 
-**Nội dung:** `/viec-lam` (mỗi số có nguồn, mức tin cậy suy ra từ loại nguồn), cảm nhận SV (kiểm duyệt trước, cờ tự động, báo cáo 3 lần → ẩn, **lọc ngành/khoá khi ≥ 4 cảm nhận**, “Xem thêm” 8/lần, thông báo khi duyệt/từ chối), **chatbot** (truy xuất dữ liệu, từ chối dự đoán/cam kết đỗ/gian lận, ngữ cảnh trang & hội thoại, RIASEC “ngành này có hợp không”, nút Lưu/So sánh trong câu trả lời, từ khoá do admin thêm, 20 câu/phút), **báo dữ liệu sai** (`/tro-giup#bao-loi`, `?ct=<slug>` điền sẵn), **chuông thông báo**.
+**Nội dung:**  **chatbot** (truy xuất dữ liệu, từ chối dự đoán/cam kết đỗ/gian lận, ngữ cảnh trang & hội thoại, RIASEC “ngành này có hợp không”, nút Lưu/So sánh trong câu trả lời, từ khoá do admin thêm, 20 câu/phút), **báo dữ liệu sai** (`/tro-giup#bao-loi`, `?ct=<slug>` điền sẵn), **chuông thông báo**.
 
 **Tài khoản:** đăng ký + OTP, đăng nhập email/Google, khoá sau 5 lần sai, đổi mật khẩu thu hồi phiên, xoá tài khoản, dưới 16 tuổi cần đồng ý phụ huynh.
 
-**Quản trị `/quan-tri/*`:** dữ liệu chương trình (ô “Còn là số ước tính”), việc làm, cảm nhận, báo lỗi, mốc tuyển sinh (chính thức bắt buộc link https; quay về lịch gốc bấm 2 lần), chatbot (thống kê + từ khoá), thống kê (phễu 6 bước + SUS + CSV).
+**Quản trị `/quan-tri/*`:** dữ liệu chương trình (ô “Còn là số ước tính”), báo lỗi, mốc tuyển sinh (chính thức bắt buộc link https; quay về lịch gốc bấm 2 lần), chatbot (thống kê + từ khoá), thống kê (phễu 6 bước + SUS + CSV).
 
 **Đo lường:** phễu ẩn danh `lib/track.ts` (tôn trọng DNT/GPC, tắt được ở `/chinh-sach-rieng-tu`), khảo sát SUS `/khao-sat`.
 
@@ -165,7 +165,7 @@ Ngoài ra: `README.md` (đầy đủ API, bảo mật, cron), Claude Doc “chec
 - [ ] Thay dữ liệu minh hoạ: đợt xét bổ sung 2027, chính sách hỗ trợ/KTX, hỏi đáp & khảo sát demo, lớp `DEMO12`, huy hiệu xác nhận demo.
 - [ ] Nối `services/mailer.ts` với SMTP thật; cron `/api/cron/reminders` (Bearer `CRON_SECRET`).
 - [ ] Rate-limit sang Redis khi chạy nhiều instance; chuyển JSON → PostgreSQL (xem checklist docx).
-- [ ] Nhập dữ liệu tuyển sinh thật, xoá dữ liệu minh hoạ (7 cảm nhận demo, số liệu việc làm minh hoạ, điểm ĐGNL/học bạ ước tính).
+- [ ] Nhập dữ liệu tuyển sinh thật, xoá dữ liệu minh hoạ (điểm ĐGNL/học bạ ước tính).
 - [ ] Tổ chức test người dùng thật 5–8 người (SUS mục tiêu ≥ 72).
 - [ ] Cập nhật `Bao-cao-kiem-thu-Trovio.docx` nếu cần bản báo cáo mới.
 
@@ -187,7 +187,7 @@ File “Trovio — EdTech Platform”, trang *Page 1 · Đồng bộ style*. Fon
 **Đã đồng bộ với code (sửa trực tiếp):** Header (6 mục menu, chuông, user-menu, 4 biến thể mới Việc làm / Mốc tuyển sinh), Footer, Program Card, Chat Launcher; S01–S16, G01–G04, SYS, Onboarding; mobile: menu ☰ có Việc làm + Mốc tuyển sinh, M-S01 có lộ trình 5 bước (bỏ hàng số liệu). Chat Launcher đã thêm vào mọi màn site (trừ S09 làm bài).
 - A01–A09 và 2 màn Admin cũ **giữ nguyên, gắn nhãn “Chưa triển khai”** (code dùng 1 trang /quan-tri 7 tab).
 
-**Section “🔄 Đồng bộ code · Màn bổ sung (10/2026)”** (y=24400): S03 tab Cảm nhận SV / Việc làm SV · /viec-lam · /moc-tuyen-sinh · /chi-phi · /chia-se/[id] · hộp thoại chia sẻ phụ huynh · /khao-sat (SUS) · trợ lý đang mở · menu Thông báo · menu Người dùng · trang chủ đã đăng nhập (“Dành cho bạn”) · 8 màn quản trị (Dữ liệu chương trình, Sửa chương trình, Việc làm, Kiểm duyệt cảm nhận, Báo lỗi, Mốc tuyển sinh, Chatbot, Thống kê & khảo sát).
+**Section “🔄 Đồng bộ code · Màn bổ sung (10/2026)”** (y=24400): /moc-tuyen-sinh · /chi-phi · /chia-se/[id] · hộp thoại chia sẻ phụ huynh · /khao-sat (SUS) · trợ lý đang mở · menu Thông báo · menu Người dùng · trang chủ đã đăng nhập (“Dành cho bạn”) · các màn quản trị còn hoạt động.
 - Màn quản trị dùng dữ liệu minh hoạ ở chỗ DB demo đang trống (báo lỗi, phễu, điểm SUS).
 
 **Section “✨ Đề xuất A · 6 cải tiến” (hi-fi):** N1 Vì sao Trovio gợi ý (drawer, trọng số 45/35/10/10 + học phí là bộ lọc) · N2 Gợi ý khớp mục tiêu + cảnh báo + nhãn mới “Chưa đủ dữ liệu” · N3 Đặt mục tiêu qua hội thoại (chỉ hiện tổ hợp hợp lệ, thanh kéo có vạch điểm chuẩn 3 năm) · N4 Tour 6 bước do trợ lý dẫn + N4b kịch bản tour · N5 Thẻ chia sẻ RIASEC + danh sách NV (1080×1350) · N6 Đăng ký có cam kết “không hỏi SĐT, ngày sinh, Facebook”.
@@ -210,7 +210,7 @@ File “Trovio — EdTech Platform”, trang *Page 1 · Đồng bộ style*. Fon
 
 Yêu cầu: “những gì Figma có thì phải triển khai hết lên code”. Lựa chọn của người dùng: `/quan-tri` đổi sang **thanh bên A01–A09**; quản trị **chạy thật, lưu DB**; C3/C5 làm **bản web chạy được**.
 
-**Quản trị (route group `src/app/(admin)/quan-tri`, khung `components/admin/admin-shell.tsx`)** — thanh bên tối 240px theo Figma, nhóm “Cộng đồng & vận hành” chứa các mục cũ (cảm nhận, hỏi đáp, báo lỗi, việc làm, mốc, chatbot, thống kê). Màn hẹp: menu ngăn kéo.
+**Quản trị (route group `src/app/(admin)/quan-tri`, khung `components/admin/admin-shell.tsx`)** — thanh bên tối 240px theo Figma, nhóm “Cộng đồng & vận hành” chứa các mục cũ (hỏi đáp, báo lỗi, mốc, chatbot, thống kê). Màn hẹp: menu ngăn kéo.
 
 | Màn | Route | Chức năng (đều ghi nhật ký) |
 | --- | --- | --- |
@@ -254,7 +254,6 @@ Yêu cầu: thêm 3 ý vào Figma rồi triển khai code, tự kiểm thử. **
 ### 12b. Quản trị: nút về trang chủ + rà soát UX (04/10/2026)
 
 - Nút **“Về trang chủ Trovio”** ngay dưới logo ở thanh bên (logo bấm về Tổng quan), nút **“Trang chủ”** ở thanh trên màn hẹp và ở đầu trang quản trị (màn rộng).
-- Thanh bên gọn hơn (đủ 16 mục không cần cuộn ở 900px), đổi “Kiểm duyệt cảm nhận” → “Duyệt cảm nhận” cho khỏi bị cắt chữ, tự cuộn tới mục đang mở.
 - “Hoạt động gần đây” (A01) hiện tiếng Việt (`domain/audit-labels.ts` → `describeAudit`), không còn lộ tên trường kỹ thuật như `*`, `alias`, `season`.
 - Thẻ số liệu xếp 2 cột trên điện thoại; trạng thái rỗng của Báo lỗi rõ ràng hơn; nhật ký tự xuống dòng với chuỗi dài.
 - Sửa lỗi tràn ngang trên điện thoại ở trang Chương trình đào tạo: chữ ẩn `sr-only` trong bảng cuộn ngang làm trang rộng 1043px → thêm quy tắc `.overflow-x-auto { position: relative }` (lớp base, áp dụng toàn web).

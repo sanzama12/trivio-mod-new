@@ -1,9 +1,9 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LuListFilter, LuX } from "react-icons/lu";
-import type { AdmissionMethodKey, Combo, Region, SchoolType, Subject } from "@/domain/types";
+import type { AdmissionMethodKey, Combo, MajorGroup, Region, SchoolType, Subject } from "@/domain/types";
 import { ADMISSION_METHODS, METHOD_KEYS } from "@/services/scoring.service";
 import {
   REGION_LABELS,
@@ -18,25 +18,39 @@ import { Checkbox, Input, Label, Radio } from "@/components/ui/field";
 import { MobileFilterSheet } from "./mobile-filter-sheet";
 
 /** Bộ lọc áp dụng NGAY khi thay đổi (không cần nút "Áp dụng"), trạng thái nằm trên URL. */
-export function FilterPanel({ filters, combos, subjects }: { filters: ProgramFilters; combos: Combo[]; subjects: Subject[] }) {
+export function FilterPanel({ filters, combos, subjects, groups }: { filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; groups: MajorGroup[] }) {
   const short = (id: string) => subjects.find((s) => s.id === id)?.short ?? id;
   const router = useRouter();
   const pathname = usePathname();
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
+  const [draft, setDraft] = useState(filters);
+  const draftRef = useRef(filters);
   const [score, setScore] = useState(filters.score?.toString() ?? "");
   const [showAllCombos, setShowAllCombos] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => setScore(filters.score?.toString() ?? ""), [filters.score]);
+  useEffect(() => {
+    draftRef.current = filters;
+    setDraft(filters);
+    setPending(false);
+  }, [filters]);
+
+  useEffect(() => setScore(draft.score?.toString() ?? ""), [draft.score]);
 
   const apply = (patch: Partial<ProgramFilters>) => {
-    const next = { ...filters, ...patch, page: undefined };
-    startTransition(() => router.push(`${pathname}${serializeProgramFilters(next)}`, { scroll: false }));
+    const next = { ...draftRef.current, ...patch, page: undefined };
+    draftRef.current = next;
+    setDraft(next);
+    const query = serializeProgramFilters(next);
+    setPending(true);
+    router.push(`${pathname}${query}`, { scroll: false });
   };
 
   const toggle = <T extends string>(list: T[] | undefined, v: T) => (list?.includes(v) ? list.filter((x) => x !== v) : [...(list ?? []), v]);
 
-  const method: AdmissionMethodKey = filters.method ?? "thpt";
+  const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? id;
+
+  const method: AdmissionMethodKey = draft.method ?? "thpt";
   const cfg = ADMISSION_METHODS[method];
   const commitScore = () => {
     const n = Number(score.replace(",", "."));
@@ -45,27 +59,37 @@ export function FilterPanel({ filters, combos, subjects }: { filters: ProgramFil
   };
   const scoreInvalid = score !== "" && !(Number(score.replace(",", ".")) > 0 && Number(score.replace(",", ".")) <= cfg.max);
 
-  const chips: { label: string; clear: Partial<ProgramFilters> }[] = [
-    ...(filters.q ? [{ label: `“${filters.q}”`, clear: { q: undefined } }] : []),
-    ...(filters.method && filters.method !== "thpt" ? [{ label: ADMISSION_METHODS[filters.method].short, clear: { method: undefined, score: undefined } }] : []),
-    ...(filters.score != null ? [{ label: `Điểm ${filters.score}`, clear: { score: undefined } }] : []),
-    ...(filters.combos ?? []).map((c) => ({ label: c, clear: { combos: filters.combos!.filter((x) => x !== c) } })),
-    ...(filters.tuition ? [{ label: TUITION_RANGES[filters.tuition].label, clear: { tuition: undefined } }] : []),
-    ...(filters.regions ?? []).map((r) => ({ label: REGION_LABELS[r], clear: { regions: filters.regions!.filter((x) => x !== r) } })),
-    ...(filters.types ?? []).map((t) => ({ label: SCHOOL_TYPE_LABELS[t], clear: { types: filters.types!.filter((x) => x !== t) } })),
-    ...(filters.majors?.length ? [{ label: `${filters.majors.length} ngành gợi ý`, clear: { majors: [] } }] : []),
-    ...(filters.groups?.length ? [{ label: `${filters.groups.length} nhóm ngành`, clear: { groups: [] } }] : []),
+  const chips: { label: string; clear: (current: ProgramFilters) => Partial<ProgramFilters> }[] = [
+    ...(draft.q ? [{ label: `“${draft.q}”`, clear: () => ({ q: undefined }) }] : []),
+    ...(draft.method && draft.method !== "thpt" ? [{ label: ADMISSION_METHODS[draft.method].short, clear: () => ({ method: undefined, score: undefined }) }] : []),
+    ...(draft.score != null ? [{ label: `Điểm ${draft.score}`, clear: () => ({ score: undefined }) }] : []),
+    ...(draft.combos ?? []).map((c) => ({ label: c, clear: (current: ProgramFilters) => ({ combos: (current.combos ?? []).filter((x) => x !== c) }) })),
+    ...(draft.tuition ? [{ label: TUITION_RANGES[draft.tuition].label, clear: () => ({ tuition: undefined }) }] : []),
+    ...(draft.regions ?? []).map((r) => ({ label: REGION_LABELS[r], clear: (current: ProgramFilters) => ({ regions: (current.regions ?? []).filter((x) => x !== r) }) })),
+    ...(draft.types ?? []).map((t) => ({ label: SCHOOL_TYPE_LABELS[t], clear: (current: ProgramFilters) => ({ types: (current.types ?? []).filter((x) => x !== t) }) })),
+    ...(draft.majors?.length ? [{ label: `${draft.majors.length} ngành gợi ý`, clear: () => ({ majors: [] }) }] : []),
+    ...(draft.groups ?? []).map((g) => ({ label: groupName(g), clear: (current: ProgramFilters) => ({ groups: (current.groups ?? []).filter((x) => x !== g) }) })),
   ];
 
   const visibleCombos = showAllCombos ? combos : combos.slice(0, 5);
 
   return (
-    <aside aria-label="Bộ lọc tìm kiếm" className={cn("rounded-2xl border border-slate-200 bg-white p-5 shadow-card transition-opacity", pending && "opacity-70")}>
+    <aside aria-label="Bộ lọc tìm kiếm" className={cn("min-w-0 rounded-xl border-2 border-slate-900 bg-white p-3 transition-opacity md:p-4", pending && "opacity-70")}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-bold text-slate-900">Bộ lọc tìm kiếm</h2>
         <div className="flex items-center gap-3">
           {chips.length > 0 && (
-            <button type="button" onClick={() => startTransition(() => router.push(pathname))} className="text-[13px] font-semibold text-primary-600 hover:underline">
+            <button
+              type="button"
+              onClick={() => {
+                draftRef.current = {};
+                setDraft({});
+                setScore("");
+                setPending(true);
+                router.push(pathname, { scroll: false });
+              }}
+              className="text-[13px] font-semibold text-primary-600 hover:underline"
+            >
               Xoá bộ lọc
             </button>
           )}
@@ -83,19 +107,17 @@ export function FilterPanel({ filters, combos, subjects }: { filters: ProgramFil
       <MobileFilterSheet
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        filters={filters}
+        filters={draft}
         combos={combos}
         subjects={subjects}
-        onApply={(f) => {
-          setMobileOpen(false);
-          startTransition(() => router.push(`${pathname}${serializeProgramFilters({ ...f, page: undefined })}`, { scroll: false }));
-        }}
+        groups={groups}
+        onChange={apply}
       />
       {chips.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-1.5 lg:hidden" aria-label="Bộ lọc đang áp dụng">
           {chips.map((c) => (
             <li key={c.label}>
-              <button type="button" onClick={() => apply(c.clear)} className="flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700" aria-label={`Bỏ lọc ${c.label}`}>
+              <button type="button" onClick={() => apply(c.clear(draftRef.current))} className="flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700" aria-label={`Bỏ lọc ${c.label}`}>
                 {c.label} <LuX className="size-3" aria-hidden />
               </button>
             </li>
@@ -103,29 +125,46 @@ export function FilterPanel({ filters, combos, subjects }: { filters: ProgramFil
         </ul>
       )}
 
-      <div id="filter-body" className="hidden lg:block">
+      {groups.length > 0 && (
+        <fieldset className="mt-3 min-w-0 rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <legend className="px-1 text-sm font-semibold text-slate-700">Danh mục / Nhóm ngành</legend>
+          <div className="mt-2 space-y-1">
+            {groups.map((g) => (
+              <Checkbox
+                key={g.id}
+                label={<span className="break-words">{g.name}</span>}
+                className="min-h-10 items-center"
+                checked={draft.groups?.includes(g.id) ?? false}
+                onChange={() => apply({ groups: toggle(draftRef.current.groups, g.id) })}
+              />
+            ))}
+          </div>
+        </fieldset>
+      )}
+
+      <div id="filter-body" className="mt-3 hidden min-w-0 flex-col gap-3 lg:flex">
 
       {chips.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-medium text-slate-500">Bộ lọc đang áp dụng</p>
+        <div className="min-w-0 basis-full">
+          <p className="mb-2 text-xs font-bold tracking-wider text-slate-500 uppercase">Bộ lọc đang áp dụng</p>
           <div className="flex flex-wrap gap-2">
             {chips.map((c) => (
               <button
                 key={c.label}
                 type="button"
-                onClick={() => apply(c.clear)}
-                className="flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+                onClick={() => apply(c.clear(draftRef.current))}
+                className="flex min-w-0 items-center gap-1 rounded-full border border-slate-900 bg-white px-2.5 py-1 text-xs font-bold text-slate-900 hover:bg-slate-100"
                 aria-label={`Bỏ lọc ${c.label}`}
               >
-                {c.label}
-                <LuX className="size-3" aria-hidden />
+                <span className="truncate">{c.label}</span>
+                <LuX className="size-3 shrink-0" aria-hidden />
               </button>
             ))}
           </div>
         </div>
       )}
 
-      <div className="mt-5 border-t border-slate-100 pt-5">
+      <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
         <Label htmlFor="f-method">Phương thức xét tuyển</Label>
         <select
           id="f-method"
@@ -172,7 +211,7 @@ export function FilterPanel({ filters, combos, subjects }: { filters: ProgramFil
         </p>
       </div>
 
-      <div className="mt-5 border-t border-slate-100 pt-5">
+      <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-slate-700">Khối / Tổ hợp xét tuyển</legend>
         <div className="space-y-2.5">
@@ -180,8 +219,8 @@ export function FilterPanel({ filters, combos, subjects }: { filters: ProgramFil
             <Checkbox
               key={c.code}
               label={`${c.code} (${c.subjects.map(short).join(", ")})`}
-              checked={filters.combos?.includes(c.code) ?? false}
-              onChange={() => apply({ combos: toggle(filters.combos, c.code) })}
+              checked={draft.combos?.includes(c.code) ?? false}
+              onChange={() => apply({ combos: toggle(draftRef.current.combos, c.code) })}
             />
           ))}
         </div>
@@ -193,35 +232,35 @@ export function FilterPanel({ filters, combos, subjects }: { filters: ProgramFil
       </fieldset>
       </div>
 
-      <div className="mt-5 border-t border-slate-100 pt-5">
+      <div className="min-w-0 flex-1 basis-[200px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-slate-700">Học phí tối đa / năm</legend>
         <div className="space-y-2.5">
-          <Radio name="tuition" label="Không giới hạn" checked={!filters.tuition} onChange={() => apply({ tuition: undefined })} />
+          <Radio name="tuition" label="Không giới hạn" checked={!draft.tuition} onChange={() => apply({ tuition: undefined })} />
           {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((k) => (
-            <Radio key={k} name="tuition" label={TUITION_RANGES[k].label} checked={filters.tuition === k} onChange={() => apply({ tuition: k })} />
+            <Radio key={k} name="tuition" label={TUITION_RANGES[k].label} checked={draft.tuition === k} onChange={() => apply({ tuition: k })} />
           ))}
         </div>
       </fieldset>
       </div>
 
-      <div className="mt-5 border-t border-slate-100 pt-5">
+      <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-slate-700">Khu vực địa lý</legend>
         <div className="space-y-2.5">
           {(Object.keys(REGION_LABELS) as Region[]).map((r) => (
-            <Checkbox key={r} label={REGION_LABELS[r]} checked={filters.regions?.includes(r) ?? false} onChange={() => apply({ regions: toggle(filters.regions, r) })} />
+            <Checkbox key={r} label={REGION_LABELS[r]} checked={draft.regions?.includes(r) ?? false} onChange={() => apply({ regions: toggle(draftRef.current.regions, r) })} />
           ))}
         </div>
       </fieldset>
       </div>
 
-      <div className="mt-5 border-t border-slate-100 pt-5">
+      <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-slate-700">Loại hình trường</legend>
         <div className="space-y-2.5">
           {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => (
-            <Checkbox key={t} label={SCHOOL_TYPE_LABELS[t]} checked={filters.types?.includes(t) ?? false} onChange={() => apply({ types: toggle(filters.types, t) })} />
+            <Checkbox key={t} label={SCHOOL_TYPE_LABELS[t]} checked={draft.types?.includes(t) ?? false} onChange={() => apply({ types: toggle(draftRef.current.types, t) })} />
           ))}
         </div>
       </fieldset>

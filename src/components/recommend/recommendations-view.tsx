@@ -16,7 +16,7 @@ import { WhyDrawer } from "./why-drawer";
 import { useRecommendations } from "./use-recommendations";
 
 const LEGEND = [
-  { tone: "success", label: "An toàn", text: "cao hơn điểm chuẩn từ 1 điểm" },
+  { tone: "solid", label: "An toàn", text: "cao hơn điểm chuẩn từ 1 điểm" },
   { tone: "primary", label: "Vừa sức", text: "từ −0,5 đến dưới +1 điểm" },
   { tone: "accent", label: "Thử sức", text: "thấp hơn điểm chuẩn quá 0,5" },
 ] as const;
@@ -33,6 +33,8 @@ export function RecommendationsView() {
   const chips = [
     goalInfo && `Ngành: ${goalInfo.majorName}`,
     goal?.targetScore != null && `Điểm mục tiêu ${formatMethodScore(goal.targetScore, goal.method)}${goal.combo ? ` · ${goal.combo}` : ""}`,
+    profile?.methods?.length &&
+      `Phương thức: ${profile.methods.map((k) => ADMISSION_METHODS[k].short).join(", ")}${profile.combo ? ` · ${profile.combo}` : ""}`,
     profile && userScore != null && `Điểm hiện tại ${formatMethodScore(userScore, profile.method ?? "thpt")} · ${ADMISSION_METHODS[profile.method ?? "thpt"].short}`,
     quiz && `RIASEC ${quiz.result.code.join("-")}`,
     (goal?.regions?.length ? goal.regions : profile?.regions ?? []).length > 0 &&
@@ -42,9 +44,9 @@ export function RecommendationsView() {
 
   return (
     <>
-      <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-[28px]">Gợi ý dành cho bạn</h1>
+      <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0 border-l-4 border-l-accent-500 pl-3">
+          <h1 className="text-left text-2xl font-black tracking-tight break-words md:text-[28px]">Gợi ý dành cho bạn</h1>
           <p className="mt-1 text-sm text-slate-500">
             {items && items.length > 0 ? `${items.length} chương trình · ` : ""}
             {goalInfo ? "sắp theo mức khớp mục tiêu, rồi tới mức phù hợp" : "sắp theo mức phù hợp với hồ sơ của bạn"}
@@ -62,7 +64,7 @@ export function RecommendationsView() {
         )}
       </div>
 
-      <Card className="mt-5 flex flex-wrap items-center gap-4 border-primary-200 px-5 py-4">
+      <Card className="mt-5 flex min-w-0 flex-col gap-4 border-primary-600 border-l-4 border-l-accent-500 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:px-5">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
           <LuAward className="size-5" aria-hidden />
         </span>
@@ -92,7 +94,7 @@ export function RecommendationsView() {
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Ý nghĩa nhãn khả năng">
+      <div className="mt-4 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs break-words text-slate-600" aria-label="Ý nghĩa nhãn khả năng">
         <span className="font-semibold text-slate-700">Nhãn khả năng:</span>
         {LEGEND.map((l) => (
           <span key={l.label} className="inline-flex items-center gap-1.5">
@@ -105,23 +107,23 @@ export function RecommendationsView() {
       </div>
 
       {!hydrated || items === null ? (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="h-60 animate-pulse rounded-2xl bg-slate-100" />
           ))}
         </div>
       ) : !hasInput ? (
         <Card className="mt-6 flex flex-col items-start gap-4 p-6 md:flex-row md:items-center">
-          <p className="flex-1 text-sm text-slate-600">Chưa có dữ liệu để gợi ý. Làm trắc nghiệm, nhập điểm hoặc đặt mục tiêu trước nhé.</p>
+          <p className="flex-1 text-sm text-slate-600">Chưa có dữ liệu để gợi ý. Tạo hồ sơ học tập & xét tuyển hoặc đặt mục tiêu trước.</p>
           <div className="flex flex-wrap gap-2">
             <Link href="/muc-tieu" className={buttonClass()}>
               <LuTarget className="size-4" aria-hidden /> Đặt mục tiêu
             </Link>
-            <Link href="/trac-nghiem" className={buttonClass({ variant: "outline" })}>
-              <LuCompass className="size-4" aria-hidden /> Làm trắc nghiệm
+            <Link href="/chuong-trinh" className={buttonClass({ variant: "outline" })}>
+              <LuCompass className="size-4" aria-hidden /> Khám phá chương trình
             </Link>
             <Link href="/diem-cua-toi" className={buttonClass({ variant: "ghost" })}>
-              <LuCalculator className="size-4" aria-hidden /> Nhập điểm
+              <LuCalculator className="size-4" aria-hidden /> Tạo hồ sơ học tập & xét tuyển
             </Link>
           </div>
         </Card>
@@ -133,12 +135,12 @@ export function RecommendationsView() {
           </Link>
         </Card>
       ) : (
-        <ul className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {shown.map((rec) => {
             const i = items.indexOf(rec);
             return (
               <li key={rec.view.program.id}>
-                <RecCard rec={rec} goalName={goalInfo?.majorName ?? null} budgetMax={budgetMax} onWhy={() => setWhy(i)} />
+                <RecCard rec={rec} goalName={goalInfo?.majorName ?? null} budgetMax={budgetMax} userScore={userScore} onWhy={() => setWhy(i)} />
               </li>
             );
           })}
@@ -149,12 +151,12 @@ export function RecommendationsView() {
         <p className={cn("mt-4 text-[13px] text-slate-600")}>
           Chưa có điểm nên các thẻ hiện “Chưa đủ dữ liệu”.{" "}
           <Link href="/diem-cua-toi" className="font-semibold text-primary-600 hover:underline">
-            Nhập điểm để xem mức An toàn / Vừa sức / Thử sức
+            Tạo hồ sơ học tập & xét tuyển để xem mức An toàn / Vừa sức / Thử sức
           </Link>
         </p>
       )}
       <p className="mt-6 text-xs text-slate-500">
-        Ngưỡng nhãn: cao hơn điểm chuẩn năm gần nhất ≥ 1 điểm là An toàn; từ −0,5 đến dưới +1 là Vừa sức; thấp hơn quá 0,5 là Thử sức. Điểm chuẩn, học phí là dữ liệu minh hoạ.{" "}
+        Ngưỡng nhãn: cao hơn điểm chuẩn năm gần nhất ≥ 1 điểm là An toàn; từ −0,5 đến dưới +1 là Vừa sức; thấp hơn quá 0,5 là Thử sức. Chỉ điểm chuẩn có dữ liệu mới được dùng; học phí thiếu sẽ không tham gia lọc ngân sách.{" "}
         <Link href="/cach-goi-y" className="font-semibold text-primary-600 hover:underline">
           Cách Trovio gợi ý
         </Link>

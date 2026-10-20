@@ -3,7 +3,7 @@
  * "Ngành X của trường Y vừa mở xét bổ sung, phù hợp với điểm của bạn".
  * Dữ liệu điểm/nguyện vọng lấy từ tài khoản (server), không tin dữ liệu client gửi lên.
  */
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { notificationService } from "./notification.service";
 import { programService } from "./program.service";
 import { toLiteProgram } from "./lite";

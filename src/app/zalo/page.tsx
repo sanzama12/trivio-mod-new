@@ -54,8 +54,8 @@ export default async function ZaloMiniPage({ searchParams }: { searchParams: Pro
                 <p className="text-base font-bold">Mã sở thích: {code.join(" · ")}</p>
                 <p className="mt-0.5 text-xs text-primary-100">Hợp: {fit.join(", ") || code.map((t) => RIASEC_INFO[t].label).join(", ")}</p>
               </div>
-              <Link href="/trac-nghiem?nguon=zalo" className="mt-2 flex h-10 items-center justify-center rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700">
-                {`Làm trắc nghiệm giống ${name}`}
+              <Link href="/diem-cua-toi?nguon=zalo" className="mt-2 flex h-10 items-center justify-center rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700">
+                Nhập điểm xét tuyển
               </Link>
             </section>
           )}
@@ -64,7 +64,7 @@ export default async function ZaloMiniPage({ searchParams }: { searchParams: Pro
           <p className="mt-1.5 text-sm text-slate-600">3 việc làm được ngay, không cần tài khoản.</p>
           <nav aria-label="Việc chính" className="mt-5 space-y-3">
             {[
-              { href: "/trac-nghiem?nguon=zalo", Icon: LuCompass, title: "Làm trắc nghiệm sở thích", sub: `${minutes} phút · ${questionCount} câu` },
+              { href: "/diem-cua-toi?nguon=zalo", Icon: LuCompass, title: "Nhập điểm THPT hoặc học bạ", sub: "tính tổ hợp mạnh" },
               { href: "/nhe", Icon: LuSearch, title: "Tra điểm chuẩn 3 năm", sub: `${programCount} chương trình` },
               { href: "/da-luu", Icon: LuBookmark, title: "Danh sách nguyện vọng", sub: "lưu trên máy" },
             ].map(({ href, Icon, title, sub }) => (

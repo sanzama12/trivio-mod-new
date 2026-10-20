@@ -7,7 +7,6 @@
 import { useMemo, useState } from "react";
 import { LuPlay, LuPlus, LuSearch } from "react-icons/lu";
 import type { RecRule, RecRuleKind, RecommendConfig } from "@/domain/types";
-import { RIASEC_INFO } from "@/domain/riasec";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { normalizeVi } from "@/lib/text";
@@ -19,14 +18,14 @@ import { fmtDate, inputCls, Panel, selectCls } from "./ui";
 type Weights = RecommendConfig["weights"];
 type ParamRule = { min: number; max: number } | { options: string[] };
 type SimItem = { id: string; slug: string; name: string; school: string; major: string; cutoff: number | null; tuitionMin: number; match: number; reasons: string[] };
+const EDITABLE_WEIGHT_KEYS: (keyof Weights)[] = ["fit", "place", "group"];
 
 const STATUS: Record<RecRule["status"], { label: string; tone: BadgeTone }> = {
   active: { label: "Đang áp dụng", tone: "success" },
   draft: { label: "Bản nháp", tone: "accent" },
   disabled: { label: "Vô hiệu", tone: "slate" },
 };
-const KIND_TONE: Partial<Record<RecRuleKind, BadgeTone>> = { "riasec-match": "primary", budget: "danger", diversity: "teal", "goal-priority": "violet", "min-years": "slate", "boost-cutoff": "primary", "boost-school-type": "primary" };
-const CODES = ["RIA", "RIC", "IRC", "IAS", "ISE", "ASE", "AES", "SEC", "SEA", "ESC", "ECS", "CEI"];
+const KIND_TONE: Partial<Record<RecRuleKind, BadgeTone>> = { budget: "danger", diversity: "teal", "goal-priority": "violet", "min-years": "slate", "boost-cutoff": "primary", "boost-school-type": "primary" };
 
 export function RulesManager({
   weights,
@@ -48,10 +47,10 @@ export function RulesManager({
   const [cfgRule, setCfgRule] = useState<{ rule?: RecRule; kind: RecRuleKind; name: string; description: string; params: Record<string, string> } | null>(null);
   const [err, setErr] = useState<{ field?: string; message?: string } | null>(null);
   const [del, setDel] = useState<RecRule | null>(null);
-  const [sim, setSim] = useState({ score: "27.5", code: "RIA", budget: "30", region: "bac", combo: "A00", includeDrafts: false });
+  const [sim, setSim] = useState({ score: "27.5", budget: "30", region: "bac", combo: "A00", includeDrafts: false });
   const [simRes, setSimRes] = useState<SimItem[] | null>(null);
   const total = w.interest + w.fit + w.place + w.group;
-  const changed = (Object.keys(w) as (keyof Weights)[]).some((k) => w[k] !== weights[k]);
+  const changed = EDITABLE_WEIGHT_KEYS.some((k) => w[k] !== weights[k]);
 
   const list = useMemo(() => {
     const nq = normalizeVi(q.trim());
@@ -93,7 +92,7 @@ export function RulesManager({
             <Badge tone={total === 100 ? "success" : "danger"}>Tổng: {total}%</Badge>
           </div>
           <div className="mt-5 space-y-5">
-            {(Object.keys(w) as (keyof Weights)[]).map((k) => (
+            {EDITABLE_WEIGHT_KEYS.map((k) => (
               <div key={k} className="grid grid-cols-[minmax(0,150px)_1fr_48px] items-center gap-4">
                 <label htmlFor={`w-${k}`} className="text-sm font-semibold text-slate-800">
                   {labels.weights[k]}
@@ -124,16 +123,6 @@ export function RulesManager({
             <label className="text-sm font-semibold text-slate-800">
               Nhập điểm thi THPT
               <input inputMode="decimal" className={cn(inputCls, "mt-1.5 bg-slate-50")} value={sim.score} onChange={(e) => setSim({ ...sim, score: e.target.value })} />
-            </label>
-            <label className="text-sm font-semibold text-slate-800">
-              Mã RIASEC
-              <select className={cn(selectCls, "mt-1.5 w-full bg-slate-50")} value={sim.code} onChange={(e) => setSim({ ...sim, code: e.target.value })}>
-                {CODES.map((c) => (
-                  <option key={c} value={c}>
-                    {c} - {RIASEC_INFO[c[0] as keyof typeof RIASEC_INFO].label}
-                  </option>
-                ))}
-              </select>
             </label>
             <label className="text-sm font-semibold text-slate-800">
               Ngân sách tối đa (triệu/năm)

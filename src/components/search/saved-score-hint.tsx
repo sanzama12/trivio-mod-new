@@ -12,7 +12,7 @@ export function SavedScoreHint({ filters }: { filters: ProgramFilters }) {
   if (!profile) {
     return (
       <Link href="/diem-cua-toi" className="font-semibold text-primary-600 hover:underline">
-        Nhập điểm để xem mức độ phù hợp
+        Tạo hồ sơ học tập & xét tuyển để xem mức độ phù hợp
       </Link>
     );
   }

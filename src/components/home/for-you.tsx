@@ -36,14 +36,14 @@ export function ForYouSection() {
             <h2 id="for-you-empty" className="text-lg font-bold text-slate-900">
               Nhận gợi ý chương trình dành riêng cho bạn
             </h2>
-            <p className="mt-1 text-sm text-slate-600">Làm trắc nghiệm sở thích (7–10 phút), nhập điểm hoặc đặt mục tiêu — Trovio sẽ gợi ý 6 chương trình kèm lý do cụ thể.</p>
+            <p className="mt-1 text-sm text-slate-600">Tạo hồ sơ học tập & xét tuyển (điểm môn, khu vực, học phí) — Trovio gợi ý chương trình kèm lý do.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/trac-nghiem" className={buttonClass()}>
-              <LuCompass className="size-4" aria-hidden /> Làm trắc nghiệm
+            <Link href="/chuong-trinh" className={buttonClass()}>
+              <LuCompass className="size-4" aria-hidden /> Khám phá chương trình
             </Link>
             <Link href="/diem-cua-toi" className={buttonClass({ variant: "outline", className: "bg-white" })}>
-              <LuCalculator className="size-4" aria-hidden /> Nhập điểm
+              <LuCalculator className="size-4" aria-hidden /> Tạo hồ sơ học tập & xét tuyển
             </Link>
             <Link href="/muc-tieu" className={buttonClass({ variant: "ghost" })}>
               <LuTarget className="size-4" aria-hidden /> Đặt mục tiêu
@@ -74,7 +74,7 @@ export function ForYouSection() {
           </span>
         }
         title={<span id="for-you">Chương trình gợi ý cho bạn</span>}
-        subtitle={`Dựa trên ${basis.join(", ")}.${!quiz ? " Làm trắc nghiệm để gợi ý sát sở thích hơn." : ""}${!profile ? " Nhập điểm để xem mức An toàn / Vừa sức." : ""}`}
+        subtitle={`Dựa trên ${basis.join(", ")}.${!profile ? " Tạo hồ sơ học tập & xét tuyển để xem mức An toàn / Vừa sức." : ""}`}
         action={
           <Link href="/goi-y" className="text-sm font-semibold text-primary-600 hover:underline">
             Xem tất cả gợi ý →
@@ -88,14 +88,14 @@ export function ForYouSection() {
         <Card className="mt-6 p-6 text-sm text-slate-600">
           Chưa tìm được chương trình phù hợp với ngân sách và khu vực bạn chọn.{" "}
           <Link href="/diem-cua-toi" className="font-semibold text-primary-600 hover:underline">
-            Điều chỉnh điều kiện
+            Điều chỉnh hồ sơ học tập & xét tuyển
           </Link>
         </Card>
       ) : (
         <ul className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {items.map((rec, i) => (
             <li key={rec.view.program.id}>
-              <RecCard rec={rec} goalName={goal?.majorName ?? null} budgetMax={budgetMax} onWhy={() => setWhy(i)} />
+              <RecCard rec={rec} goalName={goal?.majorName ?? null} budgetMax={budgetMax} userScore={userScore} onWhy={() => setWhy(i)} />
             </li>
           ))}
         </ul>

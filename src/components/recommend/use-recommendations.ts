@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { GoalSummary, Recommendation } from "@/services/recommendation.service";
-import { profileScore } from "@/services/scoring.service";
+import { combos as defaultCombos } from "@database/seeds/combos";
+import { computeAdmissionScore, methodScoresFromProfile, profileScore, rankCombos } from "@/services/scoring.service";
 import { useTrovio } from "@/stores/trovio-store";
 
 export interface RecState {
@@ -31,6 +32,13 @@ export function useRecommendations(limit = 6): RecState & { hasInput: boolean } 
     }
     let cancelled = false;
     const score = profile ? profileScore(profile) : null;
+    const methodScores = profile ? methodScoresFromProfile(profile, defaultCombos) : [];
+    const comboScores = profile
+      ? rankCombos(profile.scores ?? {}, defaultCombos).map((row) => ({
+          code: row.code,
+          total: computeAdmissionScore(row.raw, profile.priorityRegion, profile.priorityGroup, "thpt").total,
+        }))
+      : [];
     const budgetMax = profile?.budgetMax ?? goal?.budgetMax ?? null;
     fetch("/api/recommendations", {
       method: "POST",
@@ -38,9 +46,12 @@ export function useRecommendations(limit = 6): RecState & { hasInput: boolean } 
       body: JSON.stringify({
         riasec: quiz ? { percents: quiz.result.percents, code: quiz.result.code } : null,
         score: score && profile ? { method: score.method, total: score.total, combo: profile.combo } : null,
+        methodScores,
+        comboScores,
         budgetMax,
         regions: profile?.regions?.length ? profile.regions : (goal?.regions ?? []),
         groupIds: profile?.groupIds ?? [],
+        interestMajorIds: profile?.interestMajorIds ?? [],
         goalMajorId: goal?.majorId ?? null,
         limit,
       }),

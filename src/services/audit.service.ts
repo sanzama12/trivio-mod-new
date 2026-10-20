@@ -2,7 +2,7 @@
  * SERVICE LAYER — Ghi vết kiểm toán (Audit Logging) cho các thao tác quản trị, bảo mật và quyền riêng tư.
  */
 import { randomUUID } from "node:crypto";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 
 export interface AuditLogParams {
   actorId: string;
@@ -25,7 +25,7 @@ export const auditService = {
         actorId: params.actorId,
         actorEmail: params.actorEmail || "unknown",
         programId: params.targetId || "system",
-        targetType: (params.targetType as "user" | "program" | "school" | "rules" | "quiz") || "user",
+        targetType: (params.targetType as "user" | "program" | "school" | "rules") || "user",
         action: "update",
         changes: [
           {

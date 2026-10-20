@@ -6,7 +6,7 @@ export const LOGO_BOOK_PATH = "M12 13C9.4 10.4 6.4 9 3 8.6V18.6C6.4 19 9.4 20.2 
 export const LOGO_STAR_PATH = "M12 1C12.6 3.7 13.3 4.4 16 5C13.3 5.6 12.6 6.3 12 9C11.4 6.3 10.7 5.6 8 5C10.7 4.4 11.4 3.7 12 1Z";
 
 export function LogoMark({ className, tone = "brand" }: { className?: string; tone?: "brand" | "white" }) {
-  const stroke = tone === "white" ? "#ffffff" : "#4F46E5";
+  const stroke = tone === "white" ? "#ffffff" : "#0b5b5c";
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden className={cn("size-9", className)}>
       <path d={LOGO_BOOK_PATH} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

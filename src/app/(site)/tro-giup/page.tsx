@@ -1,23 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LuMail, LuMessageCircle, LuPhone } from "react-icons/lu";
-import { catalogService, programService } from "@/services";
-import { getCurrentUser } from "@/lib/auth";
+import { LuMail, LuPhone } from "react-icons/lu";
+import { catalogService } from "@/services";
 import { Card, SectionHeading } from "@/components/ui/card";
 import { Breadcrumb } from "@/components/ui/misc";
 import { FaqSearch } from "@/components/help/faq-search";
-import { ReportForm } from "@/components/help/report-form";
 import { RestartTourButton } from "@/components/tour/guided-tour";
 
 export const metadata: Metadata = { title: "Trợ giúp & Liên hệ" };
 
-type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
-
-export default async function HelpPage({ searchParams }: Props) {
-  const sp = await searchParams;
-  const slug = typeof sp.ct === "string" ? sp.ct.slice(0, 120) : null;
-  const [faq, user, view] = await Promise.all([catalogService.getFaqGroups(), getCurrentUser(), slug ? programService.getBySlug(slug) : Promise.resolve(null)]);
-  const program = view ? { id: view.program.id, label: `${view.program.name} – ${view.school.shortName}` } : null;
+export default async function HelpPage() {
+  const faq = await catalogService.getFaqGroups();
   return (
     <>
       <section className="bg-gradient-to-b from-primary-50 to-slate-50">
@@ -50,7 +43,7 @@ export default async function HelpPage({ searchParams }: Props) {
 
         <section id="lien-he" className="mt-16">
           <SectionHeading title="Vẫn cần hỗ trợ trực tiếp từ ban biên tập?" subtitle="Kết nối với đội ngũ hỗ trợ của Trovio qua các kênh chính thức." />
-          <div className="mt-6 grid gap-5 md:grid-cols-3">
+          <div className="mt-6 grid gap-5 md:grid-cols-2">
             <Card className="p-6">
               <LuMail className="size-6 text-primary-600" aria-hidden />
               <h3 className="mt-3 font-bold">Gửi email hỗ trợ</h3>
@@ -67,23 +60,7 @@ export default async function HelpPage({ searchParams }: Props) {
                 1900 8198 (8:00 – 18:00)
               </a>
             </Card>
-            <Card className="p-6">
-              <LuMessageCircle className="size-6 text-primary-600" aria-hidden />
-              <h3 className="mt-3 font-bold">Khiếu nại & góp ý</h3>
-              <p className="mt-1 text-sm text-slate-600">Phản hồi được ghi nhận và xử lý trong tối đa 5 ngày làm việc.</p>
-              <a href="#bao-loi" className="mt-3 inline-block font-semibold text-primary-600 hover:underline">
-                Dùng biểu mẫu bên dưới
-              </a>
-            </Card>
           </div>
-        </section>
-
-        <section id="bao-loi" className="mt-16">
-          <Card className="p-6 md:p-8">
-            <h2 className="text-xl font-bold">Báo dữ liệu sai</h2>
-            <p className="mt-1 mb-6 text-sm text-slate-500">Cung cấp bằng chứng hoặc link nguồn để đội biên tập kiểm tra nhanh hơn.</p>
-            <ReportForm program={program} signedInEmail={user?.verified ? user.email : null} />
-          </Card>
         </section>
 
         <p className="mt-8 text-center text-sm text-slate-600">

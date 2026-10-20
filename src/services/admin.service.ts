@@ -4,13 +4,13 @@
  */
 import { randomUUID } from "node:crypto";
 import type { AltMethodKey, AuditEntry, MethodCutoff, Program, ProgramPatch, PublicUser } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { programService } from "./program.service";
 import { ADMISSION_METHODS } from "./scoring.service";
 
 export interface ProgramEditInput {
   cutoffs?: { year: unknown; score: unknown }[];
-  altCutoffs?: { method: unknown; year: unknown; score: unknown; estimated?: unknown }[];
+  altCutoffs?: { method: unknown; year: unknown; score: unknown }[];
   tuitionMin?: unknown;
   tuitionMax?: unknown;
   quota?: unknown;
@@ -18,13 +18,13 @@ export interface ProgramEditInput {
 }
 
 type Fail = { ok: false; field: string; message: string };
-const ALT_KEYS: AltMethodKey[] = ["hocba", "dgnl-hn", "dgnl-hcm", "tsa"];
+const ALT_KEYS: AltMethodKey[] = ["hocba"];
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
 function fmt(field: string, v: unknown): string {
   if (field === "cutoffs") return (v as Program["cutoffs"]).map((c) => `${c.year}: ${c.score}`).join("; ") || "—";
-  if (field === "altCutoffs") return (v as MethodCutoff[]).map((c) => `${ADMISSION_METHODS[c.method].short} ${c.year}: ${c.score}${c.estimated ? " (ước tính)" : ""}`).join("; ") || "—";
+  if (field === "altCutoffs") return (v as MethodCutoff[]).map((c) => `${ADMISSION_METHODS[c.method].short} ${c.year}: ${c.score}`).join("; ") || "—";
   return v == null || v === "" ? "—" : String(v);
 }
 
@@ -58,7 +58,7 @@ export function validateProgramEdit(input: ProgramEditInput): { ok: true; patch:
       if (!Number.isInteger(year) || year < 2015 || year > 2100) return { ok: false, field: "altCutoffs", message: "Năm không hợp lệ." };
       if (!Number.isFinite(score) || score <= 0 || score > max) return { ok: false, field: "altCutoffs", message: `Điểm ${ADMISSION_METHODS[method].short} phải trong khoảng 0–${max}.` };
       if (out.some((x) => x.method === method)) return { ok: false, field: "altCutoffs", message: `${ADMISSION_METHODS[method].short} bị trùng.` };
-      out.push({ method, year, score: ADMISSION_METHODS[method].decimals ? Math.round(score * 100) / 100 : Math.round(score), ...(c?.estimated === true ? { estimated: true } : {}) });
+      out.push({ method, year, score: ADMISSION_METHODS[method].decimals ? Math.round(score * 100) / 100 : Math.round(score) });
     }
     patch.altCutoffs = out;
   }
@@ -84,7 +84,7 @@ export function validateProgramEdit(input: ProgramEditInput): { ok: true; patch:
 
 export const adminService = {
   async listPrograms() {
-    const [views, overrideIds] = await Promise.all([programService.listAllAdmin(), repositories.programAdmin.listOverrideIds()]);
+    const [views, overrideIds] = await Promise.all([programService.listAllAdmin(), repositories.programAdmin.listEditedIds()]);
     const edited = new Set(overrideIds);
     return views.map((v) => ({ view: v, edited: edited.has(v.program.id) }));
   },
@@ -103,15 +103,14 @@ export const adminService = {
 
   /** Chỉ thống kê dữ liệu hiện có; không thực hiện tác vụ đồng bộ ngầm. */
   async getCatalogSyncStats() {
-    const [schools, majors, programs, majorGroups, quiz, users] = await Promise.all([
+    const [schools, majors, programs, majorGroups, users] = await Promise.all([
       repositories.schools.findAll(),
       repositories.majors.findAll(),
       repositories.programs.findAll(),
       repositories.majors.findGroups(),
-      repositories.quiz.findQuestions(),
       repositories.users.list(),
     ]);
-    return { schools: schools.length, majors: majors.length, programs: programs.length, majorGroups: majorGroups.length, quiz: quiz.length, users: users.length };
+    return { schools: schools.length, majors: majors.length, programs: programs.length, majorGroups: majorGroups.length, users: users.length };
   },
 
   async getProgram(id: string) {
@@ -119,7 +118,7 @@ export const adminService = {
     if (!program) return null;
     const [view] = await programService.lookupAdmin([id]);
     if (!view) return null;
-    return { view, edited: !!(await repositories.programAdmin.getOverride(id)) };
+    return { view, edited: !!(await repositories.programAdmin.hasEdits(id)) };
   },
 
   async updateProgram(actor: PublicUser, id: string, input: ProgramEditInput): Promise<{ ok: true; changes: number } | Fail | { ok: false; field: "id"; message: string }> {
@@ -138,9 +137,9 @@ export const adminService = {
       if (before !== afterStr) changes.push({ field, before, after: afterStr });
     }
     if (changes.length === 0) return { ok: true, changes: 0 };
-    const existing = (await repositories.programAdmin.getOverride(id)) ?? {};
-    const patch: ProgramPatch = { ...existing, ...v.patch, updatedAt: currentMonth() };
-    await repositories.programAdmin.setOverride(id, patch, {
+
+    const patch: ProgramPatch = { ...v.patch, updatedAt: currentMonth() };
+    await repositories.programAdmin.patchProgram(id, patch, {
       id: randomUUID(),
       at: new Date().toISOString(),
       actorId: actor.id,
@@ -156,8 +155,8 @@ export const adminService = {
   async markVerified(actor: PublicUser, id: string) {
     const current = await repositories.catalogAdmin.getProgram(id);
     if (!current) return false;
-    const existing = (await repositories.programAdmin.getOverride(id)) ?? {};
-    await repositories.programAdmin.setOverride(id, { ...existing, updatedAt: currentMonth() }, {
+
+    await repositories.programAdmin.patchProgram(id, { updatedAt: currentMonth() }, {
       id: randomUUID(),
       at: new Date().toISOString(),
       actorId: actor.id,
@@ -178,11 +177,11 @@ export const adminService = {
     if (!current) return { ok: false, field: "id", message: "Không tìm thấy chương trình." };
     const note = String(noteInput ?? "").replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 120);
     if (verified && note.length < 3) return { ok: false, field: "schoolVerifiedNote", message: "Ghi rõ căn cứ xác nhận (VD: Email phòng tuyển sinh ngày 12/9)." };
-    const existing = (await repositories.programAdmin.getOverride(id)) ?? {};
+
     const at = verified ? new Date().toISOString().slice(0, 10) : null;
     const before = current.schoolVerifiedAt ? `${current.schoolVerifiedAt}${current.schoolVerifiedNote ? ` (${current.schoolVerifiedNote})` : ""}` : "Chưa xác nhận";
     const after = at ? `${at} (${note})` : "Gỡ xác nhận";
-    await repositories.programAdmin.setOverride(id, { ...existing, schoolVerifiedAt: at, schoolVerifiedNote: verified ? note : null }, {
+    await repositories.programAdmin.patchProgram(id, { schoolVerifiedAt: at, schoolVerifiedNote: verified ? note : null }, {
       id: randomUUID(),
       at: new Date().toISOString(),
       actorId: actor.id,
@@ -196,8 +195,8 @@ export const adminService = {
 
   /** Khôi phục dữ liệu gốc (xoá phần ghi đè). */
   async reset(actor: PublicUser, id: string) {
-    if (!(await repositories.programAdmin.getOverride(id))) return false;
-    await repositories.programAdmin.setOverride(id, null, {
+    if (!(await repositories.programAdmin.hasEdits(id))) return false;
+    await repositories.programAdmin.patchProgram(id, null, {
       id: randomUUID(),
       at: new Date().toISOString(),
       actorId: actor.id,

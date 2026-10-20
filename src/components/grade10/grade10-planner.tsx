@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LuCheck, LuCircleAlert, LuCircleCheck, LuLightbulb, LuLock, LuSearch, LuShieldCheck, LuX } from "react-icons/lu";
-import type { Combo } from "@/domain/types";
-import type { LiteMajor, LiteProgram } from "@/services/lite";
+import type { Combo, PlanningProgram } from "@/domain/types";
+import type { LiteMajor } from "@/services/lite";
 import {
   bestSwap,
   CORE_SUBJECTS,
@@ -53,7 +53,7 @@ function SubjectChip({ name, state, onClick }: { name: string; state: "core" | "
 /** Số ngành hiện trước trong mỗi danh sách (như thiết kế Figma B1a). */
 const LIST_PREVIEW = 6;
 
-export function Grade10Planner({ initialDirection, majors, programs, combos }: { initialDirection: Direction; majors: LiteMajor[]; programs: LiteProgram[]; combos: Combo[] }) {
+export function Grade10Planner({ initialDirection, majors, programs, combos }: { initialDirection: Direction; majors: LiteMajor[]; programs: PlanningProgram[]; combos: Combo[] }) {
   const toast = useToast();
   const [dir, setDir] = useState<Direction>(initialDirection);
   const [electives, setElectives] = useState<string[]>(["ly", "hoa", "tin", "ktpl"]);
@@ -91,8 +91,8 @@ export function Grade10Planner({ initialDirection, majors, programs, combos }: {
   const ms = useMemo(() => majorStates(states), [states]);
   const openMajors = ms.filter((m) => m.open > 0).sort((a, b) => b.open - a.open);
   const lockedMajors = ms.filter((m) => m.open === 0);
-  const openPrograms = states.filter((s) => s.status === "open").length;
-  const lockedPrograms = states.filter((s) => s.status === "locked").length;
+  const openPrograms = states.filter((s) => s.status === "open").reduce((sum, s) => sum + s.program.count, 0);
+  const lockedPrograms = states.filter((s) => s.status === "locked").reduce((sum, s) => sum + s.program.count, 0);
   const swap = useMemo(() => bestSwap(programs, combos, electives), [programs, combos, electives]);
   const plan = useMemo(() => (targets.length ? planForTargets(targets, programs, combos, electives) : null), [targets, programs, combos, electives]);
   const planMajors = useMemo(() => (plan ? majorStates(programStates(programs, combos, plan.electives)).filter((m) => m.open > 0) : []), [plan, programs, combos]);
@@ -259,7 +259,7 @@ export function Grade10Planner({ initialDirection, majors, programs, combos }: {
               </Card>
             </div>
             <p className="text-xs text-slate-500">
-              Dựa trên tổ hợp các trường dùng năm 2025 (dữ liệu minh hoạ). Tổ hợp có thể đổi theo đề án từng năm — kiểm tra lại khi lên lớp 12. Chương trình chỉ xét học bạ/ĐGNL không tính vào đây.
+              Dựa trên dữ liệu tổ hợp năm 2025 Trovio đang có. Tổ hợp có thể đổi theo đề án từng năm — kiểm tra lại khi lên lớp 12. Chương trình chỉ xét học bạ/ĐGNL không tính vào đây.
             </p>
           </div>
         </div>

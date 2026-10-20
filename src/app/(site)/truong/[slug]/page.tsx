@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LuExternalLink, LuInfo, LuMapPin } from "react-icons/lu";
+import { LuInfo, LuMapPin } from "react-icons/lu";
 import { catalogService, programService, SCHOOL_TYPE_LABELS } from "@/services";
-import { outcomeService } from "@/services/outcome.service";
-import { reviewService } from "@/services/review.service";
-import { getCurrentUser } from "@/lib/auth";
-import { SourceChip } from "@/components/outcomes/source-chip";
-import { ReviewsSection } from "@/components/reviews/reviews-section";
-import { formatNumber, formatScore, formatTuition } from "@/lib/format";
+import { formatNumber, formatScore, formatTuition, hasTuitionData } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Breadcrumb } from "@/components/ui/misc";
 import { Tabs } from "@/components/ui/tabs";
 import { SaveButton } from "@/components/program/program-actions";
-import { SchoolCode } from "@/components/program/program-card";
+import { SchoolLogo } from "@/components/school/school-logo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -26,57 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SchoolPage({ params }: Props) {
   const school = await catalogService.getSchoolBySlug((await params).slug);
   if (!school) notFound();
-  const user = await getCurrentUser();
-  const [programs, outcome, reviews, mine, sources] = await Promise.all([
-    programService.listBySchool(school.id),
-    outcomeService.getSchool(school.id),
-    reviewService.listPublic(school.id, { viewerId: user?.id }),
-    user ? reviewService.mine(user.id, school.id) : null,
-    outcomeService.listSources(),
-  ]);
-  const tt09 = sources.find((x) => x.id === "tt-09-2024");
-  const majors = Array.from(new Map(programs.map((v) => [v.major.id, { id: v.major.id, name: v.major.name }])).values());
-
-  const employment = (
-    <div className="space-y-4">
-      {outcome?.employmentRate ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 p-5">
-            <p className="text-[13px] text-slate-500">Tỷ lệ có việc làm{outcome.cohort ? ` · ${outcome.cohort}` : ""}</p>
-            <p className="mt-1 text-3xl font-extrabold text-slate-900">{outcome.employmentRate.metric.value}%</p>
-            {outcome.employmentRate.metric.note && <p className="mt-1 text-[13px] text-slate-600">{outcome.employmentRate.metric.note}</p>}
-            <div className="mt-2">
-              <SourceChip source={outcome.employmentRate.source} year={outcome.employmentRate.metric.year} />
-            </div>
-          </div>
-          {outcome.salaryNote && (
-            <div className="rounded-xl border border-slate-200 p-5">
-              <p className="text-[13px] text-slate-500">Thu nhập</p>
-              <p className="mt-1 text-lg font-bold text-slate-900">{outcome.salaryNote.text}</p>
-              <div className="mt-2">
-                <SourceChip source={outcome.salaryNote.source} year={outcome.salaryNote.year} />
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-          Trovio chưa thu thập được báo cáo khảo sát việc làm của trường. Theo Thông tư 09/2024/TT-BGDĐT, trường phải công khai tỷ lệ người học tốt nghiệp có việc làm trong 12 tháng —
-          bạn có thể xem trên website chính thức của trường.
-        </p>
-      )}
-      <p className="flex flex-wrap items-center gap-2 text-[13px] text-slate-500">
-        Căn cứ công khai: {tt09 && <SourceChip source={tt09} year={tt09.year} />}
-        <a href={school.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:underline">
-          Website trường <LuExternalLink className="size-3.5" aria-hidden />
-        </a>
-        <Link href="/viec-lam" className="font-semibold text-primary-600 hover:underline">
-          Việc làm theo ngành →
-        </Link>
-      </p>
-    </div>
-  );
+  const programs = await programService.listBySchool(school.id);
   const methods = Array.from(new Map(programs.flatMap((v) => v.program.methods).map((m) => [m.name, m])).values());
+  const tuitionPrograms = programs.filter(({ program }) => hasTuitionData(program.tuitionMin, program.tuitionMax));
 
   const overview = (
     <div className="grid gap-6 md:grid-cols-[1fr_300px]">
@@ -159,11 +106,15 @@ export default async function SchoolPage({ params }: Props) {
 
   const tuition = (
     <div className="space-y-4 text-sm text-slate-600">
-      <p>
-        Học phí dao động từ <strong className="text-slate-900">{Math.min(...programs.map((p) => p.program.tuitionMin))}</strong> đến{" "}
-        <strong className="text-slate-900">{Math.max(...programs.map((p) => p.program.tuitionMax))} triệu đồng/năm</strong> tuỳ chương trình.
-      </p>
-      <p>{school.scholarships}</p>
+      {tuitionPrograms.length > 0 ? (
+        <p>
+          Học phí dao động từ <strong className="text-slate-900">{Math.min(...tuitionPrograms.map((p) => p.program.tuitionMin))}</strong> đến{" "}
+          <strong className="text-slate-900">{Math.max(...tuitionPrograms.map((p) => p.program.tuitionMax))} triệu đồng/năm</strong> tuỳ chương trình.
+        </p>
+      ) : (
+        <p>Chưa có dữ liệu học phí đã xác minh của trường.</p>
+      )}
+      {school.scholarships.trim() && <p>{school.scholarships}</p>}
     </div>
   );
 
@@ -171,17 +122,24 @@ export default async function SchoolPage({ params }: Props) {
     <div className="container-page py-8">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Tìm chương trình", href: "/chuong-trinh" }, { label: school.shortName }]} />
 
-      <section className="mt-4 rounded-3xl bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 p-6 text-white md:p-10">
-        <div className="flex flex-col gap-5 md:flex-row md:items-center">
-          <SchoolCode code={school.code} size="lg" />
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold md:text-3xl">{school.name}</h1>
-              <Badge tone="success">{SCHOOL_TYPE_LABELS[school.type]}</Badge>
+      <section className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 p-6 text-white md:p-10">
+        {school.coverUrl ? (
+          // Ảnh bìa là URL HTTPS do quản trị viên xác minh; fallback gradient vẫn giữ tương phản chữ.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={school.coverUrl} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-20" loading="eager" decoding="async" referrerPolicy="no-referrer" />
+        ) : null}
+        <div className="relative">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center">
+            <SchoolLogo school={school} size="lg" priority className="border-white/80" />
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold md:text-3xl">{school.name}</h1>
+                <Badge tone="success">{SCHOOL_TYPE_LABELS[school.type]}</Badge>
+              </div>
+              <p className="mt-2 text-sm text-primary-100">
+                Mã trường: <strong className="text-white">{school.code}</strong> · Năm thành lập: <strong className="text-white">{school.founded}</strong> · {school.city}
+              </p>
             </div>
-            <p className="mt-2 text-sm text-primary-100">
-              Mã trường: <strong className="text-white">{school.code}</strong> · Năm thành lập: <strong className="text-white">{school.founded}</strong> · {school.city}
-            </p>
           </div>
         </div>
         <dl className="mt-8 grid grid-cols-1 gap-4 border-t border-white/20 pt-6 sm:grid-cols-3">
@@ -208,19 +166,6 @@ export default async function SchoolPage({ params }: Props) {
             { label: "Chương trình đào tạo", content: table },
             { label: "Điều kiện xét tuyển", content: admission },
             { label: "Học phí & Học bổng", content: tuition },
-            { label: "Việc làm SV", content: employment },
-            {
-              label: `Cảm nhận SV${reviews.summary.count ? ` (${reviews.summary.count})` : ""}`,
-              content: (
-                <ReviewsSection
-                  schoolId={school.id}
-                  schoolName={school.shortName}
-                  majors={majors}
-                  initial={{ summary: reviews.summary, filtered: reviews.filtered, facets: reviews.facets, items: reviews.items, mine }}
-                  viewer={{ loggedIn: !!user, verified: !!user?.verified }}
-                />
-              ),
-            },
           ]}
         />
       </Card>

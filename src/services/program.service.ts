@@ -3,8 +3,9 @@
  * Chỉ phụ thuộc repository (qua `repositories`) và domain types.
  */
 import type { AdmissionMethodKey, Major, Program, School } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { matchesQuery } from "../lib/text";
+import { hasTuitionData } from "../lib/format";
 import { computeFit, cutoffFor, type FitInfo } from "./scoring.service";
 import { TUITION_RANGES, type ProgramFilters, type ProgramSort, type TuitionRange } from "./program.filters";
 
@@ -16,9 +17,9 @@ export interface ProgramView {
   major: Major;
   /** Điểm chuẩn gần nhất theo `cutoffMethod` (mặc định điểm thi THPT). */
   latestCutoff: number | null;
-  /** Điểm chuẩn đang hiển thị là số ước tính (chưa phải trường công bố). */
-  cutoffEstimated?: boolean;
   cutoffMethod: AdmissionMethodKey;
+  /** Tổ hợp đang so với điểm chuẩn (THPT/học bạ). */
+  cutoffCombo?: string;
   fit: FitInfo | null;
 }
 
@@ -51,6 +52,7 @@ const fallbackSchool: School = {
   students: 10000,
   highlight: "",
   website: "",
+  logoUrl: null,
   description: "",
   scholarships: "",
 };
@@ -64,10 +66,6 @@ const fallbackMajor: Major = {
   riasec: ["I", "R", "C"],
   summary: "",
   description: "",
-  curriculum: [],
-  careers: [],
-  demand: "Trung bình",
-  growth: 0,
 };
 
 async function buildViews(programs: Program[], score?: number | null, method: AdmissionMethodKey = "thpt", admin = false): Promise<ProgramView[]> {
@@ -81,7 +79,6 @@ async function buildViews(programs: Program[], score?: number | null, method: Ad
     school: schoolMap.get(program.schoolId) ?? fallbackSchool,
     major: majorMap.get(program.majorId) ?? fallbackMajor,
     latestCutoff: cutoffFor(program, method)?.score ?? null,
-    cutoffEstimated: !!cutoffFor(program, method)?.estimated,
     cutoffMethod: method,
     fit: computeFit(score, program, method),
   }));
@@ -90,7 +87,7 @@ async function buildViews(programs: Program[], score?: number | null, method: Ad
 function inTuitionRange(p: Program, range: TuitionRange): boolean {
   const r = TUITION_RANGES[range];
   // Chương trình phù hợp nếu mức học phí tối thiểu nằm trong khoảng lựa chọn.
-  return p.tuitionMin >= r.min && p.tuitionMin < r.max;
+  return hasTuitionData(p.tuitionMin, p.tuitionMax) && p.tuitionMin >= r.min && p.tuitionMin < r.max;
 }
 
 function applyFilters(views: ProgramView[], f: ProgramFilters): ProgramView[] {
@@ -114,7 +111,12 @@ function sortViews(views: ProgramView[], sort: ProgramSort, score?: number): Pro
     case "diem-giam":
       return copy.sort(byCutoffDesc);
     case "hoc-phi-tang":
-      return copy.sort((a, b) => a.program.tuitionMin - b.program.tuitionMin || byCutoffDesc(a, b));
+      return copy.sort((a, b) => {
+        const aKnown = hasTuitionData(a.program.tuitionMin, a.program.tuitionMax);
+        const bKnown = hasTuitionData(b.program.tuitionMin, b.program.tuitionMax);
+        if (aKnown !== bKnown) return aKnown ? -1 : 1;
+        return a.program.tuitionMin - b.program.tuitionMin || byCutoffDesc(a, b);
+      });
     case "ten":
       return copy.sort((a, b) => a.program.name.localeCompare(b.program.name, "vi"));
     case "phu-hop":
@@ -218,7 +220,7 @@ export const programService = {
   },
 
   async stats() {
-    const [programs, schools] = await Promise.all([repositories.programs.findAll(), repositories.schools.findAll()]);
-    return { programs: programs.length, schools: schools.length };
+    const stats = await repositories.catalog.findDiscoveryStats();
+    return { programs: stats.totalPrograms, schools: stats.totalSchools };
   },
 };

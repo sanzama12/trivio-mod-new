@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 import { LuInfo } from "react-icons/lu";
 import { computeCost, defaultTuition, formatMillion } from "@/lib/cost";
+import { hasTuitionData } from "@/lib/format";
 import { useTrovio } from "@/stores/trovio-store";
 import { useProgramViews } from "@/components/program/use-program-views";
 import { buttonClass } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function CostCompare() {
   const rows = useMemo(
     () =>
       (items ?? [])
+        .filter((v) => hasTuitionData(v.program.tuitionMin, v.program.tuitionMax))
         .map((v) => ({
           v,
           r: computeCost({
@@ -64,6 +66,17 @@ export function CostCompare() {
       </div>
     );
   }
+  if (rows.length === 0) {
+    return (
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white">
+        <EmptyState
+          icon={<LuWallet />}
+          title="Chưa có dữ liệu học phí"
+          description="Các chương trình đã lưu chưa có học phí được xác minh nên Trovio không tính hoặc so sánh chi phí."
+        />
+      </div>
+    );
+  }
 
   const max = Math.max(...rows.map((x) => x.r.total), 1);
   return (
@@ -75,13 +88,13 @@ export function CostCompare() {
       </div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[640px] text-left text-sm">
-          <caption className="sr-only">Tổng chi phí ước tính theo chương trình, từ thấp đến cao</caption>
+          <caption className="sr-only">Tổng chi phí theo giả định, từ thấp đến cao</caption>
           <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
             <tr>
               <th scope="col" className="px-4 py-3">Chương trình</th>
               <th scope="col" className="px-4 py-3 text-right">Học phí cả khoá</th>
               <th scope="col" className="px-4 py-3 text-right">Sinh hoạt</th>
-              <th scope="col" className="w-[34%] px-4 py-3">Tổng ước tính</th>
+              <th scope="col" className="w-[34%] px-4 py-3">Tổng theo giả định</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 tabular-nums">
@@ -110,7 +123,7 @@ export function CostCompare() {
       </div>
       <p className="flex items-start gap-1.5 text-xs text-slate-500">
         <LuInfo className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-        Học phí lấy trung bình khoảng học phí của từng chương trình (bản demo là số minh hoạ). Mở trang chương trình để tính chi tiết hơn (học bổng, chi phí một lần).
+        Chỉ so sánh các chương trình đã có dữ liệu học phí. Học phí lấy trung bình khoảng đã công bố; các chương trình thiếu dữ liệu không được tính là 0 đồng.
       </p>
     </div>
   );

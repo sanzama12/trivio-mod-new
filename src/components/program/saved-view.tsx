@@ -43,7 +43,7 @@ export function SavedView() {
   /** Điểm chuẩn hiển thị theo phương thức của hồ sơ điểm (mặc định điểm thi THPT). */
   const cutoffText = (v: ProgramView) => {
     const c = cutoffFor(v.program, method);
-    if (c) return `${formatMethodScore(c.score, method)}${method !== "thpt" ? ` ${ADMISSION_METHODS[method].short}` : ""}${c.estimated ? " (ước tính)" : ""}`;
+    if (c) return `${formatMethodScore(c.score, method)}${method !== "thpt" ? ` ${ADMISSION_METHODS[method].short}` : ""}`;
     return method === "thpt" ? "Chưa có dữ liệu chính thức" : `Không xét ${ADMISSION_METHODS[method].short}`;
   };
   const toStrategy = (v: ProgramView): StrategyItem => ({ id: v.program.id, label: `${v.program.name} – ${v.school.shortName}`, program: v.program });
@@ -150,8 +150,8 @@ export function SavedView() {
                 <Link href="/chuong-trinh" className={buttonClass()}>
                   Tìm chương trình →
                 </Link>
-                <Link href="/trac-nghiem" className={buttonClass({ variant: "outline" })}>
-                  Làm trắc nghiệm sở thích
+                <Link href="/nganh" className={buttonClass({ variant: "outline" })}>
+                  Khám phá ngành học
                 </Link>
               </EmptyState>
             </Card>

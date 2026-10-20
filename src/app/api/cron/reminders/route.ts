@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { reminderService } from "@/services/reminder.service";
 import { supplementaryService } from "@/services/supplementary.service";
-import { outcomeSurveyService } from "@/services/community.service";
 
 /**
  * GET|POST /api/cron/reminders — gửi email nhắc hạn đến hạn hôm nay + thông báo xét tuyển bổ sung phù hợp.
@@ -18,9 +17,7 @@ async function run(req: Request) {
   const result = await reminderService.sendDue();
   // Thông báo đợt xét tuyển bổ sung đang mở, phù hợp điểm & nguyện vọng (mỗi đợt 1 lần / người).
   const supplementary = await supplementaryService.notifyAll();
-  // Lời mời khảo sát sau 1 năm cho người đã đồng ý (mặc định tắt).
-  const surveyInvites = await outcomeSurveyService.inviteDue();
-  return NextResponse.json({ ok: true, ...result, supplementary, surveyInvites });
+  return NextResponse.json({ ok: true, ...result, supplementary });
 }
 
 export const GET = run;

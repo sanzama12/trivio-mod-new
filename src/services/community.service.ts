@@ -1,13 +1,10 @@
 /**
- * SERVICE LAYER — kết nối với người thật (bản gọn):
- * 1) Hỏi sinh viên đang học: học sinh hỏi (ẩn danh), chỉ tài khoản đăng ký bằng email của chính trường đó mới trả lời;
- *    câu hỏi & câu trả lời đều qua kiểm duyệt trước khi hiện.
- * 2) Khảo sát hài lòng sau 1 năm học: chỉ công bố tổng hợp khi đủ ≥ 20 phản hồi.
+ * SERVICE LAYER — hỏi đáp sinh viên có kiểm duyệt.
  */
 import { randomUUID } from "node:crypto";
-import type { OutcomeSurvey, PublicUser, QaQuestion } from "../domain/types";
-import { repositories } from "../repositories";
-import { displayName, isSchoolEmail, screenReview } from "./review.service";
+import type { PublicUser, QaQuestion } from "../domain/types";
+import { repositories } from "@database/repositories";
+import { isSchoolEmail, privateDisplayName, screenCommunityContent } from "./community-utils";
 import { notificationService } from "./notification.service";
 
 type Fail = { ok: false; status: number; field?: string; message: string };
@@ -15,7 +12,6 @@ type Fail = { ok: false; status: number; field?: string; message: string };
 export const QA_MIN = 10;
 export const QA_MAX = 300;
 export const ANSWER_MAX = 800;
-export const SURVEY_MIN_PUBLIC = 20;
 
 const clean = (v: unknown, max: number) =>
   String(v ?? "")
@@ -86,7 +82,14 @@ export const qaService = {
   async canAnswer(user: PublicUser | null, programId: string): Promise<{ ok: boolean; domain: string | null }> {
     const ctx = await schoolOfProgram(programId);
     if (!ctx) return { ok: false, domain: null };
-    const domain = new URL(ctx.school.website).hostname.replace(/^www\./, "");
+    let domain: string | null = null;
+    try {
+      if (ctx.school.website) {
+        domain = new URL(ctx.school.website).hostname.replace(/^www\./, "");
+      }
+    } catch {
+      domain = null;
+    }
     return { ok: !!user && user.verified && !user.locked && isSchoolEmail(user.email, ctx.school.website), domain };
   },
 
@@ -116,7 +119,7 @@ export const qaService = {
         {
           id: `ans-${randomUUID()}`,
           userId: user.id,
-          displayName: displayName(user.name),
+          displayName: privateDisplayName(user.name),
           schoolDomain: user.email.split("@")[1]?.toLowerCase() ?? "",
           text: redactContacts(text),
           createdAt: new Date().toISOString(),
@@ -170,7 +173,7 @@ export const qaService = {
     const name = (id: string) => programs.find((p) => p.id === id)?.name ?? id;
     return all
       .filter((q) => q.status === "pending" || q.answers.some((a) => a.status === "pending"))
-      .map((q) => ({ ...q, programName: name(q.programId), flags: screenReview("", q.text), answers: q.answers.map((a) => ({ ...a, flags: screenReview("", a.text) })) }));
+      .map((q) => ({ ...q, programName: name(q.programId), flags: screenCommunityContent("", q.text), answers: q.answers.map((a) => ({ ...a, flags: screenCommunityContent("", a.text) })) }));
   },
 
   async moderate(admin: PublicUser, input: Record<string, unknown>): Promise<{ ok: true } | Fail> {
@@ -188,7 +191,7 @@ export const qaService = {
       actorId: admin.id,
       actorEmail: admin.email,
       programId: q.programId,
-      targetType: "review",
+      targetType: "qa",
       action: action === "approved" ? "approve" : "reject",
       changes: [{ field: aid ? "Câu trả lời hỏi đáp" : "Câu hỏi hỏi đáp", before: "Chờ duyệt", after: action === "approved" ? "Đã duyệt" : "Từ chối" }],
     });
@@ -204,98 +207,5 @@ export const qaService = {
       });
     }
     return { ok: true };
-  },
-};
-
-export interface SurveyStats {
-  n: number;
-  /** Chưa đủ số phản hồi tối thiểu → không công bố tỉ lệ. */
-  hidden: boolean;
-  satisfied: number;
-  chooseAgain: number;
-  /** % sẽ chọn lại trường (trên số phản hồi có trả lời câu này); null = chưa đủ dữ liệu. */
-  chooseSchoolAgain: number | null;
-  trovioRight: number;
-  topWish: string | null;
-  demo: boolean;
-}
-
-export function summarizeSurveys(list: Pick<OutcomeSurvey, "satisfaction" | "chooseAgain" | "chooseSchoolAgain" | "trovioRight" | "wish" | "demo">[]): SurveyStats {
-  const n = list.length;
-  const pct = (k: number) => (n ? Math.round((k / n) * 100) : 0);
-  // Chỉ công bố lời nhắn không bị bộ lọc gắn cờ (liên hệ, quảng cáo, ngôn từ, công kích, nêu tên…).
-  const wishes = list.map((x) => x.wish).filter((w) => w && screenReview("", w).length === 0);
-  return {
-    n,
-    hidden: n < SURVEY_MIN_PUBLIC,
-    satisfied: pct(list.filter((x) => x.satisfaction >= 4).length),
-    chooseAgain: pct(list.filter((x) => x.chooseAgain === "yes").length),
-    chooseSchoolAgain: (() => {
-      const answered = list.filter((x) => x.chooseSchoolAgain);
-      return answered.length >= SURVEY_MIN_PUBLIC ? Math.round((answered.filter((x) => x.chooseSchoolAgain === "yes").length / answered.length) * 100) : null;
-    })(),
-    trovioRight: pct(list.filter((x) => x.trovioRight === "yes").length),
-    topWish: wishes[0] ?? null,
-    // Có lẫn phản hồi minh hoạ → giao diện ghi rõ "có dữ liệu minh hoạ".
-    demo: list.some((x) => x.demo),
-  };
-}
-
-export const outcomeSurveyService = {
-  async stats(programId: string): Promise<SurveyStats> {
-    return summarizeSurveys(await repositories.outcomeSurveys.listByProgram(programId));
-  },
-
-  async submit(user: PublicUser, input: Record<string, unknown>): Promise<{ ok: true } | Fail> {
-    if (!user.verified) return { ok: false, status: 403, message: "Xác thực email tài khoản trước khi gửi phản hồi." };
-    const programId = typeof input.programId === "string" ? input.programId : "";
-    if (!(await repositories.programs.findById(programId))) return { ok: false, status: 400, field: "programId", message: "Chọn chương trình bạn đang học." };
-    const sat = Number(input.satisfaction);
-    if (![1, 2, 3, 4, 5].includes(sat)) return { ok: false, status: 400, field: "satisfaction", message: "Chọn mức hài lòng từ 1 đến 5." };
-    const yn = (v: unknown) => (v === "yes" || v === "no" || v === "unsure" ? v : null);
-    const chooseAgain = yn(input.chooseAgain);
-    const trovioRight = yn(input.trovioRight) ?? "unsure";
-    const chooseSchoolAgain = yn(input.chooseSchoolAgain);
-    if (!chooseAgain) return { ok: false, status: 400, field: "chooseAgain", message: "Cho biết nếu được chọn lại bạn có chọn ngành này không." };
-    const cohort = Number(input.cohort);
-    const year = new Date().getFullYear();
-    if (await repositories.outcomeSurveys.findByUser(user.id, programId)) return { ok: false, status: 409, message: "Bạn đã gửi phản hồi cho chương trình này. Cảm ơn bạn!" };
-    await repositories.outcomeSurveys.add({
-      id: `os-${randomUUID()}`,
-      programId,
-      userId: user.id,
-      satisfaction: sat as OutcomeSurvey["satisfaction"],
-      chooseAgain,
-      ...(chooseSchoolAgain ? { chooseSchoolAgain } : {}),
-      trovioRight,
-      wish: redactContacts(clean(input.wish, 300)),
-      cohort: Number.isInteger(cohort) && cohort >= year - 6 && cohort <= year ? cohort : year - 1,
-      createdAt: new Date().toISOString(),
-    });
-    // Đồng ý nhận lời mời trả lời lại sau 1 năm (mặc định tắt, có thể tắt trong hồ sơ).
-    if (input.optIn === true) await repositories.users.update(user.id, { surveyOptIn: true, surveyOptInAt: new Date().toISOString(), surveyInvitedAt: null });
-    return { ok: true };
-  },
-
-  /** Cron: mời người đã đồng ý trả lời lại 3 câu sau 1 năm (mỗi năm 1 lần). */
-  async inviteDue(now = Date.now()): Promise<number> {
-    const YEAR = 365 * 86400_000;
-    let sent = 0;
-    for (const u of await repositories.users.list()) {
-      if (!u.surveyOptIn || !u.surveyOptInAt) continue;
-      const since = Date.parse(u.surveyInvitedAt ?? u.surveyOptInAt);
-      if (!Number.isFinite(since) || now - since < YEAR) continue;
-      await notificationService.notify({
-        userId: u.id,
-        kind: "survey-invite",
-        title: "Một năm rồi — ngành bạn chọn thế nào?",
-        body: "Trả lời 3 câu ngắn (ẩn danh) để giúp các bạn lớp 12 năm nay chọn ngành sát thực tế hơn.",
-        href: "/phan-hoi-nganh",
-        email: true,
-      });
-      await repositories.users.update(u.id, { surveyInvitedAt: new Date(now).toISOString() });
-      sent++;
-    }
-    return sent;
   },
 };

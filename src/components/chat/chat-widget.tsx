@@ -39,8 +39,8 @@ type Msg =
   | { id: string; role: "error"; text: string };
 
 const MAX_MESSAGES = 40;
-const HIDDEN_ON = ["/trac-nghiem/lam-bai"];
-const STARTERS = ["Ngành Marketing học gì?", "Điểm chuẩn ngành Công nghệ thông tin", "Lương ngành Kế toán", "Tôi nên học ngành gì?"];
+const HIDDEN_ON: string[] = [];
+const STARTERS = ["Giới thiệu ngành Marketing", "Điểm chuẩn ngành Công nghệ thông tin", "Học phí ngành Kế toán", "Tôi nên học ngành gì?"];
 /** Sự kiện để nơi khác mở khung chat, VD: window.dispatchEvent(new CustomEvent("trovio:open-chat", { detail: "Câu hỏi" })). */
 export const OPEN_CHAT_EVENT = "trovio:open-chat";
 
@@ -230,7 +230,7 @@ export function ChatWidget() {
 
             {messages.length === 0 && (
               <div>
-                <p className="text-sm text-slate-700">Chào bạn! Bạn có thể hỏi về ngành học, trường đào tạo, điểm chuẩn các năm, học phí, việc làm & thu nhập, cảm nhận sinh viên hoặc mốc tuyển sinh.</p>
+                <p className="text-sm text-slate-700">Chào bạn! Bạn có thể hỏi về ngành học, trường đào tạo, điểm chuẩn, học phí hoặc mốc tuyển sinh.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {STARTERS.map((s) => (
                     <SuggestionChip key={s} text={s} onPick={send} disabled={busy} />

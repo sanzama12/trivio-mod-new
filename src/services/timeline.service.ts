@@ -4,7 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { PublicUser, TimelineConfig, TimelineEvent } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 
 import { programService } from './program.service';
 

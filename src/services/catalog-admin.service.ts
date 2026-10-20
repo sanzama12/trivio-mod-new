@@ -2,13 +2,14 @@
  * SERVICE LAYER — quản trị danh mục (A02 Trường & Cơ sở, A03 Ngành đào tạo, A04 Chương trình đào tạo).
  * Bản ghi gốc được ghi đè, bản ghi mới lưu riêng; "xoá" = tạm ẩn (giữ lịch sử, khôi phục được). Mọi thay đổi có nhật ký.
  */
+import { createId, isMajorCode } from "@database/identity";
 import { randomUUID } from "node:crypto";
-import type { AdmissionMethod, AuditEntry, Major, MajorGroup, PublicUser, Program, RiasecType, School, SchoolType } from "../domain/types";
+import type { AdmissionMethod, AuditEntry, Major, MajorGroup, PublicUser, Program, School, SchoolType } from "../domain/types";
 import { PROVINCES, PROVINCE_REGION } from "../domain/provinces";
-import { RIASEC_ORDER } from "../domain/riasec";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { normalizeVi } from "../lib/text";
 import { SCHOOL_TYPE_LABELS } from "./program.filters";
+import { defaultRiasecForGroup } from "./major-mapping.service";
 
 import { countBy, groupBy } from '../lib/collections';
 
@@ -40,6 +41,32 @@ export function checkWebsite(raw: unknown): { url: string; warning: string | nul
   const warning = !/^https:\/\//i.test(v) || !/\.edu\.vn$/i.test(url.hostname) ? "URL chưa được xác minh (không phải https hoặc không thuộc .edu.vn)" : null;
   return { url: `${url.protocol}//${url.hostname}`, warning };
 }
+
+/** Logo chỉ nhận HTTPS; để trống là trạng thái hợp lệ và UI sẽ dùng mã trường. */
+export function checkLogoUrl(raw: unknown): { url: string | null } | Fail {
+  const value = str(raw, 500);
+  if (!value) return { url: null };
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !url.hostname) throw new Error("invalid");
+    return { url: url.toString() };
+  } catch {
+    return { ok: false, status: 400, field: "logoUrl", message: "Logo phải là một URL HTTPS hợp lệ." };
+  }
+}
+
+/** Ảnh bìa chỉ nhận HTTPS; để trống là trạng thái hợp lệ. */
+export const checkCoverUrl = (raw: unknown): { url: string | null } | Fail => {
+  const value = str(raw, 500);
+  if (!value) return { url: null };
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !url.hostname) throw new Error("invalid");
+    return { url: url.toString() };
+  } catch {
+    return { ok: false, status: 400, field: "coverUrl", message: "Ảnh bìa phải là một URL HTTPS hợp lệ." };
+  }
+};
 
 export interface SchoolRow {
   school: School;
@@ -94,11 +121,15 @@ export const catalogAdminService = {
     if (!(PROVINCES as readonly string[]).includes(city)) return { ok: false, status: 400, field: "city", message: "Vui lòng chọn khu vực" };
     const web = checkWebsite(input.website);
     if ("ok" in web) return web;
+    const logo = checkLogoUrl(input.logoUrl);
+    if ("ok" in logo) return logo;
+    const cover = checkCoverUrl(input.coverUrl);
+    if ("ok" in cover) return cover;
     const description = str(input.description, 1000);
     const shortName = str(input.shortName, 60) || name.replace(/^Trường\s+/i, "").replace(/^Đại học/i, "ĐH");
     const campusesIn = Array.isArray(input.campuses) ? input.campuses.map((c) => str(c, 160)).filter(Boolean).slice(0, 12) : [];
     const base: School = current ?? {
-      id: `sch-${slugify(code)}`,
+      id: createId("school"),
       slug: uniqueSlug(slugify(name), new Set(all.map((s) => s.slug))),
       code,
       name,
@@ -111,10 +142,11 @@ export const catalogAdminService = {
       students: 0,
       highlight: "",
       website: web.url,
+      logoUrl: logo.url,
+      coverUrl: cover.url,
       description,
       scholarships: "",
     };
-    if (!current && all.some((s) => s.id === base.id)) base.id = `sch-${randomUUID().slice(0, 8)}`;
     const next: School = {
       ...base,
       code,
@@ -124,12 +156,14 @@ export const catalogAdminService = {
       city,
       region: PROVINCE_REGION[city as keyof typeof PROVINCE_REGION],
       website: web.url,
+      logoUrl: logo.url,
+      coverUrl: cover.url,
       description: description || base.description,
       campuses: campusesIn.length ? campusesIn : base.campuses.length ? base.campuses : [city],
     };
     await repositories.catalogAdmin.saveSchool(next);
     const changes = current
-      ? (["name", "code", "type", "city", "website", "description"] as const).filter((k) => String(current[k]) !== String(next[k])).map((k) => ({ field: k, before: String(current[k] ?? "—"), after: String(next[k] ?? "—") }))
+      ? (["name", "code", "type", "city", "website", "logoUrl", "coverUrl", "description"] as const).filter((k) => String(current[k]) !== String(next[k])).map((k) => ({ field: k, before: String(current[k] ?? "—"), after: String(next[k] ?? "—") }))
       : [{ field: "Trường mới", before: "—", after: `${code} · ${name}` }];
     if (changes.length) await audit(actor, "school", next.id, current ? "update" : "create", changes);
     return { ok: true, id: next.id, warning: web.warning };
@@ -156,37 +190,32 @@ export const catalogAdminService = {
     const current = id ? all.find((m) => m.id === id) : null;
     if (id && !current) return { ok: false, status: 404, message: "Không tìm thấy ngành." };
     const code = str(input.code, 10);
-    if (!/^\d{7}$/.test(code)) return { ok: false, status: 400, field: "code", message: "Mã ngành gồm 7 chữ số (VD: 7480201)." };
-    if (all.some((m) => m.code === code && m.id !== id)) return { ok: false, status: 409, field: "code", message: "Mã ngành đã tồn tại." };
+    if (code ? !isMajorCode(code) : !current) return { ok: false, status: 400, field: "code", message: "Mã ngành gồm 7 chữ số (VD: 7480201)." };
+    if (code && all.some((m) => m.code === code && m.id !== id)) return { ok: false, status: 409, field: "code", message: "Mã ngành đã tồn tại." };
     const name = str(input.name, 120);
     if (name.length < 3) return { ok: false, status: 400, field: "name", message: "Tên ngành là bắt buộc." };
     const groups = await repositories.majors.findGroups();
     const groupId = str(input.groupId, 40);
     if (!groups.some((g) => g.id === groupId)) return { ok: false, status: 400, field: "groupId", message: "Chọn nhóm ngành." };
-    const riasec = Array.isArray(input.riasec) ? input.riasec.filter((t): t is RiasecType => RIASEC_ORDER.includes(t as RiasecType)) : [];
-    if (riasec.length !== 3 || new Set(riasec).size !== 3) return { ok: false, status: 400, field: "riasec", message: "Chọn đúng 3 nhóm Holland khác nhau (theo thứ tự ưu tiên)." };
+    const riasec = current?.riasec ?? defaultRiasecForGroup(groupId);
     const summary = str(input.summary, 300);
     if (summary.length < 10) return { ok: false, status: 400, field: "summary", message: "Mô tả tóm tắt cần ít nhất 10 ký tự." };
     const base: Major = current ?? {
-      id: uniqueSlug(slugify(name), new Set(all.map((m) => m.id))),
+      id: createId("major"),
       slug: uniqueSlug(slugify(name), new Set(all.map((m) => m.slug))),
       code,
       name,
       groupId,
-      riasec: riasec as [RiasecType, RiasecType, RiasecType],
+      riasec,
       summary,
       description: summary,
-      curriculum: [],
-      careers: [],
-      demand: "Trung bình",
-      growth: 0,
       // Ngành mới ở trạng thái "Chờ duyệt" (chưa hiện cho học sinh) tới khi quản trị viên duyệt.
       hidden: true,
     };
-    const next: Major = { ...base, hidden: current ? current.hidden : true, code, name, groupId, riasec: riasec as [RiasecType, RiasecType, RiasecType], summary, description: str(input.description, 1500) || base.description || summary };
+    const next: Major = { ...base, hidden: current ? current.hidden : true, code, name, groupId, riasec, summary, description: str(input.description, 1500) || base.description || summary };
     await repositories.catalogAdmin.saveMajor(next);
     const changes = current
-      ? (["code", "name", "groupId", "riasec", "summary"] as const).filter((k) => String(current[k]) !== String(next[k])).map((k) => ({ field: k, before: String(current[k]), after: String(next[k]) }))
+      ? (["code", "name", "groupId", "summary"] as const).filter((k) => String(current[k]) !== String(next[k])).map((k) => ({ field: k, before: String(current[k]), after: String(next[k]) }))
       : [{ field: "Ngành mới", before: "—", after: `${code} · ${name}` }];
     if (changes.length) await audit(actor, "major", next.id, current ? "update" : "create", changes);
     return { ok: true, id: next.id };
@@ -235,9 +264,7 @@ export const catalogAdminService = {
     if (cutoffs.length && comboList.length === 0) return { ok: false, status: 400, field: "combos", message: "Chương trình xét điểm thi cần ít nhất một tổ hợp." };
     const source = str(input.source, 200);
     if (source.length < 3) return { ok: false, status: 400, field: "source", message: "Ghi rõ nguồn dữ liệu (VD: Đề án tuyển sinh 2026 của trường)." };
-    let id = `${school.id}-${major.id}`;
-    if (programs.some((p) => p.id === id)) id = `${id}-${slugify(admissionCode)}`;
-    if (programs.some((p) => p.id === id)) return { ok: false, status: 409, message: "Chương trình đã tồn tại." };
+    const id = createId("program");
     const slug = uniqueSlug(`${major.slug}-${school.code.toLowerCase()}`, new Set(programs.map((p) => p.slug)));
     const methods: AdmissionMethod[] = cutoffs.length
       ? [{ key: "thpt", name: "Xét điểm thi tốt nghiệp THPT", desc: `Theo tổng điểm tổ hợp (${comboList.join(", ")}) cộng điểm ưu tiên.`, requirement: `${cutoffs[0].score.toFixed(2)} điểm`, tag: "Điểm thi" }]
@@ -274,8 +301,8 @@ export const catalogAdminService = {
   async setProgramHidden(actor: PublicUser, id: string, hidden: boolean): Promise<{ ok: true } | Fail> {
     const p = await repositories.catalogAdmin.getProgram(id);
     if (!p) return { ok: false, status: 404, message: "Không tìm thấy chương trình." };
-    const existing = (await repositories.programAdmin.getOverride(id)) ?? {};
-    await repositories.programAdmin.setOverride(id, { ...existing, hidden }, {
+
+    await repositories.programAdmin.patchProgram(id, { hidden }, {
       id: randomUUID(),
       at: now(),
       actorId: actor.id,

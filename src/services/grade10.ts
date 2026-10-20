@@ -3,8 +3,7 @@
  * Học sinh học các môn bắt buộc và chọn 4 môn lựa chọn; tổ hợp xét tuyển chỉ dùng được khi đã học đủ các môn trong tổ hợp.
  * Hàm thuần, dùng chung client + kiểm thử.
  */
-import type { Combo } from "../domain/types";
-import type { LiteProgram } from "./lite";
+import type { Combo, PlanningProgram } from "../domain/types";
 
 export interface G10Subject {
   id: string;
@@ -63,7 +62,7 @@ export function comboStates(combos: Combo[], electives: string[]): ComboState[] 
 }
 
 export interface ProgramState {
-  program: LiteProgram;
+  program: PlanningProgram;
   status: "open" | "locked" | "other";
   /** Tổ hợp dùng được (khi mở). */
   via: string[];
@@ -72,7 +71,7 @@ export interface ProgramState {
   aptitude: boolean;
 }
 
-export function programStates(programs: LiteProgram[], combos: Combo[], electives: string[]): ProgramState[] {
+export function programStates(programs: PlanningProgram[], combos: Combo[], electives: string[]): ProgramState[] {
   const byCode = new Map(combos.map((c) => [c.code, c]));
   return programs.map((p) => {
     const known = p.combos.map((c) => byCode.get(c)).filter((c): c is Combo => !!c);
@@ -92,10 +91,10 @@ export function majorStates(states: ProgramState[]): { majorId: string; open: nu
     if (s.status === "other") continue;
     const m = map.get(s.program.majorId) ?? { majorId: s.program.majorId, open: 0, locked: 0, need: null, via: new Set<string>() };
     if (s.status === "open") {
-      m.open++;
+      m.open += s.program.count;
       s.via.forEach((v) => m.via.add(v));
     } else {
-      m.locked++;
+      m.locked += s.program.count;
       if (!m.need || (s.need && s.need.missing.length < m.need.missing.length)) m.need = s.need;
     }
     map.set(s.program.majorId, m);
@@ -103,23 +102,24 @@ export function majorStates(states: ProgramState[]): { majorId: string; open: nu
   return [...map.values()].map((m) => ({ ...m, via: [...m.via].sort() }));
 }
 
-const countOpen = (programs: LiteProgram[], combos: Combo[], electives: string[]) => programStates(programs, combos, electives).filter((s) => s.status === "open").length;
+const countOpen = (programs: PlanningProgram[], combos: Combo[], electives: string[]) => programStates(programs, combos, electives).filter((s) => s.status === "open").length;
 
 /** Đổi 1 môn để mở thêm nhiều chương trình nhất (null nếu không có lựa chọn nào tốt hơn). */
-export function bestSwap(programs: LiteProgram[], combos: Combo[], electives: string[]): { out: string; in: string; gain: number; unlocked: string[]; lost: string[] } | null {
+export function bestSwap(programs: PlanningProgram[], combos: Combo[], electives: string[]): { out: string; in: string; gain: number; unlocked: string[]; lost: string[] } | null {
   if (electives.length < ELECTIVE_COUNT) return null;
   const base = programStates(programs, combos, electives);
-  const baseOpen = new Set(base.filter((s) => s.status === "open").map((s) => s.program.id));
+  const baseOpen = new Map(base.filter((s) => s.status === "open").map((s) => [s.program.id, s.program]));
   let best: { out: string; in: string; gain: number; unlocked: string[]; lost: string[] } | null = null;
   for (const out of electives) {
     for (const cand of ELECTIVE_SUBJECTS.map((s) => s.id)) {
       if (electives.includes(cand)) continue;
       const next = electives.map((e) => (e === out ? cand : e));
       const st = programStates(programs, combos, next);
-      const open = new Set(st.filter((s) => s.status === "open").map((s) => s.program.id));
-      const unlockedIds = [...open].filter((id) => !baseOpen.has(id));
-      const lostIds = [...baseOpen].filter((id) => !open.has(id));
-      const gain = unlockedIds.length - lostIds.length;
+      const open = new Map(st.filter((s) => s.status === "open").map((s) => [s.program.id, s.program]));
+      const unlockedIds = [...open.keys()].filter((id) => !baseOpen.has(id));
+      const lostIds = [...baseOpen.keys()].filter((id) => !open.has(id));
+      const gain = unlockedIds.reduce((sum, id) => sum + (open.get(id)?.count ?? 0), 0)
+        - lostIds.reduce((sum, id) => sum + (baseOpen.get(id)?.count ?? 0), 0);
       if (gain > 0 && (!best || gain > best.gain)) {
         const nameOf = (id: string) => programs.find((p) => p.id === id)!.majorId;
         best = { out, in: cand, gain, unlocked: Array.from(new Set(unlockedIds.map(nameOf))), lost: Array.from(new Set(lostIds.map(nameOf))) };
@@ -145,7 +145,7 @@ export interface TargetPlan {
 }
 
 /** Môn lựa chọn bắt buộc cho một ngành: có mặt trong MỌI tổ hợp mà các chương trình của ngành dùng. */
-export function requiredFor(majorId: string, programs: LiteProgram[], combos: Combo[]): string[] {
+export function requiredFor(majorId: string, programs: PlanningProgram[], combos: Combo[]): string[] {
   const byCode = new Map(combos.map((c) => [c.code, c]));
   const used = new Set<string>();
   for (const p of programs) if (p.majorId === majorId) p.combos.forEach((c) => used.add(c));
@@ -155,7 +155,7 @@ export function requiredFor(majorId: string, programs: LiteProgram[], combos: Co
 }
 
 /** Chiều ngược lại: từ ngành mục tiêu → bộ 4 môn lựa chọn mở được nhiều ngành mục tiêu nhất, rồi nhiều chương trình nhất. */
-export function planForTargets(targetMajorIds: string[], programs: LiteProgram[], combos: Combo[], keep: string[] = []): TargetPlan {
+export function planForTargets(targetMajorIds: string[], programs: PlanningProgram[], combos: Combo[], keep: string[] = []): TargetPlan {
   const ids = ELECTIVE_SUBJECTS.map((s) => s.id);
   let best: TargetPlan | null = null;
   let bestKey = [-1, -1, -1];
@@ -166,7 +166,7 @@ export function planForTargets(targetMajorIds: string[], programs: LiteProgram[]
       const m = ms.find((x) => x.majorId === id);
       return { majorId: id, open: !!m && m.open > 0, via: m?.via ?? [], required: requiredFor(id, programs, combos) };
     });
-    const openCount = st.filter((s) => s.status === "open").length;
+    const openCount = st.filter((s) => s.status === "open").reduce((sum, s) => sum + s.program.count, 0);
     const kept = keep.filter((k) => set.includes(k)).length;
     const key = [targets.filter((t) => t.open).length, openCount, kept];
     if (key[0] > bestKey[0] || (key[0] === bestKey[0] && (key[1] > bestKey[1] || (key[1] === bestKey[1] && key[2] > bestKey[2])))) {

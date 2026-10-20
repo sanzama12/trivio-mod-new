@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { LuBookOpen, LuChartBar, LuLightbulb, LuMapPin, LuPuzzle, LuStar, LuWallet, LuArrowLeftRight } from "react-icons/lu";
+import { LuChartBar, LuLightbulb, LuMapPin, LuPuzzle, LuWallet, LuArrowLeftRight } from "react-icons/lu";
 import type { Region } from "@/domain/types";
 import {
   DECISION_KEYS,
@@ -26,7 +26,7 @@ import { EmptyState } from "@/components/ui/misc";
 import { useToast } from "@/components/ui/toast";
 import { SchoolCode } from "./program-card";
 
-const ICONS: Record<DecisionKey, typeof LuPuzzle> = { interest: LuPuzzle, admission: LuChartBar, tuition: LuWallet, distance: LuMapPin, career: LuBookOpen, reviews: LuStar };
+const ICONS: Record<DecisionKey, typeof LuPuzzle> = { interest: LuPuzzle, admission: LuChartBar, tuition: LuWallet, distance: LuMapPin };
 const WEIGHT_KEY = "trovio:weights";
 const DOT = (s: number) => (s >= 4 ? "bg-success-500" : s === 3 ? "bg-primary-600" : "bg-accent-500");
 
@@ -243,11 +243,15 @@ export function DecisionMatrix() {
                     const rt = r.ratings[k];
                     return (
                       <td key={r.row.programId} className="px-3 py-3">
-                        <div className="flex gap-1" aria-label={`${rt.score} trên 5`}>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <span key={i} className={cn("size-2.5 rounded-full", i <= rt.score ? (rt.missing ? "bg-slate-300" : DOT(rt.score)) : "bg-slate-200")} />
-                          ))}
-                        </div>
+                        {rt.score == null ? (
+                          <span className="text-xs font-semibold text-slate-400">Không chấm</span>
+                        ) : (
+                          <div className="flex gap-1" aria-label={`${rt.score} trên 5`}>
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <span key={i} className={cn("size-2.5 rounded-full", i <= rt.score! ? DOT(rt.score!) : "bg-slate-200")} />
+                            ))}
+                          </div>
+                        )}
                         <p className={cn("mt-1 text-xs", rt.missing ? "text-slate-400 italic" : "text-slate-600")}>{rt.text}</p>
                       </td>
                     );
@@ -260,8 +264,15 @@ export function DecisionMatrix() {
                 </th>
                 {ranked.map((r) => (
                   <td key={r.row.programId} className="px-3 py-3.5">
-                    <span className={cn("text-2xl font-bold", r.rank === 1 ? "text-primary-700" : "text-slate-900")}>{r.total}</span>
-                    <span className="text-xs text-slate-500">/100</span>
+                    {r.coverage > 0 ? (
+                      <>
+                        <span className={cn("text-2xl font-bold", r.rank === 1 ? "text-primary-700" : "text-slate-900")}>{r.total}</span>
+                        <span className="text-xs text-slate-500">/100</span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-semibold text-slate-500">Chưa đủ dữ liệu</span>
+                    )}
+                    <p className="mt-0.5 text-[11px] text-slate-500">Độ phủ {r.coverage}% trọng số</p>
                   </td>
                 ))}
               </tr>
@@ -295,9 +306,8 @@ export function DecisionMatrix() {
           </Button>
         </div>
         <p className="text-xs text-slate-500">
-          Điểm 1–5 mỗi ô do Trovio quy đổi từ dữ liệu (minh hoạ): sở thích theo % khớp RIASEC, khả năng trúng tuyển theo chênh lệch với điểm chuẩn, học phí so với ngân sách, gần nhà theo
-          tỉnh/thành trong hồ sơ, việc làm theo lương khởi điểm của ngành, cảm nhận theo điểm trung bình (cần ≥ 3 cảm nhận). Ô xám = thiếu dữ liệu, tính mức trung tính 3. Phương pháp: cộng có
-          trọng số (SAW) trong ra quyết định đa tiêu chí.
+          Điểm 1–5 được quy đổi từ dữ liệu hiện có: sở thích theo % khớp RIASEC, mức phù hợp xét tuyển theo chênh lệch với điểm chuẩn, học phí so với ngân sách và khu vực theo hồ sơ.
+          Tiêu chí thiếu được ghi “Không chấm”, loại khỏi tổng và các trọng số còn lại được chuẩn hoá lại. Độ phủ cho biết bao nhiêu phần trọng số thực sự có dữ liệu.
         </p>
       </div>
     </div>

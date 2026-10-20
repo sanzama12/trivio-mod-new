@@ -2,11 +2,10 @@
  * SERVICE LAYER — dữ liệu cá nhân đồng bộ theo tài khoản (đã lưu, nguyện vọng, hồ sơ điểm, kết quả RIASEC).
  * Khách dùng localStorage; khi đăng nhập, dữ liệu trên máy được GỘP vào tài khoản (không ghi đè).
  */
-import type { Goal, Region, StoredProfile, StoredQuiz, UserData, WishlistItem } from "../domain/types";
-import { repositories } from "../repositories";
-import { ADMISSION_METHODS, isMethodKey } from "./scoring.service";
+import type { AdmissionMethodKey, Goal, Region, StoredProfile, StoredQuiz, UserData, WishlistItem } from "../domain/types";
+import { repositories } from "@database/repositories";
+import { ADMISSION_METHODS, isMethodKey, isValidSubjectScore } from "./scoring.service";
 import { sanitizeMbti, sanitizeWorkStyle } from "../domain/work-style";
-import { sanitizeRiasecResult } from "./riasec.service";
 
 export const MAX_SAVED = 200;
 /** Giới hạn tối đa 15 nguyện vọng theo Thông tư 06/2026/TT-BGDĐT */
@@ -43,6 +42,37 @@ export function sanitizeGoal(input: unknown): Goal | null {
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+function sanitizeProfile(input: unknown): StoredProfile | null {
+  if (
+    !isObj(input) ||
+    typeof input.combo !== "string" ||
+    !isObj(input.scores) ||
+    !isObj(input.admission) ||
+    typeof input.admission.total !== "number" ||
+    typeof input.admission.rawTotal !== "number" ||
+    typeof input.updatedAt !== "string" ||
+    (input.method !== undefined && !isMethodKey(input.method))
+  ) {
+    return null;
+  }
+  const scores: Record<string, number> = {};
+  for (const [key, value] of Object.entries(input.scores)) {
+    if (typeof key === "string" && key.length <= 20 && isValidSubjectScore(value)) scores[key] = Math.round(value * 100) / 100;
+  }
+  const methods = Array.isArray(input.methods) ? Array.from(new Set(input.methods.filter(isMethodKey))) : undefined;
+  const interestMajorIds = Array.isArray(input.interestMajorIds)
+    ? Array.from(new Set(input.interestMajorIds.filter((id): id is string => typeof id === "string" && ID_RE.test(id)))).slice(0, 20)
+    : undefined;
+  const profile = input as unknown as StoredProfile;
+  return {
+    ...profile,
+    combo: input.combo.slice(0, 5),
+    scores,
+    methods: methods?.length ? methods : undefined,
+    interestMajorIds: interestMajorIds?.length ? interestMajorIds : undefined,
+  };
+}
 const uniq = <T>(arr: T[], key: (x: T) => string) => {
   const seen = new Set<string>();
   return arr.filter((x) => (seen.has(key(x)) ? false : (seen.add(key(x)), true)));
@@ -61,29 +91,8 @@ export function sanitizeUserData(input: unknown): UserDataInput {
       .map((w) => ({ id: w.id, note: typeof w.note === "string" ? w.note.slice(0, MAX_NOTE) : "" })),
     (w) => w.id,
   ).slice(0, MAX_WISHLIST);
-  const p = src.profile;
-  const profile =
-    isObj(p) &&
-    typeof p.combo === "string" &&
-    isObj(p.scores) &&
-    isObj(p.admission) &&
-    typeof p.admission.total === "number" &&
-    typeof p.admission.rawTotal === "number" &&
-    typeof p.updatedAt === "string" &&
-    (p.method === undefined || isMethodKey(p.method))
-      ? (p as unknown as StoredProfile)
-      : null;
-  const q = src.quiz;
-  let quiz: StoredQuiz | null = null;
-  if (isObj(q) && isObj(q.result)) {
-    const cleanResult = sanitizeRiasecResult(q.result);
-    if (cleanResult) {
-      quiz = {
-        result: cleanResult,
-        savedToProfile: q.savedToProfile === true,
-      };
-    }
-  }
+  const profile = sanitizeProfile(src.profile);
+  const quiz: StoredQuiz | null = null;
   const reminders = uniq(
     (Array.isArray(src.reminders) ? src.reminders : []).filter((x): x is string => typeof x === "string" && ID_RE.test(x)),
     (x) => x,

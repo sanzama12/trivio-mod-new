@@ -107,7 +107,7 @@ export function StrategyPanel({
             })}
           </ul>
           <p className="text-xs text-slate-500">
-            Đánh giá dựa trên điểm chuẩn năm gần nhất (dữ liệu minh hoạ), chỉ mang tính tham khảo. Mỗi thí sinh chỉ trúng tuyển nguyện vọng có thứ tự cao nhất mà mình đủ điều kiện.
+            Đánh giá chỉ dùng điểm chuẩn hiện có và mang tính tham khảo. Mỗi thí sinh chỉ trúng tuyển nguyện vọng có thứ tự cao nhất mà mình đủ điều kiện.
           </p>
         </div>
       )}

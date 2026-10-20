@@ -14,7 +14,7 @@ import { buttonClass } from "@/components/ui/button";
 type Step = { key: string; title: string; desc: string; href: string; cta: string; done: boolean };
 
 export function JourneySteps() {
-  const { quiz, profile, saved, wishlist, hydrated, user } = useTrovio();
+  const { profile, saved, wishlist, hydrated, user } = useTrovio();
   const [shared, setShared] = useState(false);
 
   useEffect(() => {
@@ -30,9 +30,9 @@ export function JourneySteps() {
   }, [user]);
 
   const steps: Step[] = [
-    { key: "quiz", title: "Khám phá sở thích", desc: "Trắc nghiệm RIASEC 7–10 phút để biết nhóm ngành hợp với bạn.", href: quiz ? "/trac-nghiem/ket-qua" : "/trac-nghiem", cta: "Làm trắc nghiệm", done: !!quiz },
-    { key: "score", title: "Nhập điểm", desc: "Điểm thi, học bạ hoặc ĐGNL để xem mức An toàn / Vừa sức / Thử sức.", href: "/diem-cua-toi", cta: "Nhập điểm", done: !!profile },
-    { key: "save", title: "Lưu chương trình", desc: "Xem gợi ý “Dành cho bạn”, bấm ♡ để lưu các chương trình quan tâm.", href: "/chuong-trinh", cta: "Tìm chương trình", done: saved.length > 0 },
+    { key: "explore", title: "Khám phá ngành học", desc: "Xem danh mục ngành và chương trình đào tạo phù hợp với bạn.", href: "/nganh", cta: "Khám phá ngành", done: saved.length > 0 },
+    { key: "score", title: "Hồ sơ học tập & xét tuyển", desc: "Điểm các môn, tổ hợp mạnh và phương thức xét tuyển THPT, học bạ.", href: "/diem-cua-toi", cta: "Tạo hồ sơ", done: !!profile },
+    { key: "save", title: "Xem gợi ý", desc: "Trovio gợi ý chương trình An toàn / Vừa sức / Thử sức từ hồ sơ của bạn.", href: "/goi-y", cta: "Xem gợi ý", done: saved.length > 0 },
     { key: "wishlist", title: "Lập nguyện vọng", desc: "Sắp xếp thứ tự nguyện vọng và kiểm tra chiến lược.", href: "/da-luu", cta: "Lập nguyện vọng", done: wishlist.length > 0 },
     { key: "share", title: "Hỏi ý kiến gia đình", desc: "Gửi link chỉ xem cho phụ huynh để nhận góp ý.", href: "/da-luu", cta: "Chia sẻ", done: shared },
   ];

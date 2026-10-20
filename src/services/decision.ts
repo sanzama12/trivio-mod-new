@@ -6,8 +6,9 @@
 import type { AdmissionMethodKey, Region, RiasecResult, RiasecType } from "../domain/types";
 import { matchMajor } from "./riasec-match";
 import { ADMISSION_METHODS, FIT_LABELS, fitLevelOf, formatMethodScore } from "./scoring.service";
+import { formatTuition, hasTuitionData } from "../lib/format";
 
-export const DECISION_KEYS = ["interest", "admission", "tuition", "distance", "career", "reviews"] as const;
+export const DECISION_KEYS = ["interest", "admission", "tuition", "distance"] as const;
 export type DecisionKey = (typeof DECISION_KEYS)[number];
 
 export const DECISION_LABELS: Record<DecisionKey, string> = {
@@ -15,19 +16,17 @@ export const DECISION_LABELS: Record<DecisionKey, string> = {
   admission: "Khả năng trúng tuyển",
   tuition: "Học phí",
   distance: "Gần nhà",
-  career: "Việc làm & thu nhập",
-  reviews: "Cảm nhận sinh viên",
 };
 
 export type Weights = Record<DecisionKey, number>;
 
 export const WEIGHT_PRESETS: { key: string; label: string; weights: Weights }[] = [
-  { key: "balanced", label: "Cân bằng", weights: { interest: 3, admission: 3, tuition: 3, distance: 3, career: 3, reviews: 3 } },
-  { key: "safe", label: "Ưu tiên đỗ chắc", weights: { interest: 3, admission: 5, tuition: 3, distance: 2, career: 2, reviews: 1 } },
-  { key: "career", label: "Ưu tiên nghề", weights: { interest: 4, admission: 2, tuition: 2, distance: 1, career: 5, reviews: 3 } },
-  { key: "budget", label: "Tiết kiệm", weights: { interest: 3, admission: 3, tuition: 5, distance: 4, career: 2, reviews: 1 } },
+  { key: "balanced", label: "Cân bằng", weights: { interest: 3, admission: 3, tuition: 3, distance: 3 } },
+  { key: "safe", label: "Ưu tiên đỗ chắc", weights: { interest: 3, admission: 5, tuition: 3, distance: 2 } },
+  { key: "career", label: "Ưu tiên phù hợp", weights: { interest: 5, admission: 2, tuition: 2, distance: 1 } },
+  { key: "budget", label: "Tiết kiệm", weights: { interest: 3, admission: 3, tuition: 5, distance: 4 } },
 ];
-export const DEFAULT_WEIGHTS: Weights = { interest: 5, admission: 4, tuition: 3, distance: 2, career: 4, reviews: 2 };
+export const DEFAULT_WEIGHTS: Weights = { interest: 5, admission: 4, tuition: 3, distance: 2 };
 
 export const WEIGHT_WORDS = ["Không quan trọng", "Ít quan trọng", "Hơi quan trọng", "Quan trọng", "Rất quan trọng", "Quan trọng nhất"];
 
@@ -44,11 +43,6 @@ export interface DecisionRow {
   cutoffs: Partial<Record<AdmissionMethodKey, number>>;
   tuitionMin: number;
   tuitionMax: number;
-  /** Lương khởi điểm trung vị (triệu/tháng) của ngành; null nếu chưa có. */
-  salaryStart: number | null;
-  salaryDemo: boolean;
-  reviewAvg: number | null;
-  reviewCount: number;
 }
 
 export interface DecisionContext {
@@ -59,14 +53,13 @@ export interface DecisionContext {
 }
 
 export interface Rating {
-  score: 1 | 2 | 3 | 4 | 5;
+  score: 1 | 2 | 3 | 4 | 5 | null;
   text: string;
-  /** Thiếu dữ liệu → điểm trung tính 3. */
+  /** Thiếu dữ liệu → không chấm và không đưa tiêu chí vào tổng. */
   missing: boolean;
 }
 
-const clamp5 = (n: number) => Math.max(1, Math.min(5, Math.round(n))) as Rating["score"];
-const neutral = (text: string): Rating => ({ score: 3, text, missing: true });
+const neutral = (text: string): Rating => ({ score: null, text, missing: true });
 
 export function rateRow(row: DecisionRow, ctx: DecisionContext): Record<DecisionKey, Rating> {
   // Sở thích
@@ -87,22 +80,17 @@ export function rateRow(row: DecisionRow, ctx: DecisionContext): Record<Decision
     }
   }
   // Học phí
+  const tuitionKnown = hasTuitionData(row.tuitionMin, row.tuitionMax);
   const avg = (row.tuitionMin + row.tuitionMax) / 2;
-  const tuitionText = `${row.tuitionMin}–${row.tuitionMax} tr/năm`;
-  const tuition: Rating =
-    ctx.budgetMax != null && ctx.budgetMax > 0
+  const tuitionText = formatTuition(row.tuitionMin, row.tuitionMax);
+  const tuition: Rating = !tuitionKnown
+    ? neutral(tuitionText)
+    : ctx.budgetMax != null && ctx.budgetMax > 0
       ? { score: avg <= ctx.budgetMax * 0.6 ? 5 : avg <= ctx.budgetMax * 0.8 ? 4 : avg <= ctx.budgetMax ? 3 : avg <= ctx.budgetMax * 1.3 ? 2 : 1, text: tuitionText, missing: false }
       : { score: avg <= 15 ? 5 : avg <= 25 ? 4 : avg <= 35 ? 3 : avg <= 60 ? 2 : 1, text: tuitionText, missing: false };
   // Gần nhà
   const distance: Rating = ctx.homeRegion ? (row.region === ctx.homeRegion ? { score: 5, text: `${row.city} · cùng miền`, missing: false } : { score: 2, text: `${row.city} · khác miền`, missing: false }) : neutral(`${row.city} · chưa có tỉnh/thành của bạn`);
-  // Việc làm
-  const career: Rating =
-    row.salaryStart != null
-      ? { score: row.salaryStart >= 14 ? 5 : row.salaryStart >= 12 ? 4 : row.salaryStart >= 10 ? 3 : row.salaryStart >= 8 ? 2 : 1, text: `${row.salaryStart} tr/tháng khởi điểm${row.salaryDemo ? " (minh hoạ)" : ""}`, missing: false }
-      : neutral("Chưa có số liệu");
-  // Cảm nhận
-  const reviews: Rating = row.reviewAvg != null && row.reviewCount >= 3 ? { score: clamp5(row.reviewAvg), text: `${row.reviewAvg.toFixed(1).replace(".", ",")}★ (${row.reviewCount})`, missing: false } : neutral(row.reviewCount ? `Mới có ${row.reviewCount} cảm nhận` : "Chưa có cảm nhận");
-  return { interest, admission, tuition, distance, career, reviews };
+  return { interest, admission, tuition, distance };
 }
 
 export function sanitizeWeights(input: unknown): Weights {
@@ -115,34 +103,48 @@ export function sanitizeWeights(input: unknown): Weights {
   return out;
 }
 
-/** Tổng có trọng số, thang 0–100 (làm tròn). Tất cả trọng số = 0 → 0. */
+/** Tổng có trọng số, thang 0–100. Tiêu chí thiếu được loại và trọng số còn lại được chuẩn hoá lại. */
 export function weightedTotal(ratings: Record<DecisionKey, Rating>, weights: Weights): number {
-  const sumW = DECISION_KEYS.reduce((s, k) => s + weights[k], 0);
+  const available = DECISION_KEYS.filter((key) => ratings[key].score != null && weights[key] > 0);
+  const sumW = available.reduce((sum, key) => sum + weights[key], 0);
   if (sumW === 0) return 0;
-  const sum = DECISION_KEYS.reduce((s, k) => s + weights[k] * ratings[k].score, 0);
+  const sum = available.reduce((value, key) => value + weights[key] * ratings[key].score!, 0);
   return Math.round((sum / (5 * sumW)) * 100);
+}
+
+/** Phần trọng số đang có dữ liệu để chấm, dùng để người dùng đánh giá độ đầy đủ của kết quả. */
+export function weightedCoverage(ratings: Record<DecisionKey, Rating>, weights: Weights): number {
+  const total = DECISION_KEYS.reduce((sum, key) => sum + weights[key], 0);
+  if (total === 0) return 0;
+  const available = DECISION_KEYS.reduce((sum, key) => sum + (ratings[key].score == null ? 0 : weights[key]), 0);
+  return Math.round((available / total) * 100);
 }
 
 export interface RankedRow {
   row: DecisionRow;
   ratings: Record<DecisionKey, Rating>;
   total: number;
+  coverage: number;
   rank: number;
 }
 
 export function rankRows(rows: DecisionRow[], ctx: DecisionContext, weights: Weights): RankedRow[] {
   const scored = rows.map((row) => {
     const ratings = rateRow(row, ctx);
-    return { row, ratings, total: weightedTotal(ratings, weights), rank: 0 };
+    return { row, ratings, total: weightedTotal(ratings, weights), coverage: weightedCoverage(ratings, weights), rank: 0 };
   });
-  const sorted = [...scored].sort((a, b) => b.total - a.total);
+  const sorted = [...scored].sort((a, b) => b.total - a.total || b.coverage - a.coverage);
   sorted.forEach((r, i) => (r.rank = i > 0 && r.total === sorted[i - 1].total ? sorted[i - 1].rank : i + 1));
   return scored;
 }
 
 /** Tiêu chí đóng góp nhiều nhất giúp chương trình dẫn đầu vượt chương trình thứ hai (để giải thích). */
 export function leadReasons(first: RankedRow, second: RankedRow, weights: Weights): DecisionKey[] {
-  return DECISION_KEYS.map((k) => ({ k, d: weights[k] * (first.ratings[k].score - second.ratings[k].score) }))
+  return DECISION_KEYS.map((k) => {
+    const firstScore = first.ratings[k].score;
+    const secondScore = second.ratings[k].score;
+    return { k, d: firstScore == null || secondScore == null ? 0 : weights[k] * (firstScore - secondScore) };
+  })
     .filter((x) => x.d > 0)
     .sort((a, b) => b.d - a.d)
     .slice(0, 2)

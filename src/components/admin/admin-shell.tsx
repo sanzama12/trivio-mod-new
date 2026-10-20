@@ -11,7 +11,6 @@ import {
   LuActivity,
   LuBookOpen,
   LuBot,
-  LuBriefcase,
   LuCalendarClock,
   LuChartNoAxesColumn,
   LuFolderOpen,
@@ -22,8 +21,6 @@ import {
   LuMail,
   LuMenu,
   LuMessageCircleQuestion,
-  LuMessageSquareText,
-  LuPuzzle,
   LuSettings,
   LuShieldCheck,
   LuUsers,
@@ -42,16 +39,13 @@ const DATA_ITEMS: Item[] = [
   { key: "majors", href: "/quan-tri/nganh", label: "Ngành đào tạo", Icon: LuFolderOpen },
   { key: "programs", href: "/quan-tri/chuong-trinh", label: "Chương trình đào tạo", Icon: LuBookOpen },
   { key: "scores", href: "/quan-tri/diem-hoc-phi", label: "Điểm & Học phí", Icon: LuChartNoAxesColumn },
-  { key: "quiz", href: "/quan-tri/trac-nghiem", label: "Bài test RIASEC", Icon: LuPuzzle },
   { key: "import", href: "/quan-tri/nhap-du-lieu", label: "Nhập & Kiểm duyệt", Icon: LuShieldCheck },
   { key: "users", href: "/quan-tri/nguoi-dung", label: "Người dùng", Icon: LuUsers },
   { key: "rules", href: "/quan-tri/quy-tac-goi-y", label: "Quy tắc gợi ý", Icon: LuSettings },
 ];
 const OPS_ITEMS: Item[] = [
-  { key: "reviews", href: "/quan-tri/cam-nhan", label: "Duyệt cảm nhận", Icon: LuMessageSquareText, staff: true },
   { key: "qa", href: "/quan-tri/hoi-dap", label: "Hỏi đáp sinh viên", Icon: LuMessageCircleQuestion, staff: true },
   { key: "emails", href: "/quan-tri/email-khach-hang", label: "Email khách hàng", Icon: LuMail },
-  { key: "outcomes", href: "/quan-tri/viec-lam", label: "Việc làm & thu nhập", Icon: LuBriefcase },
   { key: "timeline", href: "/quan-tri/moc-tuyen-sinh", label: "Mốc tuyển sinh", Icon: LuCalendarClock },
   { key: "chatbot", href: "/quan-tri/chatbot", label: "Chatbot", Icon: LuBot },
   { key: "stats", href: "/quan-tri/thong-ke", label: "Thống kê & khảo sát", Icon: LuActivity },
@@ -123,7 +117,7 @@ export function AdminShell({
 
   const nav = (
     <div className="flex h-full flex-col">
-      <Link href={user.admin ? "/quan-tri" : "/quan-tri/cam-nhan"} className="flex items-center gap-2.5 px-5 pt-6 pb-4" aria-label="Trovio Admin – về trang tổng quan quản trị">
+      <Link href={user.admin ? "/quan-tri" : "/quan-tri/hoi-dap"} className="flex items-center gap-2.5 px-5 pt-6 pb-4" aria-label="Trovio Admin – về trang tổng quan quản trị">
         <LogoMark tone="white" className="size-9" />
         <span className="flex flex-col leading-none">
           <span className="text-lg font-extrabold tracking-tight text-white">Trovio</span>

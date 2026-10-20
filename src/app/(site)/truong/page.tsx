@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LuBuilding2, LuMapPin, LuSearch } from "react-icons/lu";
 import { catalogService } from "@/services";
-import { matchesQuery } from "@/lib/text";
 import { cn } from "@/lib/cn";
 import { buttonClass } from "@/components/ui/button";
 import { Card, SectionHeading } from "@/components/ui/card";
-import { Breadcrumb, EmptyState } from "@/components/ui/misc";
+import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
 import { REGION_LABELS, SCHOOL_TYPE_LABELS } from "@/services/program.filters";
 import type { Region } from "@/domain/types";
+import { SchoolLogo } from "@/components/school/school-logo";
 
 export const metadata: Metadata = { title: "Danh mục trường" };
 
@@ -20,12 +20,9 @@ export default async function SchoolsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const q = sp.q?.trim() || undefined;
   const region = REGIONS.includes(sp.region as Region) ? (sp.region as Region) : undefined;
-  const all = await catalogService.listSchools();
-  const items = all.filter((s) => {
-    if (region && s.region !== region) return false;
-    if (q && !matchesQuery(q, s.name, s.shortName, s.code, s.city)) return false;
-    return true;
-  });
+  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
+  const result = await catalogService.searchSchools({ q, region, page, limit: 24 });
+  const items = result.items;
 
   const href = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ q, region, ...patch }).filter(([, v]) => v) as [string, string][]);
@@ -75,7 +72,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
 
         <div className="mt-10">
           <SectionHeading
-            title={`${items.length} trường`}
+            title={`${result.total} trường`}
             subtitle={q || region ? "Đúng bộ lọc đang chọn." : "Không lọc — đây là toàn bộ danh mục."}
             action={
               q || region ? (
@@ -85,7 +82,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
               ) : undefined
             }
           />
-          {all.length === 0 ? (
+          {result.total === 0 && !q && !region ? (
             <Card className="mt-6">
               <EmptyState icon={<LuBuilding2 />} title="Chưa có trường" description="Danh sách trống. Sau khi nhập dữ liệu trường, các trường sẽ hiện tại trang này." />
             </Card>
@@ -102,9 +99,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
               {items.map((s) => (
                 <li key={s.id}>
                   <Link href={`/truong/${s.slug}`} className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-card transition hover:border-primary-200 hover:shadow-elevated">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-xs font-bold text-primary-800">
-                      {(s.code || s.shortName || s.name).slice(0, 4)}
-                    </span>
+                    <SchoolLogo school={s} size="sm" />
                     <span className="min-w-0">
                       <span className="block font-semibold break-words text-slate-900">{s.name}</span>
                       <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-slate-500">
@@ -125,6 +120,15 @@ export default async function SchoolsPage({ searchParams }: Props) {
               ))}
             </ul>
           )}
+          {result.total > 0 && result.pageCount > 1 ? (
+            <div className="mt-8">
+              <Pagination
+                page={result.page}
+                pageCount={result.pageCount}
+                hrefFor={(nextPage) => href({ page: nextPage > 1 ? String(nextPage) : undefined })}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

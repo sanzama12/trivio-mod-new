@@ -89,20 +89,8 @@ export default async function AdminStatsPage({ searchParams }: { searchParams: P
               {funnel.steps[0].users > 0 && ` (${pct(Math.round((funnel.chat / funnel.steps[0].users) * 1000) / 10)} lượt vào)`}
             </span>
           </p>
-          <p className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
-            <span>
-              Tỉ lệ làm hết trắc nghiệm:{" "}
-              <strong className="text-slate-900">{funnel.quiz.rate == null ? "—" : pct(funnel.quiz.rate)}</strong> ({funnel.quiz.done.toLocaleString("vi-VN")}/{funnel.quiz.started.toLocaleString("vi-VN")} trình duyệt bắt đầu)
-            </span>
-            <span>
-              {FUNNEL_LABELS.style_done}: <strong className="text-slate-900">{funnel.style.toLocaleString("vi-VN")}</strong>
-            </span>
-            <span>
-              {FUNNEL_LABELS.mbti_added}: <strong className="text-slate-900">{funnel.mbti.toLocaleString("vi-VN")}</strong>
-            </span>
-          </p>
           <p className="mt-2 text-xs text-slate-500">
-            Các bước không bắt buộc theo thứ tự (có người lưu chương trình mà không làm trắc nghiệm). Tỉ lệ “so với bước trước” dưới 30% được tô đỏ — nên xem lại giao diện của bước đó.
+            Các bước không bắt buộc theo thứ tự. Tỉ lệ “so với bước trước” dưới 30% được tô đỏ — nên xem lại giao diện của bước đó.
           </p>
         </Card>
 

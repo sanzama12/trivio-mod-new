@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { Dialog, Drawer, Pager, paginate } from "./overlay";
 import { useAdminPost } from "./use-admin-post";
 import { inputCls, Panel, selectCls, td, th } from "./ui";
+import { SchoolLogo } from "@/components/school/school-logo";
 
 export interface SchoolItem {
   id: string;
@@ -24,6 +25,8 @@ export interface SchoolItem {
   city: string;
   region: Region;
   website: string;
+  logoUrl: string | null;
+  coverUrl: string | null;
   description: string;
   campuses: number;
   majors: number;
@@ -36,8 +39,8 @@ export interface SchoolItem {
 const REGION_LABEL: Record<Region, string> = { bac: "Miền Bắc", trung: "Miền Trung", nam: "Miền Nam" };
 const TYPE_TONE = { "cong-lap": "success", "tu-thuc": "accent", "quoc-te": "violet" } as const;
 
-type Form = { id?: string; name: string; code: string; type: SchoolType | ""; city: string; website: string; description: string };
-const blank: Form = { name: "", code: "", type: "", city: "", website: "", description: "" };
+type Form = { id?: string; name: string; code: string; type: SchoolType | ""; city: string; website: string; logoUrl: string; coverUrl: string; description: string };
+const blank: Form = { name: "", code: "", type: "", city: "", website: "", logoUrl: "", coverUrl: "", description: "" };
 
 /** Kiểm tra phía client (giống server) để hiện trạng thái từng ô ngay khi nhập. */
 function check(f: Form) {
@@ -49,6 +52,8 @@ function check(f: Form) {
   if (!f.city) errors.city = "Vui lòng chọn khu vực";
   const w = f.website.trim();
   const warning = w && (!/^https:\/\//i.test(w) || !/\.edu\.vn(\/.*)?$/i.test(w.replace(/^https?:\/\//i, ""))) ? "URL chưa được xác minh" : null;
+  if (f.logoUrl.trim() && !/^https:\/\/\S+$/i.test(f.logoUrl.trim())) errors.logoUrl = "Logo phải là một URL HTTPS hợp lệ";
+  if (f.coverUrl.trim() && !/^https:\/\/\S+$/i.test(f.coverUrl.trim())) errors.coverUrl = "Ảnh bìa phải là một URL HTTPS hợp lệ";
   return { errors, warning };
 }
 
@@ -95,7 +100,7 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
   const allOnPage = pg.slice.length > 0 && pg.slice.every((r) => selected.has(r.id));
 
   const open = (r?: SchoolItem) => {
-    setForm(r ? { id: r.id, name: r.name, code: r.code, type: r.type, city: r.city, website: r.website, description: r.description } : { ...blank });
+    setForm(r ? { id: r.id, name: r.name, code: r.code, type: r.type, city: r.city, website: r.website, logoUrl: r.logoUrl ?? "", coverUrl: r.coverUrl ?? "", description: r.description } : { ...blank });
     setTouched(new Set());
     setServerErr(null);
   };
@@ -105,6 +110,7 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
     if (serverErr?.field === k) return "error";
     if (v.errors[k]) return "error";
     if (k === "website") return form.website ? (v.warning ? "warn" : "ok") : "idle";
+    if (k === "logoUrl" || k === "coverUrl") return form[k] ? "ok" : "idle";
     return k === "description" ? "idle" : "ok";
   };
   const msg = (k: keyof Form) => (serverErr?.field === k ? serverErr.message : touched.has(k) ? v.errors[k] : undefined);
@@ -116,7 +122,7 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
 
   const save = async () => {
     if (!form) return;
-    setTouched(new Set(["name", "code", "type", "city", "website"] as (keyof Form)[]));
+    setTouched(new Set(["name", "code", "type", "city", "website", "logoUrl", "coverUrl"] as (keyof Form)[]));
     if (Object.keys(v.errors).length) return;
     const res = await post("/api/admin/catalog", { entity: "school", action: "save", data: { ...form, code: form.code.trim().toUpperCase() } }, { success: form.id ? "Đã lưu thay đổi trường." : "Đã thêm trường mới." });
     if (res.ok) setForm(null);
@@ -232,7 +238,12 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
                       })}
                     />
                   </td>
-                  <td className={`${td} font-semibold text-slate-900`}>{r.code}</td>
+                  <td className={`${td} font-semibold text-slate-900`}>
+                    <span className="flex items-center gap-2">
+                      <SchoolLogo school={r} size="xs" />
+                      {r.code}
+                    </span>
+                  </td>
                   <td className={`${td} font-semibold text-slate-900`}>
                     {r.hidden ? r.name : <Link href={`/truong/${r.slug}`} className="hover:text-primary-700 hover:underline">{r.name}</Link>}
                   </td>
@@ -347,6 +358,39 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
               ) : state("website") === "warn" ? (
                 <p id="s-web-hint" className="mt-1 text-xs text-accent-700">URL chưa được xác minh (nên là https và thuộc .edu.vn)</p>
               ) : null}
+            </div>
+            <div>
+              <label htmlFor="s-logo" className="text-sm font-semibold text-slate-800">
+                URL logo trường
+              </label>
+              <div className="mt-1.5 flex items-center gap-3">
+                <SchoolLogo
+                  school={{ name: form.name || "Trường", code: form.code || "TR", logoUrl: form.logoUrl || null }}
+                  size="md"
+                />
+                <div className="min-w-0 flex-1">
+                  <FieldShell state={state("logoUrl")}>
+                    <input
+                      id="s-logo"
+                      className={cn(inputCls, "h-11 w-full pr-9", ring(state("logoUrl")))}
+                      value={form.logoUrl}
+                      onChange={(e) => set("logoUrl", e.target.value)}
+                      maxLength={500}
+                      placeholder="https://cdn.example.edu.vn/logo.png"
+                      aria-invalid={state("logoUrl") === "error"}
+                      aria-describedby="s-logo-err"
+                    />
+                  </FieldShell>
+                </div>
+              </div>
+              {msg("logoUrl") ? <p id="s-logo-err" className="mt-1 text-xs text-danger-700">{msg("logoUrl")}</p> : <p id="s-logo-err" className="mt-1 text-xs text-slate-500">Để trống nếu chưa có logo đã xác minh; hệ thống sẽ dùng mã trường.</p>}
+            </div>
+            <div>
+              <label htmlFor="s-cover" className="text-sm font-semibold text-slate-800">URL ảnh bìa trường</label>
+              <FieldShell state={state("coverUrl")}>
+                <input id="s-cover" className={cn(inputCls, "mt-1.5 h-11 w-full pr-9", ring(state("coverUrl")))} value={form.coverUrl} onChange={(e) => set("coverUrl", e.target.value)} maxLength={500} placeholder="https://cdn.example.edu.vn/campus.jpg" aria-invalid={state("coverUrl") === "error"} aria-describedby="s-cover-err" />
+              </FieldShell>
+              {msg("coverUrl") ? <p id="s-cover-err" className="mt-1 text-xs text-danger-700">{msg("coverUrl")}</p> : <p id="s-cover-err" className="mt-1 text-xs text-slate-500">Ảnh HTTPS đã được trường hoặc quản trị viên xác minh; để trống nếu chưa có.</p>}
             </div>
             <div>
               <label htmlFor="s-desc" className="text-sm font-semibold text-slate-800">

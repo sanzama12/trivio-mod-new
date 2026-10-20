@@ -14,7 +14,6 @@ export function CronSyncButton() {
       majors: number;
       programs: number;
       majorGroups: number;
-      quiz: number;
       users: number;
     };
   } | null>(null);

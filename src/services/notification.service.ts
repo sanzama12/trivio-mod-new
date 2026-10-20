@@ -4,7 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { AppNotification, NotificationKind } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { sendMail } from "./mailer";
 
 export interface NotifyInput {

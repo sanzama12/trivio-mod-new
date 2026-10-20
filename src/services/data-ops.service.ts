@@ -6,7 +6,7 @@
 import { describeAudit } from "../domain/audit-labels";
 import { randomUUID } from "node:crypto";
 import type { Program, PublicUser } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { verifiedStatus } from "./verification";
 
 type Fail = { ok: false; status: number; field?: string; message: string };
@@ -32,14 +32,13 @@ export function dataStatus(p: Program, at: Date = new Date()): DataStatus {
   return "pending";
 }
 
-export type IssueKind = "missing-source" | "cutoff-jump" | "missing-latest" | "duplicate-code" | "school-submission" | "report";
+export type IssueKind = "missing-source" | "cutoff-jump" | "missing-latest" | "duplicate-code" | "school-submission";
 export const ISSUE_LABELS: Record<IssueKind, string> = {
   "missing-source": "Thiếu nguồn chính thức",
   "cutoff-jump": "Điểm chuẩn biến động bất thường",
   "missing-latest": `Chưa có điểm chuẩn ${LATEST_YEAR}`,
   "duplicate-code": "Trùng mã xét tuyển",
   "school-submission": "Trường gửi bản sửa",
-  report: "Người dùng báo sai",
 };
 
 export interface DataIssue {
@@ -114,9 +113,8 @@ function toRow(p: Program, names: Map<string, string>): ScoreRow {
   };
 }
 
-async function setPatch(actor: PublicUser, p: Program, patch: Parameters<typeof repositories.programAdmin.setOverride>[1], action: "update" | "verify", changes: { field: string; before: string; after: string }[]) {
-  const existing = (await repositories.programAdmin.getOverride(p.id)) ?? {};
-  await repositories.programAdmin.setOverride(p.id, { ...existing, ...patch, updatedAt: now().slice(0, 7) }, {
+async function setPatch(actor: PublicUser, p: Program, patch: Parameters<typeof repositories.programAdmin.patchProgram>[1], action: "update" | "verify", changes: { field: string; before: string; after: string }[]) {
+  await repositories.programAdmin.patchProgram(p.id, { ...patch, updatedAt: now().slice(0, 7) }, {
     id: randomUUID(),
     at: now(),
     actorId: actor.id,
@@ -130,10 +128,9 @@ async function setPatch(actor: PublicUser, p: Program, patch: Parameters<typeof 
 export const dataOpsService = {
   /** A01 — tổng quan chất lượng dữ liệu. */
   async overview() {
-    const [catalog, submissions, reports, audit, batches] = await Promise.all([
+    const [catalog, submissions, audit, batches] = await Promise.all([
       repositories.adminDashboard.overviewCatalog(),
       repositories.adminDashboard.pendingSubmissions(),
-      repositories.dataReports.list({ status: ["moi", "dang-xu-ly"] }),
       repositories.programAdmin.listAudit(12),
       repositories.importBatches.list(5),
     ]);
@@ -167,11 +164,6 @@ export const dataOpsService = {
     for (const s of submissions) {
       const p = programs.find((x) => x.id === s.programId);
       issues.push({ id: `sub-${s.id}`, kind: "school-submission", severity: "high", dataType: FIELD[s.field] ?? s.field, target: p ? target(p) : s.programId, problem: `Trường đề nghị sửa: ${s.current} → ${s.proposed}`, detail: p ? label(p) : s.programId, href: `/quan-tri?tab=de-xuat#de-xuat`, viewHref: s.evidenceUrl, at: s.createdAt });
-    }
-    const TOPIC: Record<string, string> = { "diem-chuan": "Điểm chuẩn", "hoc-phi": "Học phí", "chi-tieu": "Chỉ tiêu", "to-hop": "Tổ hợp", "thong-tin-truong": "Thông tin trường", khac: "Khác" };
-    for (const r of reports) {
-      const p = r.programId ? programs.find((x) => x.id === r.programId) : undefined;
-      issues.push({ id: `rep-${r.id}`, kind: "report", severity: "low", dataType: TOPIC[r.topic] ?? "Khác", target: p ? target(p) : r.page.slice(0, 60) || "—", problem: `Người dùng báo: ${r.detail.slice(0, 120)}`, detail: r.page, href: "/quan-tri/bao-loi", viewHref: p ? `/chuong-trinh/${p.slug}` : null, at: r.createdAt });
     }
     const rank = { high: 0, medium: 1, low: 2 } as const;
     issues.sort((x, y) => rank[x.severity] - rank[y.severity] || (y.at ?? "").localeCompare(x.at ?? ""));

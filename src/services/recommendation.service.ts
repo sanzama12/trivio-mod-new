@@ -3,15 +3,16 @@
  * Minh bạch: mỗi gợi ý kèm lý do + bảng tiêu chí (màn "Vì sao Trovio gợi ý?"); trọng số mô tả ở /cach-goi-y.
  * Không dùng ngày sinh, cung hoàng đạo hay thần số học.
  */
-import type { AdmissionMethodKey, CutoffScore, Major, RiasecResult, RiasecType, Region } from "../domain/types";
+import type { AdmissionMethodKey, CutoffScore, Major, Program, RiasecResult, RiasecType, Region } from "../domain/types";
 import { regionOfProvince } from "../domain/provinces";
 import { RIASEC_INFO } from "../domain/riasec";
 import { REGION_LABELS } from "./program.filters";
 import { programService, type ProgramView } from "./program.service";
 import { matchMajor } from "./riasec.service";
-import { ADMISSION_METHODS, computeFit, cutoffFor, FIT_LABELS, formatMethodScore } from "./scoring.service";
-import { repositories } from "../repositories";
-import { effectiveRecommendConfig, riasecTypeWeights, type EffectiveRecommendConfig } from "./rules.service";
+import { ADMISSION_METHODS, computeFit, cutoffFor, FIT_LABELS, formatMethodScore, type FitInfo, type MethodScore } from "./scoring.service";
+import { repositories } from "@database/repositories";
+import { formatTuition, hasTuitionData } from "../lib/format";
+import { effectiveRecommendConfig, type EffectiveRecommendConfig } from "./rules.service";
 
 export type RecommendFocus = "balanced" | "passion" | "admission" | "location_budget";
 
@@ -25,9 +26,14 @@ export const FOCUS_WEIGHTS: Record<RecommendFocus, { interest: number; fit: numb
 export interface RecommendInput {
   riasec?: Pick<RiasecResult, "percents" | "code"> | null;
   score?: { method: AdmissionMethodKey; total: number; combo: string } | null;
+  /** Mọi phương thức đã có điểm (ĐGNL cạnh THPT). Thiếu thì dùng `score`. */
+  methodScores?: MethodScore[];
+  /** Tổng xét tuyển từng tổ hợp đủ 3 môn (đã cộng ưu tiên). */
+  comboScores?: { code: string; total: number }[];
   budgetMax?: number | null;
   regions?: Region[];
   groupIds?: string[];
+  interestMajorIds?: string[];
   province?: string | null;
   /** Ngành mục tiêu (đặt ở /muc-tieu). */
   goalMajorId?: string | null;
@@ -42,8 +48,10 @@ export interface RecCriterion {
   label: string;
   /** Trọng số (0–1). */
   weight: number;
-  /** Điểm thành phần 0–100. */
-  points: number;
+  /** Điểm thành phần 0–100; null khi thiếu dữ liệu và bị loại khỏi phép tính. */
+  points: number | null;
+  /** Trọng số thực tế sau khi phân bổ lại trên các tiêu chí có dữ liệu. */
+  effectiveWeight: number;
   status: "good" | "ok" | "weak" | "missing";
   /** Nhãn ngắn hiển thị cạnh tiêu chí (VD "77%", "Vừa sức"). */
   value: string;
@@ -55,11 +63,23 @@ export type GoalMatch = "match" | "related" | "off";
 /** Vì sao chưa gắn nhãn khả năng: chưa có điểm, hoặc chương trình có < 3 năm điểm chuẩn. */
 export type FitGap = "no-score" | "few-years" | null;
 
+/** Một phương thức xét của chương trình, kèm điểm học sinh nếu có. */
+export interface RecMethodFit {
+  method: AdmissionMethodKey;
+  combo?: string;
+  userTotal: number | null;
+  cutoff: number;
+  year: number;
+  fit: FitInfo | null;
+}
+
 export interface Recommendation {
   view: ProgramView;
   score: number;
   reasons: string[];
   criteria: RecCriterion[];
+  /** Mọi phương thức xét có điểm chuẩn — không chỉ phương thức tốt nhất. */
+  methodFits: RecMethodFit[];
   /** Học phí là bộ lọc (không cộng điểm). */
   budgetNote: string;
   goalMatch: GoalMatch | null;
@@ -70,13 +90,13 @@ export interface Recommendation {
   history: CutoffScore[];
   userRiasec: RiasecType[] | null;
   // Phân tích rủi ro & giải trình (GIAI ĐOẠN 5)
-  fitScore: number;
+  fitScore: number | null;
   admissionRisk: "thap" | "trung-binh" | "cao" | "chua-xac-dinh";
   riskBand: "An toàn" | "Vừa sức" | "Thử sức" | "Chưa đủ dữ liệu";
   confidenceScore: number;
   confidenceBand: "cao" | "trung-binh" | "thap";
-  officialDataRatio: number;
-  estimatedDataRatio: number;
+  /** Tỷ lệ trọng số tiêu chí thực sự có dữ liệu (0–1). */
+  dataCoverage: number;
   volatility: number;
   dataYearsUsed: number;
   missingDataWarnings: string[];
@@ -122,6 +142,84 @@ export function goalWarning(riasec: Pick<RiasecResult, "percents" | "code"> | nu
 
 const status = (points: number): RecCriterion["status"] => (points >= 75 ? "good" : points >= 50 ? "ok" : "weak");
 
+function methodList(input: RecommendInput): MethodScore[] {
+  if (input.methodScores?.length) return input.methodScores;
+  return input.score ? [input.score] : [];
+}
+
+type ProgramScoreSource = Pick<Program, "combos" | "cutoffs"> & Partial<Pick<Program, "altCutoffs" | "methods">>;
+
+function programMethodKeys(program: ProgramScoreSource): AdmissionMethodKey[] {
+  const keys: AdmissionMethodKey[] = [];
+  const add = (k: AdmissionMethodKey) => {
+    if (!keys.includes(k)) keys.push(k);
+  };
+  if (program.cutoffs.length) add("thpt");
+  for (const a of program.altCutoffs ?? []) add(a.method);
+  for (const m of program.methods ?? []) {
+    if (m.key && m.key in ADMISSION_METHODS) add(m.key);
+  }
+  return keys;
+}
+
+function scoreRowsForProgram(input: RecommendInput, program: ProgramScoreSource): MethodScore[] {
+  const rows: MethodScore[] = [];
+  for (const ms of methodList(input)) {
+    const cut = cutoffFor(program, ms.method);
+    if (!cut) continue;
+    let total = ms.total;
+    let combo = ms.combo;
+    if (ADMISSION_METHODS[ms.method].needsCombo) {
+      const usable = (input.comboScores ?? []).filter((row) => program.combos.includes(row.code)).sort((a, b) => b.total - a.total);
+      if (usable.length) {
+        total = usable[0].total;
+        combo = usable[0].code;
+      } else if (combo && !program.combos.includes(combo)) continue;
+      else if (!combo) continue;
+    }
+    rows.push({ method: ms.method, total, combo });
+  }
+  return rows;
+}
+
+/** Chọn phương thức + tổ hợp khớp chương trình, ưu tiên chênh lệch điểm cao nhất. */
+function pickScoreForProgram(input: RecommendInput, program: ProgramScoreSource): MethodScore | null {
+  let best: MethodScore | null = null;
+  let bestDiff = -Infinity;
+  for (const row of scoreRowsForProgram(input, program)) {
+    const cut = cutoffFor(program, row.method);
+    if (!cut) continue;
+    const diff = row.total - cut.score;
+    if (diff > bestDiff) {
+      bestDiff = diff;
+      best = row;
+    }
+  }
+  return best;
+}
+
+function methodFitsForProgram(input: RecommendInput, program: ProgramScoreSource, minYears: number): RecMethodFit[] {
+  const scored = new Map<AdmissionMethodKey, MethodScore>();
+  for (const row of scoreRowsForProgram(input, program)) scored.set(row.method, row);
+  const fits: RecMethodFit[] = [];
+  for (const method of programMethodKeys(program)) {
+    const cut = cutoffFor(program, method);
+    if (!cut) continue;
+    const row = scored.get(method);
+    const few = method === "thpt" && program.cutoffs.length < minYears;
+    fits.push({
+      method,
+      combo: row?.combo || undefined,
+      userTotal: row?.total ?? null,
+      cutoff: cut.score,
+      year: cut.year,
+      fit: row && !few ? computeFit(row.total, program, method) : null,
+    });
+  }
+  fits.sort((a, b) => (b.fit?.diff ?? -Infinity) - (a.fit?.diff ?? -Infinity));
+  return fits;
+}
+
 export const recommendationService = {
   /** Trả về tối đa `limit` chương trình, đa dạng (≤ 2 cùng ngành — ngành mục tiêu ≤ 3, ≤ 2 cùng trường). */
   async recommend(
@@ -131,22 +229,21 @@ export const recommendationService = {
     configOverride?: EffectiveRecommendConfig,
   ): Promise<{ items: Recommendation[]; missing: ("quiz" | "score")[]; goal: GoalSummary | null }> {
     const cfg = configOverride ?? (await effectiveRecommendConfig());
-    const typeWeights = cfg.useTypeWeights ? await riasecTypeWeights() : null;
     const W = input.focus && FOCUS_WEIGHTS[input.focus] ? FOCUS_WEIGHTS[input.focus] : cfg.weights;
     const missing: ("quiz" | "score")[] = [];
     if (!input.riasec) missing.push("quiz");
-    if (!input.score) missing.push("score");
+    if (!methodList(input).length) missing.push("score");
 
     const goalMajor = input.goalMajorId ? await repositories.majors.findById(input.goalMajorId) : null;
     const goal: GoalSummary | null = goalMajor
       ? { majorId: goalMajor.id, majorName: goalMajor.name, majorRiasec: goalMajor.riasec, ...goalWarning(input.riasec, goalMajor) }
       : null;
 
-    if (!input.riasec && !input.score && !input.groupIds?.length && !goalMajor) return { items: [], missing, goal };
+    if (!input.riasec && !methodList(input).length && !input.groupIds?.length && !input.interestMajorIds?.length && !goalMajor) return { items: [], missing, goal };
 
     const home = regionOfProvince(input.province);
     const all = await programService.listAll();
-    const scored: (Recommendation & { rank: number })[] = [];
+    const scored: (Recommendation & { rank: number; chosen: MethodScore | null })[] = [];
     const budget = input.budgetMax != null && Number.isFinite(input.budgetMax) ? input.budgetMax : null;
 
     for (const view of all) {
@@ -157,88 +254,107 @@ export const recommendationService = {
       if (budget != null && cfg.budgetTolerance != null && program.tuitionMin > budget * (1 + cfg.budgetTolerance / 100)) continue;
       if (input.regions?.length && !input.regions.includes(school.region)) continue;
 
-      // --- Khả năng trúng tuyển
-      let fitPts = 50;
-      let fitGap: FitGap = input.score ? null : "no-score";
+      // --- Khả năng trúng tuyển. Thiếu dữ liệu không được gán điểm thay thế.
+      const methodFits = methodFitsForProgram(input, program, cfg.minYears);
+      const chosen = pickScoreForProgram(input, program);
+      let fitPts: number | null = null;
+      let fitGap: FitGap = methodList(input).length ? null : "no-score";
       let fitValue = "Chưa đủ dữ liệu";
-      let fitDetail = "Chưa có điểm của bạn — Trovio không gắn nhãn An toàn / Vừa sức / Thử sức khi chưa có điểm.";
-      if (input.score) {
-        const { method, total, combo } = input.score;
-        const cut = cutoffFor(program, method);
-        if (!cut) continue;
-        if (ADMISSION_METHODS[method].needsCombo && combo && !program.combos.includes(combo)) continue;
+      let fitDetail = "Chưa có điểm của bạn — tiêu chí này không tham gia tính điểm gợi ý.";
+      if (methodList(input).length) {
+        if (!chosen) continue;
+        const { method, total, combo } = chosen;
+        const cut = cutoffFor(program, method)!;
         const unit = ADMISSION_METHODS[method].short;
-        if (method === "thpt" && program.cutoffs.length < cfg.minYears) {
+        const trustedYears = program.cutoffs.filter((item) => !item.estimated).length;
+        if (method === "thpt" && trustedYears < cfg.minYears) {
           fitGap = "few-years";
-          fitDetail = `Chương trình mới có ${program.cutoffs.length} năm điểm chuẩn — Trovio chỉ gắn nhãn khi có đủ ${cfg.minYears} năm.`;
+          fitDetail = `Chương trình mới có ${trustedYears} năm điểm chuẩn có thể sử dụng — tiêu chí này không tham gia tính điểm cho tới khi đủ ${cfg.minYears} năm.`;
         } else {
           const fit = computeFit(total, program, method)!;
           fitPts = FIT_POINTS[fit.level];
           fitValue = fit.label;
           const d = ADMISSION_METHODS[method].decimals;
           fitDetail =
-            `${formatMethodScore(total, method)} điểm ${unit}, ${fit.diff >= 0 ? "cao" : "thấp"} hơn chuẩn ${cut.year} (${formatMethodScore(cut.score, method)}${cut.estimated ? ", ước tính" : ""}) ` +
+            `${formatMethodScore(total, method)} điểm ${unit}${combo ? ` · ${combo}` : ""}, ${fit.diff >= 0 ? "cao" : "thấp"} hơn chuẩn ${cut.year} (${formatMethodScore(cut.score, method)}) ` +
             `${Math.abs(fit.diff).toFixed(d)} điểm → ${fit.label}.` +
             (fit.level === "vua-suc" ? " Chưa tới +1 điểm nên chưa phải An toàn." : fit.level === "thu-suc" ? " Nên xếp sau ít nhất một nguyện vọng An toàn." : "");
           if (fit.level !== "thu-suc") {
-            reasons.push(`${FIT_LABELS[fit.level]} với ${formatMethodScore(total, method)} điểm ${unit} (chuẩn ${cut.year}: ${formatMethodScore(cut.score, method)}${cut.estimated ? ", ước tính" : ""})`);
+            reasons.push(`${FIT_LABELS[fit.level]} với ${formatMethodScore(total, method)} điểm ${unit}${combo ? ` · ${combo}` : ""} (chuẩn ${cut.year}: ${formatMethodScore(cut.score, method)})`);
           }
         }
       }
 
-      // --- Sở thích
-      let interest = 50;
-      let interestDetail = "Chưa làm trắc nghiệm sở thích — tạm tính mức trung bình 50/100.";
+      // --- Sở thích RIASEC chỉ phản ánh sở thích nghề nghiệp, không phải năng lực.
+      let interest: number | null = null;
+      let interestDetail = "Chưa làm trắc nghiệm sở thích — tiêu chí này không tham gia tính điểm gợi ý.";
       if (input.riasec) {
         interest = matchMajor(input.riasec, major);
-        // Trọng số nhóm Holland do quản trị viên đặt (mặc định 1.0).
-        if (typeWeights) interest = Math.min(100, Math.round(interest * (typeWeights[major.riasec[0]] ?? 1)));
         const shared = major.riasec.filter((t) => input.riasec!.code.includes(t));
         interestDetail = `Mã của bạn ${input.riasec.code.join("-")} · ngành cần ${major.riasec.join("-")} → chung ${shared.length}/3 nhóm chính${shared.length ? ` (${riasecLabels(shared)})` : ""}.`;
         if (interest >= 60 && shared.length) reasons.unshift(`Hợp sở thích ${riasecLabels(shared)} (${interest}% phù hợp)`);
       }
 
-      // --- Nhóm ngành & vị trí
-      const inGroup = !!input.groupIds?.includes(major.groupId);
-      if (inGroup) reasons.push("Thuộc nhóm ngành bạn quan tâm");
+      // --- Ngành quan tâm & vị trí
+      const inGoal = goalMajor?.id === major.id;
+      const inMajor = inGoal || !!input.interestMajorIds?.includes(major.id);
+      const inGroup = !!input.groupIds?.includes(major.groupId) || (!!goalMajor && goalMajor.groupId === major.groupId);
+      const hasInterestPreference = !!goalMajor || !!input.interestMajorIds?.length || !!input.groupIds?.length;
+      if (inMajor) reasons.push(inGoal ? "Đúng ngành mục tiêu của bạn" : "Ngành bạn đánh dấu quan tâm");
+      else if (inGroup) reasons.push("Thuộc nhóm ngành bạn quan tâm");
+
       const near = home != null && school.region === home;
+      const selectedRegion = !!input.regions?.length && input.regions.includes(school.region);
+      const hasPlacePreference = home != null || !!input.regions?.length;
+      const placeMatches = near || selectedRegion;
       if (near) reasons.push(`Cùng ${REGION_LABELS[school.region].toLowerCase()} với ${input.province}`);
-      if (budget != null) reasons.push(`Học phí trong ngân sách ${budget} triệu/năm`);
+      else if (selectedRegion) reasons.push(`Thuộc khu vực ${REGION_LABELS[school.region]} bạn đã chọn`);
+      if (budget != null && hasTuitionData(program.tuitionMin, program.tuitionMax)) reasons.push(`Học phí trong ngân sách ${budget} triệu/năm`);
 
-      const placePts = near ? 100 : 40;
-      const groupPts = inGroup ? 100 : 30;
-      let score = Math.round(interest * W.interest + fitPts * W.fit + placePts * W.place + groupPts * W.group);
-      // Quy tắc cộng điểm (bật ở trang Quy tắc gợi ý).
-      if (cfg.boostCutoff && input.score && !fitGap) {
-        const cut = cutoffFor(program, input.score.method);
-        if (cut && Math.abs(input.score.total - cut.score) / ADMISSION_METHODS[input.score.method].factor <= cfg.boostCutoff.gap) score += cfg.boostCutoff.points;
-      }
-      for (const b of cfg.boostSchoolTypes) if (school.type === b.type) score += b.points;
-      score = Math.min(100, score);
-
-      const criteria: RecCriterion[] = [
-        { key: "interest", label: "Hợp sở thích (RIASEC)", weight: W.interest, points: interest, status: input.riasec ? status(interest) : "missing", value: input.riasec ? `${interest}%` : "Chưa làm", detail: interestDetail },
-        { key: "fit", label: "Khả năng trúng tuyển", weight: W.fit, points: fitPts, status: fitGap ? "missing" : status(fitPts), value: fitValue, detail: fitDetail },
+      const placePts = hasPlacePreference ? (placeMatches ? 100 : 40) : null;
+      const groupPts = hasInterestPreference ? (inMajor ? 100 : inGroup ? 90 : 30) : null;
+      const rawCriteria: Omit<RecCriterion, "effectiveWeight">[] = [
+        { key: "interest", label: "Hợp sở thích (RIASEC)", weight: W.interest, points: interest, status: interest == null ? "missing" : status(interest), value: interest == null ? "Chưa làm" : `${interest}%`, detail: interestDetail },
+        { key: "fit", label: "Mức phù hợp điểm xét tuyển", weight: W.fit, points: fitPts, status: fitPts == null ? "missing" : status(fitPts), value: fitValue, detail: fitDetail },
         {
           key: "place",
           label: "Vị trí",
           weight: W.place,
           points: placePts,
-          status: home == null ? "missing" : near ? "good" : "weak",
-          value: home == null ? "Chưa có" : near ? "Khớp" : "Khác vùng",
-          detail: home == null ? "Hồ sơ chưa có tỉnh/thành — tạm tính 40/100." : near ? `${school.city} — cùng ${REGION_LABELS[school.region].toLowerCase()} với ${input.province}.` : `${school.city} — khác vùng với ${input.province}.`,
+          status: placePts == null ? "missing" : placeMatches ? "good" : "weak",
+          value: placePts == null ? "Chưa chọn" : placeMatches ? "Khớp" : "Khác khu vực",
+          detail: placePts == null ? "Bạn chưa chọn tỉnh/thành hoặc khu vực — tiêu chí này không tham gia tính điểm gợi ý." : near ? `${school.city} — cùng ${REGION_LABELS[school.region].toLowerCase()} với ${input.province}.` : selectedRegion ? `${school.city} — thuộc khu vực bạn đã chọn.` : `${school.city} — khác khu vực ưu tiên của bạn.`,
         },
         {
           key: "group",
-          label: "Nhóm ngành quan tâm",
+          label: "Ngành quan tâm",
           weight: W.group,
           points: groupPts,
-          status: input.groupIds?.length ? (inGroup ? "good" : "weak") : "missing",
-          value: input.groupIds?.length ? (inGroup ? "Khớp" : "Không thuộc") : "Chưa chọn",
-          detail: input.groupIds?.length ? (inGroup ? "Thuộc nhóm ngành bạn đánh dấu ở hồ sơ." : "Không thuộc nhóm ngành bạn đánh dấu.") : "Bạn chưa đánh dấu nhóm ngành quan tâm — tạm tính 30/100.",
+          status: groupPts == null ? "missing" : inMajor || inGroup ? "good" : "weak",
+          value: groupPts == null ? "Chưa chọn" : inMajor ? "Ngành khớp" : inGroup ? "Nhóm khớp" : "Không thuộc",
+          detail: inMajor
+            ? inGoal ? "Đúng ngành mục tiêu bạn đã chọn." : "Đúng ngành bạn đánh dấu quan tâm."
+            : hasInterestPreference
+              ? inGroup ? "Thuộc nhóm ngành bạn quan tâm." : "Không thuộc ngành hoặc nhóm ngành bạn đã chọn."
+              : "Bạn chưa chọn ngành quan tâm — tiêu chí này không tham gia tính điểm gợi ý.",
         },
       ];
+      const availableWeight = rawCriteria.reduce((sum, item) => sum + (item.points == null ? 0 : item.weight), 0);
+      const criteria: RecCriterion[] = rawCriteria.map((item) => ({
+        ...item,
+        effectiveWeight: item.points == null || availableWeight === 0 ? 0 : item.weight / availableWeight,
+      }));
+      let score = availableWeight === 0
+        ? 0
+        : Math.round(criteria.reduce((sum, item) => sum + (item.points == null ? 0 : item.points * item.effectiveWeight), 0));
 
+      // Quy tắc cộng điểm chỉ chạy khi tiêu chí điểm xét tuyển có dữ liệu.
+      if (cfg.boostCutoff && chosen && fitPts != null) {
+        const cut = cutoffFor(program, chosen.method);
+        if (cut && Math.abs(chosen.total - cut.score) / ADMISSION_METHODS[chosen.method].factor <= cfg.boostCutoff.gap) score += cfg.boostCutoff.points;
+      }
+      for (const b of cfg.boostSchoolTypes) if (school.type === b.type) score += b.points;
+      score = Math.min(100, score);
       // --- Mục tiêu
       let goalMatch: GoalMatch | null = null;
       let warning: string | null = null;
@@ -251,45 +367,32 @@ export const recommendationService = {
         }
       }
 
-      // Phân tích rủi ro & độ tin cậy giải trình được (GIAI ĐOẠN 5):
-      const cutoffsUsed = program.cutoffs;
+      // Độ tin cậy phản ánh độ phủ dữ liệu, số năm lịch sử và khả năng truy nguồn.
+      const cutoffsUsed = program.cutoffs.filter((item) => !item.estimated);
       const dataYearsUsed = cutoffsUsed.length;
-      const totalCutoffs = cutoffsUsed.length || 1;
-      const estimatedCount = (cutoffsUsed.filter((c) => c.estimated).length) + (view.cutoffEstimated ? 1 : 0);
-      const estimatedDataRatio = Math.round((estimatedCount / totalCutoffs) * 100) / 100;
-      const officialDataRatio = Math.max(0, 1 - estimatedDataRatio);
-
       const scores = cutoffsUsed.map((c) => c.score).filter(Number.isFinite);
       const volatility = scores.length >= 2 ? Math.round((Math.max(...scores) - Math.min(...scores)) * 100) / 100 : 0;
+      const dataCoverage = Math.round(availableWeight * 100) / 100;
+      const hasSource = !!program.sourceUrl || /^https?:\/\//i.test(program.source || "");
 
       const missingDataWarnings: string[] = [];
-      let calculatedConfidence = 90;
+      if (dataYearsUsed < cfg.minYears) missingDataWarnings.push(`Chỉ có ${dataYearsUsed} năm điểm chuẩn có thể sử dụng; cần ${cfg.minYears} năm để gắn nhãn mức phù hợp.`);
+      if (!hasSource) missingDataWarnings.push("Chưa có liên kết nguồn cho dữ liệu tuyển sinh của chương trình.");
+      if (volatility >= 2) missingDataWarnings.push(`Điểm chuẩn dao động ${volatility} điểm trong lịch sử đang có.`);
+      if (!methodList(input).length) missingDataWarnings.push("Chưa có điểm xét tuyển của bạn để đối chiếu.");
+      if (!hasTuitionData(program.tuitionMin, program.tuitionMax)) missingDataWarnings.push("Chưa có dữ liệu học phí; tiêu chí ngân sách không được sử dụng.");
 
-      if (dataYearsUsed < 3) {
-        calculatedConfidence -= (3 - dataYearsUsed) * 25;
-        missingDataWarnings.push(`Dữ liệu lịch sử chỉ có ${dataYearsUsed} năm điểm chuẩn (tiêu chuẩn khuyến nghị là 3 năm).`);
-      }
-      if (estimatedDataRatio > 0) {
-        calculatedConfidence -= Math.round(estimatedDataRatio * 35);
-        missingDataWarnings.push("Dữ liệu điểm chuẩn có chứa số liệu ước tính, chưa có xác nhận từ quyết định tuyển sinh chính thức.");
-      }
-      if (volatility >= 2.0) {
-        calculatedConfidence -= 15;
-        missingDataWarnings.push(`Điểm chuẩn dao động ${volatility} điểm qua các năm gần nhất.`);
-      }
-      if (!input.score) {
-        calculatedConfidence -= 20;
-        missingDataWarnings.push("Chưa có điểm thi thực tế của thí sinh để đối chiếu khả năng trúng tuyển.");
-      }
-
-      const confidenceScore = Math.max(10, Math.min(100, calculatedConfidence));
+      const profileCoverage = dataCoverage * 50;
+      const historyCoverage = Math.min(1, dataYearsUsed / Math.max(1, cfg.minYears)) * 30;
+      const sourceCoverage = hasSource ? 20 : 0;
+      const volatilityPenalty = volatility >= 2 ? 10 : 0;
+      const confidenceScore = Math.max(0, Math.min(100, Math.round(profileCoverage + historyCoverage + sourceCoverage - volatilityPenalty)));
       const confidenceBand: "cao" | "trung-binh" | "thap" =
         confidenceScore >= 75 ? "cao" : confidenceScore >= 45 ? "trung-binh" : "thap";
-
       let admissionRisk: "thap" | "trung-binh" | "cao" | "chua-xac-dinh" = "chua-xac-dinh";
       let riskBand: "An toàn" | "Vừa sức" | "Thử sức" | "Chưa đủ dữ liệu" = "Chưa đủ dữ liệu";
 
-      if (input.score && !fitGap) {
+      if (fitPts != null && chosen && !fitGap) {
         if (fitPts >= 95) {
           admissionRisk = "thap";
           riskBand = "An toàn";
@@ -308,9 +411,15 @@ export const recommendationService = {
         view,
         score,
         rank,
+        chosen,
         reasons: reasons.slice(0, 3),
         criteria,
-        budgetNote: budget != null ? `Học phí ${program.tuitionMin}–${program.tuitionMax} triệu/năm ≤ ngân sách ${budget} triệu/năm bạn đặt.` : "Bạn chưa đặt ngân sách — Trovio không lọc theo học phí.",
+        methodFits,
+        budgetNote: !hasTuitionData(program.tuitionMin, program.tuitionMax)
+          ? "Chưa có dữ liệu học phí — Trovio không dùng tiêu chí ngân sách cho chương trình này."
+          : budget != null
+            ? `${formatTuition(program.tuitionMin, program.tuitionMax)} ≤ ngân sách ${budget} triệu/năm bạn đặt.`
+            : "Bạn chưa đặt ngân sách — Trovio không lọc theo học phí.",
         goalMatch,
         warning,
         fitGap,
@@ -321,8 +430,7 @@ export const recommendationService = {
         riskBand,
         confidenceScore,
         confidenceBand,
-        officialDataRatio,
-        estimatedDataRatio,
+        dataCoverage,
         volatility,
         dataYearsUsed,
         missingDataWarnings,
@@ -334,7 +442,7 @@ export const recommendationService = {
     const perMajor = new Map<string, number>();
     const perSchool = new Map<string, number>();
     const items: Recommendation[] = [];
-    for (const { rank: _rank, ...r } of scored) {
+    for (const { rank: _rank, chosen, ...r } of scored) {
       const m = perMajor.get(r.view.major.id) ?? 0;
       const s = perSchool.get(r.view.school.id) ?? 0;
       const div = cfg.diversity;
@@ -342,15 +450,14 @@ export const recommendationService = {
       if (m >= majorCap || (div && s >= div.perSchool)) continue;
       perMajor.set(r.view.major.id, m + 1);
       perSchool.set(r.view.school.id, s + 1);
-      // Hiện điểm chuẩn & mức phù hợp theo phương thức của người dùng.
-      if (input.score) {
-        const { method, total } = input.score;
+      if (chosen) {
+        const { method, total } = chosen;
         const c = cutoffFor(r.view.program, method);
         r.view = {
           ...r.view,
           latestCutoff: c?.score ?? null,
-          cutoffEstimated: !!c?.estimated,
           cutoffMethod: method,
+          cutoffCombo: chosen.combo || undefined,
           fit: r.fitGap ? null : computeFit(total, r.view.program, method),
         };
       } else {

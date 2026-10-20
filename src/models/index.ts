@@ -6,8 +6,6 @@
 
 export * from "../domain/types";
 export * from "../domain/chat";
-export * from "../domain/riasec";
-export * from "../domain/reviews";
 export * from "../domain/work-style";
 export * from "../domain/provinces";
 export * from "../domain/audit-labels";

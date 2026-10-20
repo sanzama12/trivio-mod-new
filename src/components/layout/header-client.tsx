@@ -24,7 +24,6 @@ import { TOOL_LINKS } from "./tool-links";
 const NAV = [
   { href: "/chuong-trinh", label: "Tìm chương trình", match: ["/chuong-trinh", "/truong", "/diem-cua-toi"] },
   { href: "/nganh", label: "Khám phá ngành", match: ["/nganh"] },
-  { href: "/trac-nghiem", label: "Trắc nghiệm sở thích", match: ["/trac-nghiem"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
   { href: "/moc-tuyen-sinh", label: "Mốc tuyển sinh", match: ["/moc-tuyen-sinh"] },
 ];
@@ -162,7 +161,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                   key={n.href}
                   href={n.href}
                   aria-current={isActive(n.match) ? "page" : undefined}
-                  data-tour={n.href === "/trac-nghiem" ? "nav-quiz" : undefined}
+                  data-tour={undefined}
                   className={cn(
                     "relative py-2 transition-colors",
                     isActive(n.match) ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
@@ -289,7 +288,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                         <LuDatabase className="size-4" aria-hidden /> Quản trị dữ liệu
                       </Link>
                     ) : user.moderator ? (
-                      <Link role="menuitem" href="/quan-tri/cam-nhan" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                      <Link role="menuitem" href="/quan-tri/hoi-dap" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                         <LuDatabase className="size-4" aria-hidden /> Kiểm duyệt nội dung
                       </Link>
                     ) : null}

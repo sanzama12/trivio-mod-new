@@ -114,7 +114,7 @@ export default async function SharedWishlistPage({ params }: Props) {
                       <p className="text-[13px] text-primary-600">{v.school.name}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
                         <span className="rounded-md bg-primary-50 px-2 py-1 font-semibold text-primary-700">
-                          {cut ? `Chuẩn ${cut.year}: ${formatMethodScore(cut.score, method)} ${ADMISSION_METHODS[method].short}${cut.estimated ? " (ước tính)" : ""}` : `Không xét ${ADMISSION_METHODS[method].short}`}
+                          {cut ? `Chuẩn ${cut.year}: ${formatMethodScore(cut.score, method)} ${ADMISSION_METHODS[method].short}` : `Không xét ${ADMISSION_METHODS[method].short}`}
                         </span>
                         <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">{formatTuition(v.program.tuitionMin, v.program.tuitionMax)}</span>
                         <FitBadge fit={fit} />
@@ -131,7 +131,7 @@ export default async function SharedWishlistPage({ params }: Props) {
         <ShareCommentForm shareId={id} programs={data.items.map(({ view }, i) => ({ id: view.program.id, label: `NV${i + 1}: ${view.program.name} – ${view.school.shortName}` }))} />
 
         <p className="mt-8 text-center text-xs text-slate-500">
-          Điểm chuẩn và học phí trên Trovio là dữ liệu minh hoạ, hãy đối chiếu thông tin chính thức của trường.{" "}
+          Thông tin phản ánh dữ liệu Trovio đang có; hãy đối chiếu đề án tuyển sinh và thông báo chính thức của trường.{" "}
           <Link href="/cach-goi-y" className="font-semibold text-primary-600 hover:underline">
             Cách Trovio đánh giá
           </Link>

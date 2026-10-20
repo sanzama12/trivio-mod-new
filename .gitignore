@@ -8,8 +8,15 @@ next-env.d.ts
 .DS_Store
 .data
 dev.log
+.next-dev.*.log
+.next-trovio-dev*.log
 .worktrees
 
 .vercel
 scratch
 .claude
+
+# Local database data and generated audit output
+database/local/
+database/backups/
+database/audit-report.json

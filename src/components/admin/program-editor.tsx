@@ -11,7 +11,7 @@ import { FieldError, Input, Label } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { AuditLog } from "./audit-log";
 
-const ALT: AltMethodKey[] = ["hocba", "dgnl-hn", "dgnl-hcm", "tsa"];
+const ALT: AltMethodKey[] = ["hocba"];
 const YEARS = [2025, 2024, 2023];
 
 interface Initial {
@@ -33,13 +33,13 @@ export function ProgramEditor({ id, initial, edited, history }: { id: string; in
   const toast = useToast();
   const years = Array.from(new Set([...YEARS, ...initial.cutoffs.map((c) => c.year)])).sort((a, b) => b - a).slice(0, 5);
   const [cut, setCut] = useState<Record<number, string>>(Object.fromEntries(years.map((y) => [y, str(initial.cutoffs.find((c) => c.year === y)?.score)])));
-  const [alt, setAlt] = useState<Record<AltMethodKey, { year: string; score: string; estimated: boolean }>>(
+  const [alt, setAlt] = useState<Record<AltMethodKey, { year: string; score: string }>>(
     Object.fromEntries(
       ALT.map((k) => {
         const c = initial.altCutoffs.find((a) => a.method === k);
-        return [k, { year: str(c?.year ?? 2025), score: str(c?.score), estimated: !!c?.estimated }];
+        return [k, { year: str(c?.year ?? 2025), score: str(c?.score) }];
       }),
-    ) as Record<AltMethodKey, { year: string; score: string; estimated: boolean }>,
+    ) as Record<AltMethodKey, { year: string; score: string }>,
   );
   const [tMin, setTMin] = useState(str(initial.tuitionMin));
   const [tMax, setTMax] = useState(str(initial.tuitionMax));
@@ -61,7 +61,7 @@ export function ProgramEditor({ id, initial, edited, history }: { id: string; in
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cutoffs: years.map((y) => ({ year: y, score: n(cut[y] ?? "") })),
-        altCutoffs: ALT.map((k) => ({ method: k, year: n(alt[k].year), score: n(alt[k].score), estimated: alt[k].estimated })),
+        altCutoffs: ALT.map((k) => ({ method: k, year: n(alt[k].year), score: n(alt[k].score) })),
         tuitionMin: n(tMin),
         tuitionMax: n(tMax),
         quota: n(quota),
@@ -127,7 +127,7 @@ export function ProgramEditor({ id, initial, edited, history }: { id: string; in
         <Card className="p-6">
           <h2 className="font-bold">Phương thức khác</h2>
           <p className="mt-1 text-[13px] text-slate-500">
-            Điểm chuẩn năm gần nhất. Để trống = không xét phương thức đó. Nhập điểm trường công bố thì bỏ đánh dấu “Còn là số ước tính” — nhãn “Ước tính” trên web sẽ tự mất.
+            Chỉ nhập điểm chuẩn đã được trường công bố và ghi rõ nguồn ở phần bên dưới. Để trống nếu chưa có dữ liệu đối chiếu.
           </p>
           <div className="mt-4 space-y-3">
             {ALT.map((k) => (
@@ -141,14 +141,8 @@ export function ProgramEditor({ id, initial, edited, history }: { id: string; in
                 </div>
                 <div>
                   <Label htmlFor={`alt-${k}-s`}>Điểm chuẩn</Label>
-                  <Input id={`alt-${k}-s`} inputMode="decimal" value={alt[k].score} onChange={(e) => setAlt((a) => ({ ...a, [k]: { ...a[k], score: e.target.value, estimated: false } }))} />
+                  <Input id={`alt-${k}-s`} inputMode="decimal" value={alt[k].score} onChange={(e) => setAlt((a) => ({ ...a, [k]: { ...a[k], score: e.target.value } }))} />
                 </div>
-                {alt[k].score.trim() !== "" && (
-                  <label className="flex items-center gap-2 text-[13px] text-slate-700 sm:col-span-3">
-                    <input type="checkbox" className="size-4 accent-primary-600" checked={alt[k].estimated} onChange={(e) => setAlt((a) => ({ ...a, [k]: { ...a[k], estimated: e.target.checked } }))} />
-                    Còn là số ước tính (chưa đối chiếu đề án của trường)
-                  </label>
-                )}
               </div>
             ))}
           </div>

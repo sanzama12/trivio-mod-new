@@ -2,7 +2,7 @@ import { LuInfo } from "react-icons/lu";
 import type { FitInfo } from "@/services/scoring.service";
 import { Badge } from "@/components/ui/badge";
 
-const tone = { "an-toan": "success", "vua-suc": "primary", "thu-suc": "accent" } as const;
+const tone = { "an-toan": "solid", "vua-suc": "primary", "thu-suc": "accent" } as const;
 
 export function FitBadge({ fit }: { fit: FitInfo | null }) {
   if (!fit) return null;

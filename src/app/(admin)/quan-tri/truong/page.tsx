@@ -32,6 +32,8 @@ export default async function AdminSchoolsPage() {
             city: r.school.city,
             region: r.school.region,
             website: r.school.website,
+            logoUrl: r.school.logoUrl,
+            coverUrl: r.school.coverUrl ?? null,
             description: r.school.description,
             campuses: r.campuses,
             majors: r.majors,

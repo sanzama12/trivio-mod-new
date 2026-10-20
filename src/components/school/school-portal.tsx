@@ -2,7 +2,7 @@
 
 /**
  * C5 — Cổng trường cho cán bộ tuyển sinh: xác nhận từng nhóm số liệu Trovio đang hiển thị,
- * hoặc gửi bản sửa kèm minh chứng (quản trị viên duyệt trước khi áp dụng). Không sửa được cảm nhận hay thứ tự gợi ý.
+ * hoặc gửi bản sửa kèm minh chứng (quản trị viên duyệt trước khi áp dụng).
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -147,7 +147,7 @@ export function SchoolPortal({ email, school, done, total, items, history }: { e
               );
             })}
           </div>
-          <p className="mt-5 text-[13px] text-slate-500">Bản sửa cần đính kèm đề án/thông báo; quản trị Trovio duyệt trước khi hiển thị. Trường không sửa được cảm nhận sinh viên hay thứ tự gợi ý.</p>
+          <p className="mt-5 text-[13px] text-slate-500">Bản sửa cần đính kèm đề án/thông báo; quản trị Trovio duyệt trước khi hiển thị. Trường không sửa được thứ tự gợi ý.</p>
         </Card>
 
         <aside className="space-y-4">

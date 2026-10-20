@@ -265,7 +265,7 @@ export function drawWishlistCard(canvas: HTMLCanvasElement, d: WishlistCardData)
   ctx.fill();
   ctx.fillStyle = C.accent700;
   ctx.font = `600 27px ${f}`;
-  ctx.fillText("Kế hoạch cá nhân, chưa phải đăng ký chính thức · dữ liệu minh hoạ", 108, 1198);
+  ctx.fillText("Kế hoạch cá nhân, chưa phải đăng ký chính thức · cần đối chiếu nguồn", 108, 1198);
   linkBadge(ctx, 80, 1244, d.url, f, false);
 }
 

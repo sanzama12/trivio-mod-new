@@ -6,6 +6,7 @@ import { LuChartBar, LuCircleAlert, LuFolderOpen, LuLightbulb, LuMapPin, LuPuzzl
 import type { RecCriterion, Recommendation } from "@/services/recommendation.service";
 import { ADMISSION_METHODS, FIT_THRESHOLDS, formatMethodScore } from "@/services/scoring.service";
 import { cn } from "@/lib/cn";
+import { hasTuitionData } from "@/lib/format";
 import { useModal } from "@/components/ui/use-modal";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,11 @@ function whatIf(rec: Recommendation, userScore: number | null): string[] {
     if (rec.view.fit.level !== "thu-suc") out.push(`Điểm giảm hơn ${toReach.toFixed(2)} → chuyển sang Thử sức (thấp hơn chuẩn quá 0,5).`);
     if (rec.view.fit.level !== "an-toan") out.push(`Cần thêm ${Math.max(0, toSafe).toFixed(2)} điểm để thành An toàn (cao hơn chuẩn từ 1 điểm).`);
   }
-  out.push(`Ngân sách dưới ${rec.view.program.tuitionMin} triệu/năm → chương trình này bị loại khỏi gợi ý.`);
+  if (hasTuitionData(rec.view.program.tuitionMin, rec.view.program.tuitionMax)) {
+    out.push(`Ngân sách dưới ${rec.view.program.tuitionMin} triệu/năm → chương trình này bị loại khỏi gợi ý.`);
+  } else {
+    out.push("Chưa có dữ liệu học phí → không dùng học phí để kết luận mức phù hợp ngân sách.");
+  }
   return out;
 }
 
@@ -96,11 +101,10 @@ export function WhyDrawer({
   useModal(ref, true, onClose);
   const { view: v } = rec;
   const method = v.cutoffMethod;
-  const uncertain = [
-    v.cutoffEstimated && "Điểm chuẩn phương thức này là số ước tính, chưa phải số trường công bố.",
-    `Điểm chuẩn ${new Date().getFullYear()} chưa công bố — nhãn khả năng dựa trên điểm chuẩn năm gần nhất và xu hướng 3 năm.`,
-    "Điểm chuẩn, học phí trong bản demo là dữ liệu minh hoạ.",
-  ].filter(Boolean) as string[];
+  const uncertain = rec.missingDataWarnings.length
+    ? rec.missingDataWarnings
+    : ["Không có cảnh báo dữ liệu bổ sung cho các tiêu chí đang được sử dụng."];
+  const availableCriteria = rec.criteria.filter((item) => item.points != null).length;
 
   return (
     <div className="fixed inset-0 z-[70] flex justify-end bg-slate-900/40" onClick={onClose}>
@@ -110,7 +114,7 @@ export function WhyDrawer({
         aria-modal="true"
         aria-labelledby="why-title"
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-[560px] flex-col bg-white shadow-2xl"
+        className="flex h-full w-full max-w-[560px] min-w-0 flex-col border-l-4 border-l-accent-500 bg-white shadow-2xl inset-x-2 sm:inset-x-auto"
       >
         <div className="border-b border-slate-200 px-5 pt-5 pb-4 sm:px-6">
           <div className="flex items-center justify-between">
@@ -121,7 +125,7 @@ export function WhyDrawer({
               <LuX className="size-5" aria-hidden />
             </button>
           </div>
-          <h2 id="why-title" className="mt-1 text-xl font-bold text-slate-900">
+          <h2 id="why-title" className="mt-1 text-left text-xl font-black break-words text-slate-900">
             Vì sao Trovio gợi ý chương trình này?
           </h2>
           <div className="mt-3 flex items-center gap-3">
@@ -137,7 +141,7 @@ export function WhyDrawer({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
-          <div className="flex items-center gap-4 rounded-2xl bg-primary-50 p-4">
+          <div className="flex min-w-0 flex-col gap-3 border border-primary-600 border-l-4 border-l-accent-500 bg-primary-50 p-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-4">
             <div className="text-center">
               <p className="text-4xl font-bold text-primary-700">{rec.score}</p>
               <p className="text-xs font-medium text-primary-700">/100 phù hợp</p>
@@ -147,7 +151,7 @@ export function WhyDrawer({
                 Xếp #{rank} trong {total} gợi ý dành cho bạn
               </p>
               <p className="mt-1 text-xs text-slate-700">
-                Điểm phù hợp = 4 tiêu chí nhân trọng số; học phí là bộ lọc. Không trường nào trả tiền để được xếp hạng.
+                Điểm phù hợp dùng {availableCriteria}/4 tiêu chí có dữ liệu; trọng số thiếu được phân bổ lại. Độ phủ {Math.round(rec.dataCoverage * 100)}%. Học phí chỉ là bộ lọc.
               </p>
             </div>
           </div>
@@ -158,7 +162,7 @@ export function WhyDrawer({
             </p>
           )}
 
-          <h3 className="text-sm font-semibold text-slate-700">4 tiêu chí + 1 bộ lọc Trovio đã xét</h3>
+          <h3 className="text-sm font-semibold text-slate-700">Tiêu chí có dữ liệu + bộ lọc học phí</h3>
           <ul className="space-y-3">
             {rec.criteria.map((c) => {
               const Icon = ICONS[c.key];
@@ -170,10 +174,23 @@ export function WhyDrawer({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="flex-1 font-semibold text-slate-900">{c.label}</p>
-                      <span className="text-[11px] font-medium text-slate-500">trọng số {Math.round(c.weight * 100)}%</span>
+                      <span className="text-[11px] font-medium text-slate-500">{c.points == null ? "không tính" : `trọng số đang dùng ${Math.round(c.effectiveWeight * 100)}%`}</span>
                       <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold", TONE[c.status])}>{c.value}</span>
                     </div>
                     <p className="mt-1 text-[13px] text-slate-600">{c.detail}</p>
+                    {c.key === "fit" && rec.methodFits?.length ? (
+                      <ul className="mt-2 space-y-1 text-[13px] text-slate-700">
+                        {rec.methodFits.map((row) => (
+                          <li key={row.method}>
+                            {ADMISSION_METHODS[row.method].short}
+                            {row.combo ? ` · ${row.combo}` : ""}
+                            {row.userTotal != null ? `: ${formatMethodScore(row.userTotal, row.method)}` : ": chưa nhập"}
+                            {` · chuẩn ${row.year}: ${formatMethodScore(row.cutoff, row.method)}`}
+                            {row.fit ? ` → ${row.fit.label}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                     {c.key === "fit" && method === "thpt" && rec.history.length > 0 && <CutoffMiniChart history={rec.history} userScore={userScore} />}
                   </div>
                 </li>
@@ -236,9 +253,6 @@ export function WhyDrawer({
           <Button size="sm" variant="outline" onClick={() => (toast("Cảm ơn bạn đã góp ý!", "success"), onClose())}>
             Dễ hiểu
           </Button>
-          <Link href="/tro-giup#bao-loi" className="px-2 text-[13px] font-semibold text-primary-600 hover:underline">
-            Chưa rõ
-          </Link>
         </div>
       </div>
     </div>

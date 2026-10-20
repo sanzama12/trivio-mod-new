@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { LuSearch, LuSearchX } from "react-icons/lu";
 import { catalogService, parseProgramFilters, programService, serializeProgramFilters, SORT_LABELS, type ProgramSort } from "@/services";
@@ -8,7 +9,6 @@ import { buttonClass } from "@/components/ui/button";
 import { FilterPanel } from "@/components/search/filter-panel";
 import { ProgramCard } from "@/components/program/program-card";
 import { SavedScoreHint } from "@/components/search/saved-score-hint";
-import { EstimatedTag } from "@/components/ui/estimated-tag";
 
 export const metadata: Metadata = { title: "Tìm chương trình đào tạo" };
 
@@ -16,53 +16,65 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 export default async function SearchPage({ searchParams }: Props) {
   const filters = parseProgramFilters(await searchParams);
-  const [result, combos, subjects] = await Promise.all([programService.search(filters), catalogService.getCombos(), catalogService.getSubjects()]);
+  const [result, combos, subjects, groups] = await Promise.all([
+    programService.search(filters),
+    catalogService.getCombos(),
+    catalogService.getSubjects(),
+    catalogService.getGroups(),
+  ]);
   const href = (patch: Partial<typeof filters>) => `/chuong-trinh${serializeProgramFilters({ ...filters, ...patch })}`;
   const sort = filters.sort ?? "phu-hop";
 
   return (
-    <div className="container-page py-8">
+    <div className="bg-[#fafaf6]">
+    <div className="container-page min-w-0 py-6 md:py-10">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Tìm chương trình" }]} />
-      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-[28px]">Tìm chương trình đào tạo đại học</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Tìm thấy <strong className="text-primary-600">{result.total}</strong> chương trình phù hợp
-            {filters.score == null && (
-              <>
-                {" "}·{" "}
-                <SavedScoreHint filters={filters} />
-              </>
-            )}
-          </p>
+      <section className="relative isolate mt-4 overflow-hidden rounded-3xl bg-slate-950">
+        <Image
+          src="https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2000&q=75"
+          alt="Sân trường đại học mùa tuyển sinh"
+          fill
+          sizes="(max-width: 1024px) 100vw, 1280px"
+          className="object-cover opacity-55"
+        />
+        <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/65 to-primary-900/30" />
+        <div className="relative px-5 py-8 sm:px-8 sm:py-10">
+          <p className="inline-flex bg-accent-500 px-3 py-1 text-xs font-black tracking-wide text-slate-950 uppercase">Sổ tuyển sinh</p>
+          <h1 className="mt-4 max-w-3xl text-3xl leading-tight font-black tracking-tight text-white md:text-5xl">Tìm chương trình đào tạo phù hợp với bạn</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 md:text-base">Lọc theo điểm, tổ hợp, học phí và khu vực để đi từ danh mục rộng đến lựa chọn có căn cứ.</p>
         </div>
-        <form action="/chuong-trinh" role="search" className="flex w-full max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-card">
+      </section>
+      <p className="mt-4 max-w-2xl text-sm break-words text-slate-600">
+        Tìm thấy <strong className="text-slate-900">{result.total}</strong> chương trình phù hợp
+        {filters.score == null && (
+          <>
+            {" "}·{" "}
+            <SavedScoreHint filters={filters} />
+          </>
+        )}
+      </p>
+      <div className="mt-5 min-w-0">
+        <form action="/chuong-trinh" role="search" className="mx-auto flex w-full min-w-0 max-w-lg flex-col gap-2 rounded-xl border-2 border-slate-900 bg-white p-2">
           {Object.entries({ ...filters, q: undefined, page: undefined }).map(([k, v]) =>
             v == null || (Array.isArray(v) && v.length === 0) ? null : <input key={k} type="hidden" name={k} value={Array.isArray(v) ? v.join(",") : String(v)} />,
           )}
-          <LuSearch className="ml-2 size-4 text-slate-400" aria-hidden />
-          <label htmlFor="s-q" className="sr-only">
-            Từ khoá
-          </label>
-          <input id="s-q" name="q" defaultValue={filters.q} placeholder="Tên trường, ngành, mã xét tuyển…" className="h-9 min-w-0 flex-1 bg-transparent text-sm focus:outline-none" />
-          <button className={buttonClass({ size: "sm" })}>Tìm</button>
+          <div className="flex min-w-0 items-center gap-1">
+            <LuSearch className="ml-2 size-4 shrink-0 text-slate-400" aria-hidden />
+            <label htmlFor="s-q" className="sr-only">
+              Từ khoá
+            </label>
+            <input id="s-q" name="q" defaultValue={filters.q} placeholder="Tên trường, ngành, mã xét tuyển…" className="h-9 min-w-0 flex-1 bg-transparent text-sm focus:outline-none" />
+          </div>
+          <button className={cn(buttonClass({ size: "sm" }), "w-full sm:w-auto")}>Tìm</button>
         </form>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[300px_1fr]">
-        <div className="lg:sticky lg:top-24 lg:self-start">
-          <FilterPanel filters={filters} combos={combos} subjects={subjects} />
+      <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+        <div className="min-w-0 lg:sticky lg:top-24">
+          <FilterPanel filters={filters} combos={combos} subjects={subjects} groups={groups} />
         </div>
 
-        <section aria-label="Kết quả tìm kiếm">
-          {filters.method && filters.method !== "thpt" && (
-            <p role="note" className="mb-4 flex items-start gap-2 rounded-xl border border-accent-200 bg-accent-50 px-4 py-3 text-[13px] text-slate-700">
-              <EstimatedTag className="mt-0.5 shrink-0" />
-              <span>
-                Điểm chuẩn học bạ / đánh giá năng lực trong bản demo là <strong>số ước tính</strong> suy ra từ điểm thi THPT, chưa phải điểm trường công bố. Chỉ dùng để thử tính năng — hãy đối chiếu đề án tuyển sinh của trường.
-              </span>
-            </p>
-          )}
+        <section aria-label="Kết quả tìm kiếm" className="min-w-0">
           <div className="mb-4 flex flex-wrap items-center gap-2" role="tablist" aria-label="Sắp xếp">
             {(Object.keys(SORT_LABELS) as ProgramSort[]).map((k) => (
               <Link
@@ -72,8 +84,8 @@ export default async function SearchPage({ searchParams }: Props) {
                 href={href({ sort: k, page: undefined })}
                 scroll={false}
                 className={cn(
-                  "rounded-full px-4 py-2 text-[13px] font-semibold transition-colors",
-                  sort === k ? "bg-primary-600 text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-primary-200",
+                  "rounded-full border-2 border-slate-900 px-4 py-2 text-[13px] font-bold transition-colors",
+                  sort === k ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-100",
                 )}
               >
                 {SORT_LABELS[k]}
@@ -82,7 +94,7 @@ export default async function SearchPage({ searchParams }: Props) {
           </div>
 
           {result.total === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-card">
+            <div className="rounded-2xl border-2 border-slate-900 bg-white">
               <EmptyState
                 icon={<LuSearchX />}
                 title="Không tìm thấy chương trình phù hợp"
@@ -115,6 +127,7 @@ export default async function SearchPage({ searchParams }: Props) {
           )}
         </section>
       </div>
+    </div>
     </div>
   );
 }

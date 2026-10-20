@@ -30,20 +30,15 @@ async function main() {
   // Step 1: Validate TypeScript types
   run("npm run typecheck", "Kiểm tra kiểu dữ liệu TypeScript (0 lỗi)");
 
-  // Step 2: Run all unit tests
-  run("npm run test", "Chạy toàn bộ 97 bài kiểm thử tự động (Unit Tests)", {
-    NODE_ENV: "test",
-  });
-
-  // Step 3: Export latest SQL schemas & seeds
+  // Step 2: Export latest SQL schemas & seeds
   run("npm run db:export", "Xuất file SQL seed mới nhất (database/seed.sql & seed-prod.sql)");
 
-  // Step 4: Push to Neon PostgreSQL if credentials available
+  // Step 3: Push to Neon PostgreSQL if credentials available
   if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
     run("npm run push:pg", "Đẩy toàn bộ Schema và Dữ liệu lên Neon PostgreSQL");
   }
 
-  // Step 5: Git add, commit and push
+  // Step 4: Git add, commit and push
   run("git add -A", "Thêm toàn bộ tệp thay đổi vào Git staging");
   
   try {

@@ -38,8 +38,8 @@ const TOTAL = WORK_STYLE_QUESTIONS.length;
 function Crumb({ current }: { current?: string }) {
   return (
     <nav aria-label="Breadcrumb" className="text-[13px] text-slate-500">
-      <Link href="/trac-nghiem" className="hover:text-primary-700">
-        Trắc nghiệm
+      <Link href="/" className="hover:text-primary-700">
+        Trang chủ
       </Link>{" "}
       ›{" "}
       {current ? (
@@ -176,15 +176,14 @@ function Intro({ resumeAt, hasQuiz, hasMbti, onStart }: { resumeAt: number; hasQ
           <p className="mt-5 flex gap-3 rounded-xl border border-accent-200 bg-accent-50 p-4 text-sm text-accent-700">
             <LuCircleAlert className="mt-0.5 size-[18px] shrink-0" aria-hidden />
             <span>
-              <strong>Chỉ để tham khảo.</strong> Kết quả giúp giải thích thêm vì sao một ngành hợp với bạn, không làm thay đổi điểm phù hợp — điểm vẫn tính từ trắc nghiệm sở
-              thích (RIASEC) và điểm thi của bạn.
+              <strong>Chỉ để tham khảo.</strong> Kết quả giúp giải thích thêm vì sao một ngành hợp với bạn, không dùng để tính điểm xét tuyển.
             </span>
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button size="lg" onClick={onStart}>
               {resumeAt > 0 ? `Tiếp tục (câu ${resumeAt + 1}/${TOTAL})` : "Bắt đầu"} <LuArrowRight className="size-4" aria-hidden />
             </Button>
-            <Link href={hasQuiz ? "/trac-nghiem/ket-qua" : "/trac-nghiem"} className={buttonClass({ variant: "ghost", size: "lg", className: "text-primary-700" })}>
+            <Link href="/diem-cua-toi" className={buttonClass({ variant: "ghost", size: "lg", className: "text-primary-700" })}>
               Để sau
             </Link>
           </div>
@@ -452,9 +451,9 @@ function Result({
               </h2>
               {!quizCode ? (
                 <div className="mt-2">
-                  <p className="text-sm text-slate-600">Làm trắc nghiệm sở thích (RIASEC) để xem ngành nào hợp cả sở thích lẫn phong cách làm việc của bạn.</p>
-                  <Link href="/trac-nghiem" className={buttonClass({ size: "sm", className: "mt-3" })}>
-                    Làm trắc nghiệm sở thích <LuArrowRight className="size-4" aria-hidden />
+                  <p className="text-sm text-slate-600">Nhập điểm thi THPT hoặc học bạ để xem chương trình phù hợp với tổ hợp của bạn.</p>
+                  <Link href="/diem-cua-toi" className={buttonClass({ size: "sm", className: "mt-3" })}>
+                    Nhập điểm xét tuyển <LuArrowRight className="size-4" aria-hidden />
                   </Link>
                 </div>
               ) : (

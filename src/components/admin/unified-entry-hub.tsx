@@ -172,8 +172,8 @@ const BULK_IMPORT_EXAMPLES: ImportRowData[] = [
     chi_tieu: "",
     to_hop: "",
     nguon: "",
-    phuong_thuc: "Điểm ĐGNL HSA",
-    diem_rieng: "68",
+    phuong_thuc: "Điểm học bạ",
+    diem_rieng: "24",
     ghi_chu: "",
   },
 ];

@@ -3,14 +3,22 @@ export function formatScore(n: number | null | undefined, digits = 2): string {
   return n.toFixed(digits);
 }
 
+/**
+ * Dữ liệu nhập hiện dùng 0–0 để biểu diễn "chưa có học phí".
+ * Không được suy diễn 0–0 thành miễn học phí nếu chưa có trạng thái/nguồn xác nhận riêng.
+ */
+export function hasTuitionData(min: number, max: number): boolean {
+  return Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max > 0 && max >= min;
+}
+
 export function formatTuition(min: number, max: number): string {
-  if (max === 0) return "Miễn học phí";
+  if (!hasTuitionData(min, max)) return "Chưa có dữ liệu học phí";
   if (min === max) return `${min} triệu/năm`;
   return `${min} – ${max} triệu/năm`;
 }
 
 export function formatTuitionShort(min: number, max: number): string {
-  if (max === 0) return "Miễn phí";
+  if (!hasTuitionData(min, max)) return "Chưa có dữ liệu";
   return min === max ? `${min}tr/năm` : `${min}–${max}tr/năm`;
 }
 

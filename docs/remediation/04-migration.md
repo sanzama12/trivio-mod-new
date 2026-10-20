@@ -52,7 +52,7 @@ Lược đồ CSDL chi tiết được định nghĩa tại [`database/schema.sq
 
 ## 3. GIAO DỊCH AN TOÀN ACID (`withTransaction`)
 
-Để tránh tình trạng dữ liệu không nhất quán (inconsistent state) khi thực hiện các tác vụ phức tạp gồm nhiều bước, module [`src/lib/db.ts`](file:///c:/Users/Admin/Videos/trovio-web/trovio-web/src/lib/db.ts) cung cấp wrapper giao dịch chuẩn:
+Để tránh tình trạng dữ liệu không nhất quán (inconsistent state) khi thực hiện các tác vụ phức tạp gồm nhiều bước, module [`database/client.ts`](file:///c:/Users/Admin/Videos/trovio-web/trovio-web/database/client.ts) cung cấp wrapper giao dịch chuẩn:
 
 ```typescript
 export async function withTransaction<T>(
@@ -90,11 +90,11 @@ export async function withTransaction<T>(
 
 Hệ thống cung cấp hai kịch bản migration độc lập phục vụ triển khai và nạp dữ liệu:
 
-### 4.1. Kịch bản Khởi tạo CSDL (`scripts/migrate-pg.ts`)
+### 4.1. Kịch bản Khởi tạo CSDL (`database/scripts/migrate-pg.ts`)
 - **Mục đích**: Nạp cấu trúc bảng, views, triggers và nạp dữ liệu tham chiếu nền tảng.
 - **Thực thi**:
   ```bash
-  npx tsx scripts/migrate-pg.ts
+  npx tsx database/scripts/migrate-pg.ts
   ```
 - **Các bước thực hiện**:
   1. Đọc và kiểm tra chuỗi kết nối `DATABASE_URL` từ môi trường hoặc `.env.local`.
@@ -133,9 +133,9 @@ Kết quả đối soát thực tế từ cơ sở dữ liệu PostgreSQL (Neon 
 Trong các phiên bản trước, việc import trực tiếp module đọc file JSON động trong server components dẫn đến cảnh báo build của Next.js liên quan đến dynamic filesystem access (`fs.readFileSync`).
 
 ### Các biện pháp đã xử lý:
-1. **Loại bỏ Side-effects khi Import**: Đã loại bỏ hoàn toàn các hàm `setTimeout` tự động chạy ngầm khi import module trong [`src/repositories/postgres.ts`](file:///c:/Users/Admin/Videos/trovio-web/trovio-web/src/repositories/postgres.ts).
+1. **Loại bỏ Side-effects khi Import**: Đã loại bỏ hoàn toàn các hàm `setTimeout` tự động chạy ngầm khi import module trong [`database/repositories/postgres.ts`](file:///c:/Users/Admin/Videos/trovio-web/trovio-web/database/repositories/postgres.ts).
 2. **Phân tách Rõ ràng Adapter Demo vs Production**:
-   - Production API Route Handlers sử dụng trực tiếp pooling client từ [`src/lib/db.ts`](file:///c:/Users/Admin/Videos/trovio-web/trovio-web/src/lib/db.ts).
+   - Production API Route Handlers sử dụng trực tiếp pooling client từ [`database/client.ts`](file:///c:/Users/Admin/Videos/trovio-web/trovio-web/database/client.ts).
    - JSON File Adapter được gói gọn và chỉ tải khi chạy cục bộ mà không có biến môi trường `DATABASE_URL`.
 3. **Kết quả Build Next.js 16.3.6 (Turbopack)**:
    - Toàn bộ 112/112 route handlers và static pages biên dịch thành công 100%.

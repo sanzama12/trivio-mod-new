@@ -4,7 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { PublicUser, User, UserRole } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { authService, toPublicUser } from "./auth.service";
 import { notificationService } from "./notification.service";
 
@@ -82,7 +82,6 @@ export const userAdminService = {
       usage: {
         saved: data?.saved.length ?? 0,
         wishlist: data?.wishlist.length ?? 0,
-        quizDone: !!data?.quiz,
         hasScores: !!data?.profile,
         reminders: data?.reminders.length ?? 0,
       },

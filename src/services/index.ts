@@ -7,8 +7,6 @@ export type { ProgramView, ProgramSearchResult, SearchSuggestion } from "./progr
 export * from "./program.filters";
 export { catalogService } from "./catalog.service";
 export type { MajorListItem } from "./catalog.service";
-export { riasecService, scoreAnswers, matchMajor, sanitizeRiasec, RIASEC_TYPES } from "./riasec.service";
-export type { QuizAnswers } from "./riasec.service";
 export { authService, MAX_LOGIN_ATTEMPTS } from "./auth.service";
 export type { LoginResult, RegisterResult, GoogleProfile, ProfilePatch } from "./auth.service";
 export { userDataService, mergeUserData, sanitizeUserData } from "./user-data.service";

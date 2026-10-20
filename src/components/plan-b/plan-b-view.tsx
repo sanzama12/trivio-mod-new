@@ -9,6 +9,7 @@ import { hasSafe, matchRounds, reEvaluate, ROUND_STATUS_LABELS, suggestPlanB, ty
 import { ADMISSION_METHODS, FIT_LABELS, formatMethodScore, profileScore } from "@/services/scoring.service";
 import { useTrovio } from "@/stores/trovio-store";
 import { cn } from "@/lib/cn";
+import { formatTuition } from "@/lib/format";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
@@ -274,7 +275,7 @@ export function PlanBView({
                       </p>
                       <p className="text-[11px] text-slate-500">
                         {o.kind === "same-major" ? "Cùng ngành" : o.kind === "related" ? "Ngành gần (cùng nhóm)" : "Chương trình liên kết / quốc tế"} · {o.diff >= 0 ? "cao" : "thấp"} hơn chuẩn{" "}
-                        {Math.abs(o.diff).toFixed(unit.decimals)} · học phí {o.program.tuitionMin}–{o.program.tuitionMax} tr/năm
+                        {Math.abs(o.diff).toFixed(unit.decimals)} · học phí {formatTuition(o.program.tuitionMin, o.program.tuitionMax)}
                       </p>
                     </div>
                     <Button
@@ -416,7 +417,7 @@ export function PlanBView({
         </div>
         <p className="flex gap-2 border-t border-slate-100 px-5 py-3 text-xs text-slate-600">
           <LuBell className="mt-0.5 size-3.5 shrink-0 text-primary-600" aria-hidden />
-          Khi đợt phù hợp với điểm và nhóm ngành của bạn mở, Trovio báo trong chuông thông báo (và email nếu bạn bật nhắc qua email). Tên đợt, chỉ tiêu và ngày là dữ liệu minh hoạ.
+          Khi đợt phù hợp với điểm và nhóm ngành của bạn mở, Trovio báo trong chuông thông báo (và email nếu bạn bật nhắc qua email). Đợt, chỉ tiêu và thời hạn chỉ hiển thị khi Trovio có dữ liệu tương ứng.
         </p>
       </Card>
     </div>

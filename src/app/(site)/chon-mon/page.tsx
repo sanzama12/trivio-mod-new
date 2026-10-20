@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { catalogService } from "@/services";
-import { toLiteMajor, toLiteProgram } from "@/services/lite";
+import { toLiteMajor } from "@/services/lite";
 import { Breadcrumb } from "@/components/ui/misc";
 import { Grade10Planner } from "@/components/grade10/grade10-planner";
 
@@ -11,14 +11,14 @@ export const metadata: Metadata = {
 
 export default async function Grade10Page({ searchParams }: { searchParams: Promise<{ huong?: string }> }) {
   const { huong } = await searchParams;
-  const { programs: views, majors, combos } = await catalogService.getGuidanceOptions();
+  const { programs, majors, combos } = await catalogService.getPlanningOptions();
   return (
     <div className="container-page py-8">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Chọn môn lớp 10" }]} />
       <Grade10Planner
         initialDirection={huong === "nganh-mon" ? "major-to-subject" : "subject-to-major"}
         majors={majors.map(toLiteMajor)}
-        programs={views.map(toLiteProgram)}
+        programs={programs}
         combos={combos}
       />
     </div>

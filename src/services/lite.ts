@@ -2,7 +2,7 @@
  * Dạng rút gọn của ngành/chương trình để truyền xuống client component (công cụ chọn môn, mục tiêu, kế hoạch B…).
  * Chỉ chứa số liệu công khai.
  */
-import type { CutoffScore, Major, MethodCutoff, Region } from "../domain/types";
+import type { CutoffScore, GuidanceProgram, Major, MethodCutoff, Region } from "../domain/types";
 import type { ProgramView } from "./program.service";
 
 export interface LiteMajor {
@@ -13,24 +13,7 @@ export interface LiteMajor {
   riasec: Major["riasec"];
 }
 
-export interface LiteProgram {
-  id: string;
-  slug: string;
-  name: string;
-  majorId: string;
-  groupId: string;
-  schoolId: string;
-  schoolName: string;
-  schoolCode: string;
-  city: string;
-  region: Region;
-  trainingType: string;
-  combos: string[];
-  cutoffs: CutoffScore[];
-  altCutoffs: MethodCutoff[];
-  tuitionMin: number;
-  tuitionMax: number;
-}
+export interface LiteProgram extends GuidanceProgram {}
 
 export const toLiteMajor = (m: Major): LiteMajor => ({ id: m.id, slug: m.slug, name: m.name, groupId: m.groupId, riasec: m.riasec });
 

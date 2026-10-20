@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { LuArrowLeftRight, LuPlus, LuX } from "react-icons/lu";
 import { ADMISSION_METHODS, cutoffFor, fitForProfile, formatMethodScore, profileScore } from "@/services/scoring.service";
-import { EstimatedTag } from "@/components/ui/estimated-tag";
 import type { AltMethodKey } from "@/domain/types";
 import type { ProgramView } from "@/services/program.service";
 import { formatScore, formatTuition } from "@/lib/format";
@@ -43,7 +42,7 @@ export function CompareView() {
   }
 
   const mine = profile ? profileScore(profile) : null;
-  const altKeys = (["hocba", "dgnl-hn", "dgnl-hcm", "tsa"] as AltMethodKey[]).filter((k) => items.some((v) => cutoffFor(v.program, k)));
+  const altKeys = (["hocba"] as AltMethodKey[]).filter((k) => items.some((v) => cutoffFor(v.program, k)));
   const cut = (v: ProgramView, i: number) => v.program.cutoffs[i];
 
   const rows: Row[] = [
@@ -59,7 +58,7 @@ export function CompareView() {
         const c = cutoffFor(v.program, k);
         return c ? (
           <>
-            {formatMethodScore(c.score, k)} ({c.year}) {c.estimated && <EstimatedTag />}
+            {formatMethodScore(c.score, k)} ({c.year})
           </>
         ) : (
           <span className="text-slate-500">Không xét</span>

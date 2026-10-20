@@ -61,7 +61,7 @@ Luồng mong muốn phải là:
 
 Hiện tại luồng bị gãy ở nhiều điểm:
 
-1. Pipeline không có `database/csv/fields_of_study.csv`, nên chủ động dừng ở `scripts/publish-catalog.ts:106-110`.
+1. Pipeline không có `database/csv/fields_of_study.csv`, nên chủ động dừng ở `database/scripts/publish-catalog.ts:106-110`.
 2. Cả 327 trường trong `institutions.csv` đang trống `ownership`; cả 5.570 chương trình đang trống `quota`.
 3. Form nhập hợp nhất tự gán thành phố, loại trường, mã ngành ngẫu nhiên, tổ hợp, chỉ tiêu và thời lượng học.
 4. Một số chi tiết ngành và phương thức tuyển sinh không được lưu/đọc đầy đủ.
@@ -75,7 +75,7 @@ Vì vậy, vấn đề cốt lõi không phải thiếu thêm màn hình mà là
 
 **Bằng chứng**
 
-- `scripts/publish-catalog.ts:106-110` dừng khi thiếu `fields_of_study.csv`.
+- `database/scripts/publish-catalog.ts:106-110` dừng khi thiếu `fields_of_study.csv`.
 - Audit CSV ngày 13/10/2026: 327/327 trường thiếu `ownership`; 5.570/5.570 chương trình thiếu `quota`.
 
 **Tác động**
@@ -116,8 +116,8 @@ Vì vậy, vấn đề cốt lõi không phải thiếu thêm màn hình mà là
 
 **Bằng chứng**
 
-- Repository công khai luôn lọc `WHERE NOT hidden`: `src/repositories/postgres.ts:74`, `164`, `181`.
-- Repository quản trị lại gọi trực tiếp repository công khai: `src/repositories/postgres-catalog.ts:152-158`.
+- Repository công khai luôn lọc `WHERE NOT hidden`: `database/repositories/postgres.ts:74`, `164`, `181`.
+- Repository quản trị lại gọi trực tiếp repository công khai: `database/repositories/postgres-catalog.ts:152-158`.
 
 **Tác động**
 
@@ -133,10 +133,9 @@ Vì vậy, vấn đề cốt lõi không phải thiếu thêm màn hình mà là
 
 **Bằng chứng**
 
-- Schema có `major_curriculum_blocks`, `major_curriculum_items`, `major_careers`: `database/schema.sql:185-209`.
-- Loader luôn trả `curriculum: []`, `careers: []`: `src/repositories/postgres.ts:197-202`.
-- `saveMajor()` chỉ lưu bảng ngành và RIASEC: `src/repositories/postgres-catalog.ts:90-112`.
-- `createProgram()` lưu chương trình, tổ hợp, điểm chuẩn nhưng không lưu `program_admission_methods`: `src/repositories/postgres-catalog.ts:115-148`.
+- Loader luôn trả `curriculum: []`, `careers: []`: `database/repositories/postgres.ts:197-202`.
+- `saveMajor()` chỉ lưu bảng ngành và RIASEC: `database/repositories/postgres-catalog.ts:90-112`.
+- `createProgram()` lưu chương trình, tổ hợp, điểm chuẩn nhưng không lưu `program_admission_methods`: `database/repositories/postgres-catalog.ts:115-148`.
 
 **Tác động**
 
@@ -153,7 +152,7 @@ Vì vậy, vấn đề cốt lõi không phải thiếu thêm màn hình mà là
 **Bằng chứng**
 
 - Schema đã có bảng quan hệ cho review, QA, survey, share, class, notification, chat log: `database/schema.sql:687-872`, `955-962`.
-- Runtime lại lưu các đối tượng trên vào `app_documents`: `src/repositories/postgres-documents.ts:149-249`, `295-358`.
+- Runtime lại lưu các đối tượng trên vào `app_documents`: `database/repositories/postgres-documents.ts:149-249`, `295-358`.
 - Migration `database/migrations/20261013_postgres_runtime.sql:6-23` không đặt khóa ngoại cho `owner_id`, `parent_id`.
 
 **Tác động**
@@ -172,7 +171,7 @@ Vì vậy, vấn đề cốt lõi không phải thiếu thêm màn hình mà là
 **Bằng chứng**
 
 - `deleteAccount()` chỉ gọi `repositories.users.delete(id)`: `src/services/auth.service.ts:397-398`.
-- `user-data` có hàm delete riêng nhưng không được gọi: `src/repositories/postgres-documents.ts:141-146`.
+- `user-data` có hàm delete riêng nhưng không được gọi: `database/repositories/postgres-documents.ts:141-146`.
 - Các document khác chứa `owner_id` nhưng không có FK/cascade.
 
 **Tác động**
@@ -270,7 +269,6 @@ Nguồn kiểm tra: [Thông tư 06/2026/TT-BGDĐT, Cổng văn bản Chính ph�
 
 ### P1-09 — Review và hỏi đáp có huy hiệu tin cậy cao hơn mức xác minh thật
 
-- Review cho phép người dùng tự khai sinh viên/cựu sinh viên: `src/services/review.service.ts:185-214`; email trường chỉ là badge.
 - QA tin email trùng domain website là sinh viên: `src/services/community.service.ts:85-90`.
 - Website rỗng/sai làm `new URL()` ném lỗi 500.
 
@@ -288,13 +286,13 @@ Nguồn kiểm tra: [Thông tư 06/2026/TT-BGDĐT, Cổng văn bản Chính ph�
 
 ### P1-11 — Cập nhật user không nguyên tử và làm mất metadata duyệt cán bộ trường
 
-`syncUserAccess()` xóa rồi chèn lại vai trò/staff tại `src/repositories/postgres.ts:400-420`, không giữ `reviewed_by`; schema có cột này tại `database/schema.sql:351`. Cập nhật bảng user và sync quyền là hai transaction khác nhau tại `475-505`.
+`syncUserAccess()` xóa rồi chèn lại vai trò/staff tại `database/repositories/postgres.ts:400-420`, không giữ `reviewed_by`; schema có cột này tại `database/schema.sql:351`. Cập nhật bảng user và sync quyền là hai transaction khác nhau tại `475-505`.
 
 **Sửa:** một transaction cho user + roles + staff; update delta thay vì xóa/chèn; giữ nguyên reviewer metadata khi chỉ đổi profile.
 
 ### P1-12 — Cache catalog không nhận thay đổi từ pipeline hoặc instance khác
 
-Cache module chỉ nạp một lần, chỉ invalidated bởi các hàm admin trong cùng process: `src/repositories/postgres.ts:153-217`, `src/repositories/postgres-catalog.ts:87`, `112`, `149`.
+Cache module chỉ nạp một lần, chỉ invalidated bởi các hàm admin trong cùng process: `database/repositories/postgres.ts:153-217`, `database/repositories/postgres-catalog.ts:87`, `112`, `149`.
 
 **Sửa:** catalog version trong DB; cache key theo version hoặc TTL ngắn; publish phát notification/invalidation cho mọi instance.
 
@@ -317,7 +315,7 @@ Cache module chỉ nạp một lần, chỉ invalidated bởi các hàm admin tr
 9. **Pagination che lỗi URL:** page ngoài phạm vi bị ép về trang cuối: `src/services/program.service.ts:139-141`; API thường nên trả trang rỗng hoặc lỗi rõ.
 10. **Tính năng không có quy trình cấp dữ liệu:** FAQ, hỗ trợ tài chính và đợt bổ sung chỉ có reader; không thấy writer/admin workflow tương ứng.
 11. **API chưa thống nhất:** `/api/v1` mới bao phủ catalog; các API còn lại dùng nhiều response shape khác nhau, làm FE khó xử lý lỗi nhất quán.
-12. **Tài liệu lệch code:** README vẫn nhắc `src/data/*`, dữ liệu demo và JSON/in-memory dù runtime hiện đã PostgreSQL-only.
+12. **Tài liệu lệch code:** README vẫn nhắc `database/seeds/*`, dữ liệu demo và JSON/in-memory dù runtime hiện đã PostgreSQL-only.
 
 ## 8. Những điểm nghiệp vụ đang làm đúng
 
@@ -342,7 +340,6 @@ Không nên thêm đồng loạt. Bốn chức năng đầu mang lại giá tr�
 | F5 | Ghép học bổng/hỗ trợ tài chính | Match điều kiện thực, thời hạn, hồ sơ và nguồn; không chỉ hiển thị danh sách tĩnh. | Writer/admin workflow tài chính |
 | F6 | Checklist hồ sơ và deadline cá nhân | Theo dõi giấy tờ còn thiếu theo phương thức; nhắc hạn có trạng thái gửi thật. | F2 + notification ổn định |
 | F7 | Xác minh sinh viên/cựu sinh viên nhiều mức | Nâng độ tin cậy cho review, QA và outcome survey. | Identity/evidence workflow |
-| F8 | Khảo sát kết quả theo năm | Theo dõi thay đổi mức hài lòng/việc làm sau 1, 2, 3 năm thay vì một phiếu vĩnh viễn. | P1-08 + normalized survey |
 
 ### Không nên làm ngay
 

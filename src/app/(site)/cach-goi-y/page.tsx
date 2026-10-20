@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LuArrowRight, LuDatabase, LuFileText, LuFilter, LuListChecks, LuReceipt, LuScale, LuTriangleAlert } from "react-icons/lu";
+import { LuDatabase, LuFileText, LuFilter, LuListChecks, LuReceipt, LuScale, LuTriangleAlert } from "react-icons/lu";
 import { ADMISSION_METHODS, METHOD_KEYS, PRIORITY_REDUCTION_THRESHOLD } from "@/services";
 import { buttonClass } from "@/components/ui/button";
 import { Card, SectionHeading } from "@/components/ui/card";
@@ -173,11 +173,8 @@ export default function HowItWorksPage() {
           <div>
             <p className="text-xs font-bold tracking-wider text-success-700 uppercase">Cập nhật: 09/2026</p>
             <h2 className="mt-2 text-xl font-bold">Chu kỳ cập nhật & rà soát sai sót</h2>
-            <p className="mt-2 max-w-xl text-sm text-slate-600">Dữ liệu được rà soát theo mùa tuyển sinh. Khi phát hiện sai lệch, bạn có thể báo để đội biên tập kiểm tra trong 48 giờ làm việc.</p>
+            <p className="mt-2 max-w-xl text-sm text-slate-600">Dữ liệu được rà soát theo mùa tuyển sinh và đối chiếu với nguồn chính thức của từng trường.</p>
           </div>
-          <Link href="/tro-giup#bao-loi" className={buttonClass()}>
-            Báo dữ liệu sai <LuArrowRight className="size-4" aria-hidden />
-          </Link>
         </section>
       </div>
     </>

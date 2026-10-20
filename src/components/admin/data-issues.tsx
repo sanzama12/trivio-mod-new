@@ -27,33 +27,33 @@ export function DataIssues({ issues }: { issues: DataIssue[] }) {
 
   return (
     <>
-      <div className="mt-5 flex flex-wrap gap-3">
-        <label className="sr-only" htmlFor="iss-type">
-          Loại dữ liệu
+      <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,220px)_minmax(220px,1fr)]">
+        <label className="min-w-0">
+          <span className="sr-only">Loại dữ liệu</span>
+          <select id="iss-type" className={`${selectCls} w-full`} value={type} onChange={(e) => (setType(e.target.value), setPage(1))}>
+            <option value="">Loại dữ liệu: Tất cả</option>
+            {types.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
         </label>
-        <select id="iss-type" className={selectCls} value={type} onChange={(e) => (setType(e.target.value), setPage(1))}>
-          <option value="">Loại dữ liệu: Tất cả</option>
-          {types.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-        <label className="sr-only" htmlFor="iss-school">
-          Trường
+        <label className="min-w-0">
+          <span className="sr-only">Trường</span>
+          <select id="iss-school" className={`${selectCls} w-full`} value={school} onChange={(e) => (setSchool(e.target.value), setPage(1))}>
+            <option value="">Trường/Ngành: Tất cả</option>
+            {schools.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
         </label>
-        <select id="iss-school" className={selectCls} value={school} onChange={(e) => (setSchool(e.target.value), setPage(1))}>
-          <option value="">Trường/Ngành: Tất cả</option>
-          {schools.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-        <label className="relative min-w-[220px] flex-1">
+        <label className="relative min-w-0">
           <span className="sr-only">Tìm theo tên chương trình</span>
           <LuSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" aria-hidden />
           <input type="search" className={`${inputCls} pl-9`} placeholder="Tìm theo tên chương trình…" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} />
         </label>
       </div>
       <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full min-w-[860px]">
+        <table className="w-full min-w-[860px] table-fixed">
           <thead className="bg-slate-50">
             <tr>
               <th className={th}>Loại dữ liệu</th>

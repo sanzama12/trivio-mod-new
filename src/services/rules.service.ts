@@ -3,12 +3,12 @@
  * Thuật toán gợi ý (recommendation.service) đọc cấu hình hiệu lực qua `effectiveRecommendConfig()`.
  */
 import { randomUUID } from "node:crypto";
-import type { PublicUser, RecommendConfig, RecRule, RecRuleKind, RecRuleStatus, RiasecType, SchoolType } from "../domain/types";
-import { repositories } from "../repositories";
+import type { PublicUser, RecommendConfig, RecRule, RecRuleKind, RecRuleStatus, SchoolType } from "../domain/types";
+import { repositories } from "@database/repositories";
 
 export const DEFAULT_REC_WEIGHTS = { interest: 45, fit: 35, place: 10, group: 10 } as const;
 export const WEIGHT_LABELS: Record<keyof RecommendConfig["weights"], string> = {
-  interest: "Kết quả RIASEC (hợp sở thích)",
+  interest: "Mức độ phù hợp sở thích",
   fit: "Điểm thi THPT (khả năng trúng tuyển)",
   place: "Khu vực ưu tiên",
   group: "Nhóm ngành quan tâm",
@@ -18,7 +18,6 @@ const now = () => new Date().toISOString();
 const BASE_TIME = "2026-09-15T00:00:00.000Z";
 
 export const RULE_KIND_LABELS: Record<RecRuleKind, string> = {
-  "riasec-match": "Khớp ngành",
   budget: "Bộ lọc",
   diversity: "Đa dạng",
   "goal-priority": "Mục tiêu",
@@ -28,12 +27,11 @@ export const RULE_KIND_LABELS: Record<RecRuleKind, string> = {
 };
 
 /** Các loại quy tắc chỉ có MỘT bản đang áp dụng. */
-const SINGLETON: RecRuleKind[] = ["riasec-match", "budget", "diversity", "goal-priority", "min-years", "boost-cutoff"];
+const SINGLETON: RecRuleKind[] = ["budget", "diversity", "goal-priority", "min-years", "boost-cutoff"];
 /** Loại quy tắc quản trị viên được tạo mới. */
 export const CREATABLE_KINDS: RecRuleKind[] = ["boost-cutoff", "boost-school-type"];
 
 export const DEFAULT_RULES: RecRule[] = [
-  { id: "r-riasec", kind: "riasec-match", name: "Ưu tiên ngành phù hợp RIASEC", description: "Điểm sở thích = mức khớp mã Holland của học sinh với ngành, nhân trọng số nhóm cấu hình ở mục Bài test RIASEC.", version: "v2.1", status: "active", params: {}, builtin: true, updatedAt: BASE_TIME },
   { id: "r-budget", kind: "budget", name: "Lọc theo ngân sách học phí", description: "Loại các chương trình có học phí thấp nhất vượt ngân sách người dùng đặt quá mức cho phép.", version: "v1.3", status: "active", params: { tolerance: 0 }, builtin: true, updatedAt: "2026-08-10T00:00:00.000Z" },
   { id: "r-diversity", kind: "diversity", name: "Đa dạng kết quả", description: "Giới hạn số chương trình cùng ngành và cùng trường trong danh sách gợi ý.", version: "v1.0", status: "active", params: { perMajor: 2, perSchool: 2, goalMajor: 3 }, builtin: true, updatedAt: BASE_TIME },
   { id: "r-goal", kind: "goal-priority", name: "Ưu tiên ngành mục tiêu", description: "Chương trình thuộc ngành mục tiêu lên trước, rồi tới ngành cùng nhóm.", version: "v1.0", status: "active", params: {}, builtin: true, updatedAt: BASE_TIME },
@@ -48,7 +46,6 @@ export function defaultRecommendConfig(): RecommendConfig {
 export interface EffectiveRecommendConfig {
   /** Trọng số dạng phân số (tổng = 1). */
   weights: { interest: number; fit: number; place: number; group: number };
-  useTypeWeights: boolean;
   budgetTolerance: number | null;
   diversity: { perMajor: number; perSchool: number; goalMajor: number } | null;
   goalPriority: boolean;
@@ -68,7 +65,6 @@ export function toEffective(cfg: RecommendConfig): EffectiveRecommendConfig {
   const boost = active("boost-cutoff");
   return {
     weights: { interest: cfg.weights.interest / sum, fit: cfg.weights.fit / sum, place: cfg.weights.place / sum, group: cfg.weights.group / sum },
-    useTypeWeights: !!active("riasec-match"),
     budgetTolerance: budget ? num(budget.params.tolerance, 0) : null,
     diversity: div ? { perMajor: num(div.params.perMajor, 2), perSchool: num(div.params.perSchool, 2), goalMajor: num(div.params.goalMajor, 3) } : null,
     goalPriority: !!active("goal-priority"),
@@ -92,16 +88,9 @@ export async function effectiveRecommendConfig(): Promise<EffectiveRecommendConf
   return toEffective(await loadRecommendConfig());
 }
 
-/** Trọng số nhóm Holland (A06) — 1.0 nếu chưa cấu hình. */
-export async function riasecTypeWeights(): Promise<Record<RiasecType, number>> {
-  const cfg = await repositories.quizConfig.get();
-  return { R: 1, I: 1, A: 1, S: 1, E: 1, C: 1, ...(cfg?.typeWeights ?? {}) };
-}
-
 type Fail = { ok: false; status: number; message: string; field?: string };
 
 const PARAM_RULES: Record<RecRuleKind, Record<string, { min: number; max: number } | { options: string[] }>> = {
-  "riasec-match": {},
   budget: { tolerance: { min: 0, max: 100 } },
   diversity: { perMajor: { min: 1, max: 6 }, perSchool: { min: 1, max: 6 }, goalMajor: { min: 1, max: 6 } },
   "goal-priority": {},
@@ -154,17 +143,17 @@ export const rulesService = {
 
   async saveWeights(actor: PublicUser, input: unknown): Promise<{ ok: true } | Fail> {
     const src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
-    const w = { interest: 0, fit: 0, place: 0, group: 0 };
-    for (const k of Object.keys(w) as (keyof typeof w)[]) {
+    const cfg = await loadRecommendConfig();
+    const w = { ...cfg.weights };
+    for (const k of ["fit", "place", "group"] as const) {
       const v = Number(src[k]);
       if (!Number.isInteger(v) || v < 0 || v > 100) return { ok: false, status: 400, field: k, message: `Trọng số "${WEIGHT_LABELS[k]}" phải là số nguyên 0–100.` };
       w[k] = v;
     }
     if (w.interest + w.fit + w.place + w.group !== 100) return { ok: false, status: 400, message: "Tổng trọng số phải bằng 100%." };
-    const cfg = await loadRecommendConfig();
     const before = `${cfg.weights.interest}/${cfg.weights.fit}/${cfg.weights.place}/${cfg.weights.group}`;
     await repositories.recommendConfig.save({ ...cfg, weights: w, updatedAt: now() });
-    await audit(actor, "update", "Trọng số gợi ý (RIASEC/điểm/khu vực/nhóm ngành)", before, `${w.interest}/${w.fit}/${w.place}/${w.group}`);
+    await audit(actor, "update", "Trọng số gợi ý (điểm/khu vực/nhóm ngành)", before, `${w.interest}/${w.fit}/${w.place}/${w.group}`);
     return { ok: true };
   },
 
@@ -234,10 +223,6 @@ export const rulesService = {
     }
     const rules = input.includeDrafts === true ? cfg.rules.map((r) => (r.status === "draft" ? { ...r, status: "active" as const } : r)) : cfg.rules;
     const eff = toEffective({ ...cfg, weights: w, rules });
-    const letters = [...new Set(String(input.code ?? "").toUpperCase().replace(/[^RIASEC]/g, "").split(""))].slice(0, 3) as RiasecType[];
-    const order: RiasecType[] = ["R", "I", "A", "S", "E", "C"];
-    const code = (letters.length === 3 ? letters : (["I", "A", "S"] as RiasecType[])) as [RiasecType, RiasecType, RiasecType];
-    const percents = Object.fromEntries(order.map((t) => [t, t === code[0] ? 90 : t === code[1] ? 75 : t === code[2] ? 60 : 30])) as Record<RiasecType, number>;
     const total = Number(String(input.score ?? "").replace(",", "."));
     const combo = typeof input.combo === "string" && /^[A-Z]\d{2}$/.test(input.combo) ? input.combo : "A00";
     const budget = Number(input.budget);
@@ -245,7 +230,7 @@ export const rulesService = {
     const { recommendationService } = await import("./recommendation.service");
     const res = await recommendationService.recommend(
       {
-        riasec: { percents, code },
+        riasec: null,
         score: Number.isFinite(total) && total > 0 && total <= 30 ? { method: "thpt", total, combo } : null,
         budgetMax: Number.isFinite(budget) && budget > 0 ? budget : null,
         regions: regions.length ? [...regions] : undefined,
@@ -254,7 +239,6 @@ export const rulesService = {
       eff,
     );
     return {
-      code: code.join(""),
       items: res.items.map((r) => ({
         id: r.view.program.id,
         slug: r.view.program.slug,

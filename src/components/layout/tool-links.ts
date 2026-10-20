@@ -5,6 +5,5 @@ export const TOOL_LINKS = [
   { label: "Ma trận quyết định", href: "/so-sanh?tab=ma-tran", match: ["/so-sanh"] },
   { label: "Học bổng & vay vốn", href: "/chi-phi#ho-tro", match: ["/chi-phi"] },
   { label: "Kênh giáo viên", href: "/lop-hoc", match: ["/lop-hoc"] },
-  { label: "Phản hồi sau 1 năm học", href: "/phan-hoi-nganh", match: ["/phan-hoi-nganh"] },
   { label: "Bản nhẹ cho mạng yếu", href: "/nhe", match: ["/nhe"] },
 ] as const;

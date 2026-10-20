@@ -10,10 +10,12 @@
  *   - Ngành chưa tồn tại? Tự động tạo ngành mới.
  *   - Lần sau dễ dàng lọc và sửa bổ sung cho đầy đủ ngay trên bảng.
  */
+import { createId, isMajorCode } from "@database/identity";
+import { withAtomicResult } from "@database/client";
 import { randomUUID } from "node:crypto";
 import type { Program, PublicUser, School, Major, SchoolType, RiasecType, MajorGroup } from "../domain/types";
 import { PROVINCES, PROVINCE_REGION } from "../domain/provinces";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { normalizeVi } from "../lib/text";
 import { slugify } from "./catalog-admin.service";
 import { defaultRiasecForGroup, findMajorForImport, inferMajorGroupId } from "./major-mapping.service";
@@ -88,6 +90,9 @@ export const unifiedEntryService = {
    * Hỗ trợ UnifiedEntryContext cho batch import cực nhanh không bị N+1 database roundtrips.
    */
   async save(actor: PublicUser, input: UnifiedEntryInput, ctx?: UnifiedEntryContext) {
+    return withAtomicResult(() => unifiedEntryService.saveEntry(actor, input, ctx));
+  },
+  async saveEntry(actor: PublicUser, input: UnifiedEntryInput, ctx?: UnifiedEntryContext) {
     const rawCode = str(input.schoolCode, 10).toUpperCase();
     if (!rawCode) {
       return { ok: false, status: 400, field: "schoolCode", message: "Vui lòng nhập mã trường (VD: BKA, NEU, FPT)." } as const;
@@ -100,24 +105,33 @@ export const unifiedEntryService = {
     const currentYear = new Date().getFullYear();
     const targetYear = input.year && Number.isInteger(input.year) && input.year >= 2020 ? input.year : currentYear;
 
+    const scoreInput = cleanNum(input.score);
+    if (input.score != null && (scoreInput == null || scoreInput <= 0 || scoreInput > 30)) {
+      return { ok: false, status: 400, field: "score", message: "Điểm chuẩn phải lớn hơn 0 và không quá 30." } as const;
+    }
+    if (input.majorCode && !isMajorCode(input.majorCode.trim().replace(/^\d+[-._\s]+/, ""))) {
+      return { ok: false, status: 400, field: "majorCode", message: "Mã ngành không hợp lệ." } as const;
+    }
+    if (!input.admissionCode?.trim()) {
+      return { ok: false, status: 400, field: "admissionCode", message: "Cần mã xét tuyển do trường công bố." } as const;
+    }
+    if (input.cutoffs && (input.cutoffs.some(c => !Number.isInteger(c.year) || c.year < 2000 || c.year > 2100 || !Number.isFinite(c.score) || c.score <= 0 || c.score > 30) || new Set(input.cutoffs.map(c=>c.year)).size !== input.cutoffs.length)) {
+      return { ok: false, status: 400, field: "cutoffs", message: "Điểm chuẩn phải đúng thang và mỗi năm chỉ có một bản ghi." } as const;
+    }
+    const minFee=cleanNum(input.tuitionMin), maxFee=cleanNum(input.tuitionMax), seats=cleanNum(input.quota);
+    if ((minFee != null && minFee < 0) || (maxFee != null && maxFee < (minFee ?? 0)) || (seats != null && (!Number.isInteger(seats) || seats < 0))) {
+      return { ok: false, status: 400, message: "Học phí hoặc chỉ tiêu không hợp lệ." } as const;
+    }
     // ── 1. Xử lý Trường & Cơ sở ───────────────────────────────────────────────
     const allSchools = ctx ? ctx.schools : await repositories.catalogAdmin.listSchools();
     let school = allSchools.find((s) => s.code.toUpperCase() === rawCode);
-    if (!school && input.schoolName) {
-      const normInputSchoolName = normalizeVi(input.schoolName).toLowerCase();
-      school = allSchools.find(
-        (s) =>
-          normalizeVi(s.name).toLowerCase() === normInputSchoolName ||
-          normalizeVi(s.shortName).toLowerCase() === normInputSchoolName ||
-          s.slug === slugify(input.schoolName!),
-      );
-    }
     let isNewSchool = false;
 
     const city = str(input.city, 40) || (school ? school.city : "Thành phố Hà Nội");
     const campusIn = str(input.campus, 160);
 
     if (!school) {
+      if (!input.city || !PROVINCES.includes(input.city as typeof PROVINCES[number])) return { ok: false, status: 400, field: "city", message: "Cần tỉnh/thành phố của trường mới." } as const;
       isNewSchool = true;
       const schoolName = str(input.schoolName, 120) || `Trường Đại học ${rawCode}`;
       const shortName = schoolName.replace(/^Trường\s+/i, "").replace(/^Đại học/i, "ĐH");
@@ -131,12 +145,7 @@ export const unifiedEntryService = {
         slugCount++;
       }
 
-      let schoolId = `sch-${slugify(rawCode)}`;
-      let idCount = 2;
-      while (allSchools.some((s) => s.id === schoolId)) {
-        schoolId = `sch-${slugify(rawCode)}-${idCount}`;
-        idCount++;
-      }
+      const schoolId = createId("school");
 
       const newSchool: School = {
         id: schoolId,
@@ -152,6 +161,7 @@ export const unifiedEntryService = {
         students: 0,
         highlight: "",
         website: "",
+        logoUrl: null,
         description: "",
         scholarships: "",
         custom: true,
@@ -201,17 +211,35 @@ export const unifiedEntryService = {
     const baseCodeMatch = rawMajorCode.match(/^(\d+)[-._\s]+([A-Z0-9]+)$/i);
     const baseMajorCode = baseCodeMatch ? baseCodeMatch[2] : rawMajorCode;
 
-    let major = findMajorForImport(allMajors, rawMajorName, baseMajorCode || rawMajorCode);
+    const allPrograms = ctx ? ctx.programs : await repositories.catalogAdmin.listPrograms();
+    
+    // Chuẩn hóa mã xét tuyển (hỗ trợ đánh số 1 2 3 trước mã ngành cho chuyên ngành hẹp)
+    let rawAdmission = str(input.admissionCode, 30).trim();
+    rawAdmission = rawAdmission.replace(/^\((\d+)\)\s*/, "$1-");
+    rawAdmission = rawAdmission.replace(/^(\d+)[.)\s_-]+([a-zA-Z0-9]+)/, "$1-$2");
+    const admissionCode = rawAdmission.toUpperCase().replace(/\s+/g, "-");
+    
+    // ID is authoritative for edits; imports use school + admission code.
+    let existingProgram = input.id ? allPrograms.find((p) => p.id === input.id) :
+      allPrograms.find((p) => p.schoolId === school.id && p.admissionCode.trim().toUpperCase() === admissionCode);
+    if (input.id && (!existingProgram || existingProgram.schoolId !== school.id)) {
+      return { ok: false, status: 409, field: "id", message: "ID chương trình không thuộc trường đã chọn." } as const;
+    }
+    if (allPrograms.some((p) => p.schoolId === school.id && p.id !== existingProgram?.id && p.admissionCode.trim().toUpperCase() === admissionCode)) {
+      return { ok: false, status: 409, field: "admissionCode", message: "Mã xét tuyển đã tồn tại trong trường." } as const;
+    }
+    const finalAdmissionCode = admissionCode;
+
+    let major = existingProgram ? allMajors.find((m) => m.id === existingProgram.majorId) : findMajorForImport(allMajors, rawMajorName, baseMajorCode || rawMajorCode);
     let isNewMajor = false;
 
     if (!major) {
       isNewMajor = true;
       const groups = ctx?.majorGroups ?? await repositories.majors.findGroups();
-      const finalMajorCode = baseMajorCode && /^\d{7}$/.test(baseMajorCode)
-        ? baseMajorCode
-        : rawMajorCode && /^\d{7}$/.test(rawMajorCode)
-          ? rawMajorCode
-          : `799${Math.floor(1000 + Math.random() * 9000)}`;
+      if (!isMajorCode(baseMajorCode)) {
+        return { ok: false, status: 400, field: "majorCode", message: "Cần mã ngành chuẩn 7 số hoặc chọn ngành đã có; không tự tạo mã ngành giả." } as const;
+      }
+      const finalMajorCode = baseMajorCode;
 
       let baseMajorSlug = slugify(rawMajorName);
       let majorSlug = baseMajorSlug;
@@ -221,12 +249,7 @@ export const unifiedEntryService = {
         majSlugCount++;
       }
 
-      let majorId = `maj-${slugify(rawMajorName)}`;
-      let majIdCount = 2;
-      while (allMajors.some((m) => m.id === majorId)) {
-        majorId = `maj-${slugify(rawMajorName)}-${majIdCount}`;
-        majIdCount++;
-      }
+      const majorId = createId("major");
 
       const newMajor: Major = {
         id: majorId,
@@ -237,10 +260,6 @@ export const unifiedEntryService = {
         riasec: ["I", "R", "C"],
         summary: `Ngành ${rawMajorName} đào tạo chuyên môn tại trường đại học.`,
         description: "",
-        curriculum: [],
-        careers: [],
-        demand: "Trung bình",
-        growth: 0,
         custom: true,
         hidden: false,
       };
@@ -264,31 +283,6 @@ export const unifiedEntryService = {
     }
 
     // ── 3. Xử lý Chương trình, Điểm chuẩn & Học phí ────────────────────────────
-    const allPrograms = ctx ? ctx.programs : await repositories.catalogAdmin.listPrograms();
-    
-    // Chuẩn hóa mã xét tuyển (hỗ trợ đánh số 1 2 3 trước mã ngành cho chuyên ngành hẹp)
-    let rawAdmission = str(input.admissionCode, 30).trim();
-    rawAdmission = rawAdmission.replace(/^\((\d+)\)\s*/, "$1-");
-    rawAdmission = rawAdmission.replace(/^(\d+)[.)\s_-]+([a-zA-Z0-9]+)/, "$1-$2");
-    let admissionCode = rawAdmission.toUpperCase().replace(/\s+/g, "-") ||
-      (rawMajorCode ? rawMajorCode.replace(/\s+/g, "-").toUpperCase() : slugify(rawMajorName).toUpperCase());
-    
-    // Tìm chương trình đã có trong trường (khớp id hoặc khớp chính xác tên chương trình)
-    const normInputName = normalizeVi(rawMajorName).toLowerCase();
-    let existingProgram = input.id ? allPrograms.find((p) => p.id === input.id) : null;
-    if (!existingProgram) {
-      existingProgram = allPrograms.find((p) => p.schoolId === school.id && normalizeVi(p.name).toLowerCase() === normInputName) ?? null;
-    }
-
-    // Đảm bảo không vi phạm UNIQUE (school_id, admission_code) khi nhiều chuyên ngành hẹp dùng chung mã:
-    // Nếu trong trường đã có chương trình mang mã này nhưng tên khác, tự động sinh mã phân biệt: 2-..., 3-...
-    let finalAdmissionCode = admissionCode;
-    let codeSuffix = 2;
-    while (allPrograms.some((p) => p.schoolId === school.id && p.id !== existingProgram?.id && p.admissionCode && p.admissionCode.toUpperCase() === finalAdmissionCode.toUpperCase())) {
-      finalAdmissionCode = `${codeSuffix}-${admissionCode.replace(/^\d+-/, "")}`;
-      codeSuffix++;
-    }
-
     const isDuplicate = Boolean(existingProgram && !input.id);
 
     // Xử lý điểm chuẩn (nếu có; nếu null/trống thì lưu [] hoặc giữ nguyên)
@@ -308,7 +302,7 @@ export const unifiedEntryService = {
         ? String(input.combos).toUpperCase().split(/[\s,;/]+/).filter(Boolean)
         : [];
 
-    const quota = cleanNum(input.quota) ?? 100;
+    const quota = cleanNum(input.quota) ?? 0;
     const campus = campusIn || school.campuses[0] || school.city;
 
     if (existingProgram) {
@@ -331,17 +325,19 @@ export const unifiedEntryService = {
       };
       if (input.source) patch.source = str(input.source, 200);
 
-      const existingOverride = (await repositories.programAdmin.getOverride(existingProgram.id)) ?? {};
-      await repositories.programAdmin.setOverride(existingProgram.id, { ...existingOverride, ...patch }, {
-        id: randomUUID(),
-        at: now(),
-        actorId: actor.id,
-        actorEmail: actor.email,
-        programId: existingProgram.id,
-        targetType: "program",
-        action: "update",
-        changes: [{ field: "Cập nhật tích hợp", before: "—", after: `${school.code} · ${rawMajorName}` }],
-      });
+      if (!ctx?.programsToInsert?.some((p) => p.id === existingProgram.id)) {
+        await repositories.programAdmin.patchProgram(existingProgram.id, patch, {
+          id: randomUUID(),
+          at: now(),
+          actorId: actor.id,
+          actorEmail: actor.email,
+          programId: existingProgram.id,
+          targetType: "program",
+          action: "update",
+          changes: [{ field: "Cập nhật tích hợp", before: "—", after: `${school.code} · ${rawMajorName}` }],
+        });
+      }
+      Object.assign(existingProgram, patch);
 
       const scoreNote = scoreVal != null ? `điểm chuẩn ${targetYear}: ${scoreVal}` : "giữ nguyên điểm chuẩn";
       return {
@@ -364,12 +360,7 @@ export const unifiedEntryService = {
       };
     } else {
       // ── Tạo chương trình mới (hỗ trợ nhiều chuyên ngành hẹp) ─────────────────
-      let programId = `${school.code.toLowerCase()}-${slugify(rawMajorName)}`;
-      let idCounter = 2;
-      while (allPrograms.some((p) => p.id === programId)) {
-        programId = `${school.code.toLowerCase()}-${slugify(rawMajorName)}-${idCounter}`;
-        idCounter++;
-      }
+      const programId = createId("program");
 
       let slug = `${slugify(rawMajorName)}-${school.code.toLowerCase()}`;
       let slugCounter = 2;
@@ -399,13 +390,13 @@ export const unifiedEntryService = {
         admissionCode: finalAdmissionCode,
         trainingType: (input.trainingType as Program["trainingType"]) || "Chính quy",
         campus,
-        combos: combos.length ? combos : ["A00", "D01"],
+        combos: [...new Set(combos)],
         cutoffs: initialCutoffs,
         altCutoffs: [],
         tuitionMin: tMin,
         tuitionMax: tMax >= tMin ? tMax : tMin,
         durationYears: 4,
-        quota: quota > 0 ? quota : 100,
+        quota: quota > 0 ? quota : 0,
         competition: scoreVal && scoreVal >= 26 ? "Cao" : "Trung bình",
         methods: [
           {
@@ -501,8 +492,7 @@ export const unifiedEntryService = {
       changes.push({ field: "Học phí", before: `${program.tuitionMin}–${program.tuitionMax}`, after: `${tMin}–${tMax}` });
     }
 
-    const existingOverride = (await repositories.programAdmin.getOverride(programId)) ?? {};
-    await repositories.programAdmin.setOverride(programId, { ...existingOverride, ...patch }, {
+    await repositories.programAdmin.patchProgram(programId, { ...patch }, {
       id: randomUUID(),
       at: now(),
       actorId: actor.id,

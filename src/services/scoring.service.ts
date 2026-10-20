@@ -21,9 +21,6 @@ export const ADMISSION_METHODS: Record<
 > = {
   thpt: { label: "Điểm thi tốt nghiệp THPT", short: "Điểm thi THPT", max: 30, factor: 1, decimals: 2, needsCombo: true, inputHint: "Điểm thi hoặc điểm dự kiến, thang 10" },
   hocba: { label: "Xét học bạ THPT", short: "Học bạ", max: 30, factor: 1, decimals: 2, needsCombo: true, inputHint: "Điểm trung bình môn lớp 10–12, thang 10" },
-  "dgnl-hn": { label: "Đánh giá năng lực ĐHQG Hà Nội (HSA)", short: "ĐGNL HN", max: 150, factor: 5, decimals: 0, needsCombo: false, inputHint: "Điểm bài thi HSA, thang 150" },
-  "dgnl-hcm": { label: "Đánh giá năng lực ĐHQG TP.HCM", short: "ĐGNL HCM", max: 1200, factor: 40, decimals: 0, needsCombo: false, inputHint: "Điểm bài thi, thang 1200" },
-  tsa: { label: "Đánh giá tư duy ĐH Bách Khoa Hà Nội (TSA)", short: "ĐGTD TSA", max: 100, factor: 100 / 30, decimals: 2, needsCombo: false, inputHint: "Điểm bài thi TSA, thang 100" },
 };
 
 export const METHOD_KEYS = Object.keys(ADMISSION_METHODS) as AdmissionMethodKey[];
@@ -61,10 +58,10 @@ export function convertIeltsToSubjectScore(ieltsScore: number | string): number 
   return IELTS_CONVERSION_TABLE[key] ?? (num >= 4.0 ? 7.0 : 0);
 }
 
-/** Định dạng điểm theo thang của phương thức (ĐGNL không có phần thập phân). */
+/** Định dạng điểm theo thang của phương thức (thang 30). */
 export function formatMethodScore(n: number | null | undefined, method: AdmissionMethodKey = "thpt"): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  return n.toFixed(ADMISSION_METHODS[method].decimals);
+  return n.toFixed(ADMISSION_METHODS[method]?.decimals ?? 2);
 }
 
 export const PRIORITY_REGION_POINTS: Record<PriorityRegion, number> = {
@@ -106,6 +103,96 @@ export function computeComboTotal(scores: Record<string, number>, combo: Combo):
   const values = combo.subjects.map((s) => scores[s]);
   if (!values.every(isValidSubjectScore)) return null;
   return round2(values.reduce((a, b) => a + b, 0));
+}
+
+export interface ComboRank {
+  code: string;
+  raw: number;
+}
+
+/** Tổ hợp đủ 3 môn, mạnh → yếu theo tổng điểm. */
+export function rankCombos(scores: Record<string, number>, combos: Combo[]): ComboRank[] {
+  return combos
+    .map((combo) => {
+      const raw = computeComboTotal(scores, combo);
+      return raw == null ? null : { code: combo.code, raw };
+    })
+    .filter((row): row is ComboRank => row != null)
+    .sort((a, b) => b.raw - a.raw || a.code.localeCompare(b.code));
+}
+
+export type MethodScore = { method: AdmissionMethodKey; total: number; combo: string };
+
+type ProfileScoreSource = Pick<ScoreProfile, "method" | "combo" | "scores" | "priorityRegion" | "priorityGroup" | "methods"> & {
+  admission: Pick<AdmissionScore, "rawTotal">;
+};
+
+function plannedMethods(profile: Pick<ScoreProfile, "method" | "methods">): AdmissionMethodKey[] {
+  const listed = (profile.methods ?? []).filter(isMethodKey);
+  if (listed.length) return Array.from(new Set(listed));
+  return [profileMethod(profile)];
+}
+
+/** Mọi phương thức học sinh đã có điểm — dùng khi gợi ý / so khớp chương trình. */
+export function methodScoresFromProfile(profile: ProfileScoreSource, combos: Combo[]): MethodScore[] {
+  const ranked = rankCombos(profile.scores ?? {}, combos);
+  const pinned = ranked.find((row) => row.code === profile.combo) ?? ranked[0];
+  const out: MethodScore[] = [];
+  for (const method of plannedMethods(profile)) {
+    if (!pinned) continue;
+    out.push({
+      method,
+      total: computeAdmissionScore(pinned.raw, profile.priorityRegion, profile.priorityGroup, method).total,
+      combo: pinned.code,
+    });
+  }
+  if (!out.length) {
+    const current = profileScore(profile);
+    out.push({ method: current.method, total: current.total, combo: profile.combo ?? "" });
+  }
+  return out;
+}
+
+/** Mọi phương thức hồ sơ khớp chương trình (mỗi phương thức một tổ hợp mạnh nhất). */
+export function listScoresForProgram(
+  profile: ProfileScoreSource,
+  program: CutoffSource & Pick<Program, "combos">,
+  combos: Combo[],
+): MethodScore[] {
+  const ranked = rankCombos(profile.scores ?? {}, combos);
+  const out: MethodScore[] = [];
+  for (const method of plannedMethods(profile)) {
+    const cut = cutoffFor(program, method);
+    if (!cut) continue;
+    let total: number;
+    let combo = "";
+    const usable = ranked.filter((row) => program.combos.includes(row.code));
+    if (!usable.length) continue;
+    combo = usable[0].code;
+    total = computeAdmissionScore(usable[0].raw, profile.priorityRegion, profile.priorityGroup, method).total;
+    if (!computeFit(total, program, method)) continue;
+    out.push({ method, total, combo });
+  }
+  return out;
+}
+
+/** Điểm tốt nhất của hồ sơ với một chương trình: chọn phương thức + tổ hợp khớp, ưu tiên chênh lệch cao nhất. */
+export function scoreForProgram(
+  profile: ProfileScoreSource,
+  program: CutoffSource & Pick<Program, "combos">,
+  combos: Combo[],
+): MethodScore | null {
+  let best: MethodScore | null = null;
+  let bestDiff = -Infinity;
+  for (const row of listScoresForProgram(profile, program, combos)) {
+    const fit = computeFit(row.total, program, row.method);
+    if (!fit) continue;
+    if (fit.diff > bestDiff) {
+      bestDiff = fit.diff;
+      best = row;
+    }
+  }
+  return best;
 }
 
 /**
@@ -203,15 +290,14 @@ export const FIT_LABELS: Record<FitLevel, string> = {
 type CutoffSource = Pick<Program, "cutoffs"> & Partial<Pick<Program, "altCutoffs">>;
 
 /** Điểm chuẩn gần nhất của chương trình theo phương thức (null nếu không xét phương thức đó). */
-export function cutoffFor(program: CutoffSource, method: AdmissionMethodKey = "thpt"): { year: number; score: number; estimated?: boolean } | null {
-  if (method === "thpt") return program.cutoffs[0] ?? null;
-  const c = program.altCutoffs?.find((x) => x.method === method);
-  return c ? { year: c.year, score: c.score, ...(c.estimated ? { estimated: true } : {}) } : null;
+export function cutoffFor(program: CutoffSource, method: AdmissionMethodKey = "thpt"): { year: number; score: number } | null {
+  if (method === "thpt") {
+    const cutoff = program.cutoffs.find((item) => !item.estimated);
+    return cutoff ? { year: cutoff.year, score: cutoff.score } : null;
+  }
+  const cutoff = program.altCutoffs?.find((item) => item.method === method && !item.estimated);
+  return cutoff ? { year: cutoff.year, score: cutoff.score } : null;
 }
-
-/** Nhãn dùng chung cho điểm chuẩn ƯỚC TÍNH (chưa phải điểm trường công bố). */
-export const ESTIMATED_LABEL = "Ước tính";
-export const ESTIMATED_HINT = "Số ước tính suy ra từ điểm thi THPT để minh hoạ — chưa phải điểm chuẩn trường công bố. Đừng dùng để đặt nguyện vọng.";
 
 export const acceptsMethod = (program: CutoffSource, method: AdmissionMethodKey) => cutoffFor(program, method) != null;
 

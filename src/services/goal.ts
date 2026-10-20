@@ -18,10 +18,8 @@ export function choicesForMajor(programs: LiteProgram[], majorId: string): GoalC
   const combos = new Map<string, number>();
   for (const p of ofMajor) if (p.cutoffs.length) for (const c of p.combos) combos.set(c, (combos.get(c) ?? 0) + 1);
   const out: GoalChoice[] = [...combos.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([combo, count]) => ({ method: "thpt", combo, count }));
-  for (const m of ["dgnl-hn", "dgnl-hcm", "tsa"] as const) {
-    const count = ofMajor.filter((p) => p.altCutoffs.some((a) => a.method === m)).length;
-    if (count) out.push({ method: m, combo: null, count });
-  }
+  const hb = ofMajor.filter((p) => p.altCutoffs.some((a) => a.method === "hocba")).length;
+  if (hb) out.push({ method: "hocba", combo: null, count: hb });
   return out;
 }
 

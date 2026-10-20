@@ -16,7 +16,7 @@ const DOT: Record<string, string> = { import: "bg-success-500", program: "bg-pri
 
 export default async function AdminOverviewPage() {
   const user = await adminPage("/quan-tri", { staff: true });
-  if (!user.admin) redirect("/quan-tri/cam-nhan"); // kiểm duyệt viên chỉ có mục kiểm duyệt
+  if (!user.admin) redirect("/quan-tri/hoi-dap");
   const data = await dataOpsService.overview();
   const submissions = data.submissions;
   const { stats, progress } = data;
@@ -26,7 +26,7 @@ export default async function AdminOverviewPage() {
 
   return (
     <>
-      <AdminHeader title="Tổng quan dữ liệu" crumb="Tổng quan dữ liệu" updatedAt={new Date().toISOString()} search />
+      <AdminHeader title="Tổng quan dữ liệu" crumb="Tổng quan dữ liệu" search />
       <AdminBody>
         <StatGrid>
           <AdminStat label="Tổng trường" value={stats.schools.toLocaleString("vi-VN")} hint={<Link href="/quan-tri/truong" className="font-semibold hover:underline">Quản lý trường ›</Link>} hintTone="success" Icon={LuLandmark} valueTone="primary" />
@@ -109,7 +109,7 @@ export default async function AdminOverviewPage() {
               </ul>
             )}
             <Link href="/quan-tri/chuong-trinh#nhat-ky" className="mt-4 inline-block text-sm font-semibold text-primary-600 hover:underline">
-              Xem toàn bộ nhật ký →
+              Xem lịch sử chương trình →
             </Link>
           </Panel>
         </div>

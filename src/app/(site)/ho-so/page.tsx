@@ -14,9 +14,9 @@ export default async function ProfilePage({ searchParams }: Props) {
   if (!user) redirect("/dang-nhap?next=/ho-so");
   const { linked, error } = await searchParams;
   return (
-    <div className="container-page py-8">
+    <div className="container-page py-6 sm:py-8 lg:py-10">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Hồ sơ cá nhân" }]} />
-      <div className="mt-6">
+      <div className="mt-4 sm:mt-6">
         <ProfileClient user={user} googleConfigured={isGoogleConfigured()} notice={{ linked, error }} />
       </div>
     </div>

@@ -15,7 +15,7 @@ Hệ thống được chạy kiểm tra trên mã nguồn hiện trạng:
 | :--- | :--- | :--- |
 | `npm test` | **97 passed / 0 failed** | Thời gian chạy ~3.3s. 97 unit tests đạt. |
 | `npm run typecheck` | **Passed (Exit code 0)** | TypeScript 5.6.0 không có lỗi kiểu tĩnh. |
-| `npm run build` | **Build thành công (108/108 trang)** | **Cảnh báo Turbopack**: `Dynamic filesystem access causes tracing of the whole project` tại `./src/repositories/json-file.ts:246:18` do gọi `stat(file)`. Toàn bộ dự án bị trace vào production output. |
+| `npm run build` | **Build thành công (108/108 trang)** | **Cảnh báo Turbopack**: `Dynamic filesystem access causes tracing of the whole project` tại `./database/repositories/json-file.ts:246:18` do gọi `stat(file)`. Toàn bộ dự án bị trace vào production output. |
 
 ---
 
@@ -37,9 +37,9 @@ Hệ thống được chạy kiểm tra trên mã nguồn hiện trạng:
    - Email không tồn tại trả về `attemptsLeft: 5`, email có thật nhưng sai mật khẩu trả về số lần giảm dần (4, 3, 2, 1). Kẻ tấn công dễ dàng dò quét email hợp lệ.
 6. **Mã lớp học không có thời hạn & không có cơ chế thu hồi (`class.service.ts` line 28, 72)**:
    - Mã lớp 6 ký tự cố định mãi mãi, không có ngày hết hạn, không có khả năng revoke mã và không có rate limit chống brute-force mã lớp.
-7. **Production chưa dùng PostgreSQL thực tế làm Source of Truth (`src/repositories/index.ts`)**:
+7. **Production chưa dùng PostgreSQL thực tế làm Source of Truth (`database/repositories/index.ts`)**:
    - `repositories` map toàn bộ dữ liệu người dùng, điểm, tài khoản, lớp học sang `json-file.ts`.
-   - `src/lib/db.ts` nuốt lỗi `catch { return []; }`, production âm thầm chạy trên file JSON hoặc fail không an toàn.
+   - `database/client.ts` nuốt lỗi `catch { return []; }`, production âm thầm chạy trên file JSON hoặc fail không an toàn.
    - Side effect khi import: `postgres.ts` tự động chạy `setTimeout(refreshPostgresCache)` khi import module, vi phạm tính độc lập và sạch của Data Access Layer.
 
 ### 2.2. Mức P1: Sai quyết định tuyển sinh & Quy tắc pháp lý 2026

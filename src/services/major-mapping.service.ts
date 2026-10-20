@@ -9,21 +9,20 @@ export function normalizeMajorIdentity(value: string): string {
     .trim();
 }
 
-/**
- * The program name is authoritative. A Ministry major code may legitimately be
- * shared by multiple specialisations, so code-only matching is unsafe when a
- * meaningful name was supplied.
- */
+/** Match a canonical major by code; specialisation names belong to programs. */
 export function findMajorForImport(majors: Major[], name: string, code?: string): Major | undefined {
+  const normalizedCode = String(code ?? "").trim().toUpperCase();
+  if (normalizedCode) {
+    const matches = majors.filter((major) => major.code.trim().toUpperCase() === normalizedCode);
+    if (matches.length) return matches.length === 1 ? matches[0] : undefined;
+  }
   const normalizedName = normalizeMajorIdentity(name);
   if (normalizedName && !/^\d+$/.test(normalizedName)) {
-    return majors.find((major) => normalizeMajorIdentity(major.name) === normalizedName);
+    const matches = majors.filter((major) => normalizeMajorIdentity(major.name) === normalizedName &&
+      (!normalizedCode || !major.code || major.code === normalizedCode));
+    return matches.length === 1 ? matches[0] : undefined;
   }
-
-  const normalizedCode = String(code ?? "").trim().toUpperCase();
-  return normalizedCode
-    ? majors.find((major) => major.code.trim().toUpperCase() === normalizedCode)
-    : undefined;
+  return undefined;
 }
 
 const NAME_RULES: ReadonlyArray<{ groupId: string; keywords: readonly string[] }> = [

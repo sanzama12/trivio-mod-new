@@ -8,6 +8,7 @@ import type { Region, SchoolType } from "@/domain/types";
 import { buttonClass } from "@/components/ui/button";
 import { matchesQuery } from "@/lib/text";
 import { REGION_LABELS, SCHOOL_TYPE_LABELS } from "@/services/program.filters";
+import { SchoolLogo } from "@/components/school/school-logo";
 
 export type CatalogSchool = {
   id: string;
@@ -15,6 +16,7 @@ export type CatalogSchool = {
   name: string;
   shortName: string;
   code: string;
+  logoUrl: string | null;
   city: string;
   region: Region;
   type: SchoolType;
@@ -53,11 +55,11 @@ export function MajorSchoolSearch({ schools, defaultQuery = "" }: { schools: Cat
   }
 
   return (
-    <div ref={box} className="relative mx-auto mt-7 max-w-xl text-left">
+    <div ref={box} className="relative w-full text-left">
       <form
         onSubmit={submit}
         role="search"
-        className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated min-[420px]:flex-row min-[420px]:items-center"
+        className="group relative flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated transition hover:border-slate-300 focus-within:border-primary-500 focus-within:ring-4 focus-within:ring-primary-100/80"
       >
         <button
           type="button"
@@ -65,7 +67,7 @@ export function MajorSchoolSearch({ schools, defaultQuery = "" }: { schools: Cat
           aria-controls="school-catalog"
           aria-label="Mở danh mục trường"
           onClick={() => setOpen(true)}
-          className="ml-1 hidden size-8 shrink-0 items-center justify-center text-slate-400 min-[420px]:ml-2 min-[420px]:flex"
+          className="ml-1 flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-primary-600 sm:ml-2"
         >
           <LuSearch className="size-5" aria-hidden />
         </button>
@@ -82,9 +84,9 @@ export function MajorSchoolSearch({ schools, defaultQuery = "" }: { schools: Cat
           onFocus={() => setOpen(true)}
           placeholder="Tìm theo tên ngành hoặc mã ngành…"
           autoComplete="off"
-          className="h-11 min-w-0 flex-1 bg-transparent px-2 focus:outline-none"
+          className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
         />
-        <button className={buttonClass({ className: "w-full shrink-0 min-[420px]:w-auto" })}>Tìm kiếm</button>
+        <button className={buttonClass({ className: "shrink-0 px-4 sm:px-6" })}>Tìm</button>
       </form>
 
       {open && (
@@ -104,9 +106,7 @@ export function MajorSchoolSearch({ schools, defaultQuery = "" }: { schools: Cat
               {shown.map((s) => (
                 <li key={s.id}>
                   <Link href={`/truong/${s.slug}`} onClick={() => setOpen(false)} className="flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 hover:bg-primary-50">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-[11px] font-bold text-primary-800">
-                      {(s.code || s.shortName || s.name).slice(0, 4)}
-                    </span>
+                    <SchoolLogo school={s} size="xs" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-slate-900">{s.name}</span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">

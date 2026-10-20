@@ -10,7 +10,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 import type { PublicUser, RiasecType, StudentShareConsent, TeacherClass } from "../domain/types";
 import { DEFAULT_STUDENT_CONSENT } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { notificationService } from "./notification.service";
 import { fitForProfile } from "./scoring.service";
 import { opaqueId } from "./session.service";

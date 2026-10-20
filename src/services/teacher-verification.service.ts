@@ -7,7 +7,7 @@
 import { randomUUID } from "node:crypto";
 import type { PublicUser, TeacherVerification, TeacherVerificationStatus } from "../domain/types";
 import { PROVINCES } from "../domain/provinces";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { auditService } from "./audit.service";
 
 export interface TeacherApplyInput {

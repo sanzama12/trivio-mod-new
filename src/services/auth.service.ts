@@ -7,7 +7,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import type { PublicUser, User, UserRole } from "../domain/types";
 import { adminEmails } from "../lib/env";
 import { PROVINCES } from "../domain/provinces";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { checkPassword } from "./password.rules";
 import { hashPassword, verifyPassword } from "./password.hash";
 import { signToken, verifyToken } from "./session.service";
@@ -65,7 +65,6 @@ export interface ProfilePatch {
   parentConsent?: boolean;
   onboarded?: boolean;
   emailReminders?: boolean;
-  surveyOptIn?: boolean;
 }
 
 type Fail<F extends string = string> = { ok: false; field?: F; message: string };
@@ -355,10 +354,6 @@ export const authService = {
     if (patch.parentConsent !== undefined) next.parentConsent = patch.parentConsent;
     if (patch.onboarded !== undefined) next.onboarded = patch.onboarded;
     if (patch.emailReminders !== undefined) next.emailReminders = patch.emailReminders === true;
-    if (patch.surveyOptIn !== undefined) {
-      next.surveyOptIn = patch.surveyOptIn === true;
-      next.surveyOptInAt = patch.surveyOptIn === true ? new Date().toISOString() : null;
-    }
     const updated = await repositories.users.update(id, next);
     return { ok: true, user: toPublicUser(updated!) };
   },

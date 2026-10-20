@@ -32,7 +32,7 @@ export async function requireAdmin() {
   return { user, error: null } as const;
 }
 
-/** Quản trị viên hoặc kiểm duyệt viên (cảm nhận, hỏi đáp). */
+/** Quản trị viên hoặc kiểm duyệt viên nội dung cộng đồng. */
 export async function requireStaff() {
   const user = await getCurrentUser();
   if (!user) return { user: null, error: NextResponse.json({ ok: false, message: "Bạn cần đăng nhập." }, { status: 401 }) } as const;

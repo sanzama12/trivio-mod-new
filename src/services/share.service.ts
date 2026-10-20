@@ -9,7 +9,7 @@
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Share, ShareComment, StoredProfile } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { programService, type ProgramView } from "./program.service";
 import { userDataService } from "./user-data.service";
 import { ADMISSION_METHODS, profileMethod, profileScore } from "./scoring.service";

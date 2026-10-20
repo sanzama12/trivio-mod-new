@@ -108,7 +108,7 @@ export default async function LitePage({ searchParams }: Props) {
       <nav className="mt-6 border-t border-slate-200 pt-3 text-sm" aria-label="Liên kết nhanh">
         <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-primary-700 underline">
           <li>
-            <Link href="/trac-nghiem">Trắc nghiệm sở thích</Link>
+            <Link href="/nganh">Khám phá ngành học</Link>
           </li>
           <li>
             <Link href="/mua-diem">Mùa điểm & Plan B</Link>

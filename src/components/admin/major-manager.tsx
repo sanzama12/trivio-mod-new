@@ -1,11 +1,9 @@
 "use client";
 
-/** A03 — danh mục ngành: lọc theo nhóm/trạng thái, thêm/sửa ngành (mã 7 số, nhóm, 3 nhóm Holland), duyệt / tạm ẩn. */
+/** A03 — danh mục ngành: lọc theo nhóm/trạng thái, thêm/sửa ngành, duyệt / tạm ẩn. */
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { LuCheck, LuPencil, LuPlus, LuSearch, LuTrash2 } from "react-icons/lu";
-import type { RiasecType } from "@/domain/types";
-import { RIASEC_INFO, RIASEC_ORDER } from "@/domain/riasec";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { normalizeVi } from "@/lib/text";
@@ -21,13 +19,12 @@ export interface MajorItem {
   name: string;
   groupId: string;
   groupName: string;
-  riasec: RiasecType[];
   summary: string;
   programs: number;
   hidden: boolean;
 }
 
-type Form = { id?: string; code: string; name: string; groupId: string; riasec: [string, string, string]; summary: string };
+type Form = { id?: string; code: string; name: string; groupId: string; summary: string };
 
 export function MajorManager({ rows, groups }: { rows: MajorItem[]; groups: { id: string; name: string }[] }) {
   const { post, busy } = useAdminPost();
@@ -47,7 +44,7 @@ export function MajorManager({ rows, groups }: { rows: MajorItem[]; groups: { id
 
   const open = (r?: MajorItem) => {
     setErr(null);
-    setForm(r ? { id: r.id, code: r.code, name: r.name, groupId: r.groupId, riasec: [r.riasec[0], r.riasec[1], r.riasec[2]], summary: r.summary } : { code: "", name: "", groupId: "", riasec: ["", "", ""], summary: "" });
+    setForm(r ? { id: r.id, code: r.code, name: r.name, groupId: r.groupId, summary: r.summary } : { code: "", name: "", groupId: "", summary: "" });
   };
   const save = async () => {
     if (!form) return;
@@ -85,7 +82,7 @@ export function MajorManager({ rows, groups }: { rows: MajorItem[]; groups: { id
 
       <Panel className="overflow-hidden">
         <div className="relative overflow-x-auto">
-          <table className="w-full min-w-[960px]">
+          <table className="w-full min-w-[840px]">
             <thead className="bg-slate-50">
               <tr>
                 <th className={th}>Mã ngành</th>
@@ -93,7 +90,6 @@ export function MajorManager({ rows, groups }: { rows: MajorItem[]; groups: { id
                 <th className={th}>Nhóm ngành</th>
                 <th className={th}>Mô tả tóm tắt</th>
                 <th className={`${th} text-center`}>Số CTĐT</th>
-                <th className={th}>Hướng nghiệp</th>
                 <th className={th}>Trạng thái</th>
                 <th className={`${th} text-right`}>Hành động</th>
               </tr>
@@ -101,14 +97,14 @@ export function MajorManager({ rows, groups }: { rows: MajorItem[]; groups: { id
             <tbody className="divide-y divide-slate-100">
               {pg.slice.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
                     Không có ngành nào khớp bộ lọc.
                   </td>
                 </tr>
               )}
               {pg.slice.map((r) => (
                 <tr key={r.id}>
-                  <td className={`${td} font-semibold text-slate-900 tabular-nums`}>{r.code}</td>
+                  <td className={`${td} font-semibold text-slate-900 tabular-nums`}>{r.code || "Cần đối soát mã"}</td>
                   <td className={`${td} font-semibold text-slate-900`}>{r.hidden ? r.name : <Link href={`/nganh/${r.slug}`} className="hover:text-primary-700 hover:underline">{r.name}</Link>}</td>
                   <td className={td}>
                     <Badge tone="primary">{r.groupName}</Badge>
@@ -117,15 +113,6 @@ export function MajorManager({ rows, groups }: { rows: MajorItem[]; groups: { id
                     {r.summary}
                   </td>
                   <td className={`${td} text-center tabular-nums`}>{r.programs}</td>
-                  <td className={td}>
-                    <span className="flex gap-1">
-                      {r.riasec.map((t) => (
-                        <span key={t} title={RIASEC_INFO[t].label} className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-700">
-                          {t}
-                        </span>
-                      ))}
-                    </span>
-                  </td>
                   <td className={td}>{r.hidden ? <Badge tone="accent">Chờ duyệt</Badge> : <Badge tone="success">Đã duyệt</Badge>}</td>
                   <td className={`${td} text-right whitespace-nowrap`}>
                     {r.hidden && (
@@ -197,34 +184,6 @@ export function MajorManager({ rows, groups }: { rows: MajorItem[]; groups: { id
               </select>
               {fieldErr("groupId")}
             </div>
-            <fieldset>
-              <legend className="text-sm font-semibold text-slate-800">
-                Hướng nghiệp (3 nhóm Holland, theo thứ tự) <span className="text-danger-600">*</span>
-              </legend>
-              <div className="mt-1.5 grid grid-cols-3 gap-2">
-                {[0, 1, 2].map((i) => (
-                  <select
-                    key={i}
-                    aria-label={`Nhóm Holland thứ ${i + 1}`}
-                    className={cn(selectCls, "h-11", err?.field === "riasec" && "!border-danger-500")}
-                    value={form.riasec[i]}
-                    onChange={(e) => {
-                      const next = [...form.riasec] as Form["riasec"];
-                      next[i] = e.target.value;
-                      setForm({ ...form, riasec: next });
-                    }}
-                  >
-                    <option value="">—</option>
-                    {RIASEC_ORDER.map((t) => (
-                      <option key={t} value={t}>
-                        {t} – {RIASEC_INFO[t].label}
-                      </option>
-                    ))}
-                  </select>
-                ))}
-              </div>
-              {fieldErr("riasec")}
-            </fieldset>
             <div>
               <label htmlFor="m-sum" className="text-sm font-semibold text-slate-800">
                 Mô tả tóm tắt <span className="text-danger-600">*</span>

@@ -6,7 +6,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { FUNNEL_EVENTS, type FunnelEvent, type SusResponse } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { SUS_QUESTIONS, SUS_ROLES, susGrade, susScore } from "../domain/sus";
 
 export { SUS_QUESTIONS, SUS_ROLES, susGrade, susScore };
@@ -25,7 +25,7 @@ export const FUNNEL_LABELS: Record<FunnelEvent, string> = {
 };
 
 /** Thứ tự các bước của phễu chính (chat_asked là hành vi phụ, hiển thị riêng). */
-export const FUNNEL_STEPS: FunnelEvent[] = ["visit", "quiz_done", "score_saved", "program_saved", "wishlist_added", "share_created"];
+export const FUNNEL_STEPS: FunnelEvent[] = ["visit", "score_saved", "program_saved", "wishlist_added", "share_created"];
 
 /** Ngày theo giờ Việt Nam (YYYY-MM-DD). */
 export function vnDay(d = new Date()): string {
@@ -60,8 +60,7 @@ export const analyticsService = {
         fromPrev: prev ? Math.round((summary[e] / prev) * 1000) / 10 : 0,
       };
     });
-    const quizRate = summary.quiz_started ? Math.round((Math.min(summary.quiz_done, summary.quiz_started) / summary.quiz_started) * 1000) / 10 : null;
-    return { from, to, days, steps, chat: summary.chat_asked, quiz: { started: summary.quiz_started, done: summary.quiz_done, rate: quizRate }, style: summary.style_done, mbti: summary.mbti_added, daily };
+    return { from, to, days, steps, chat: summary.chat_asked, daily };
   },
 
   async submitSurvey(input: Record<string, unknown>): Promise<{ ok: true; score: number; grade: string } | { ok: false; message: string }> {

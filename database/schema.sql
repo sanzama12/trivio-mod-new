@@ -1,7 +1,7 @@
 -- =====================================================================================================
 -- TROVIO — Lược đồ cơ sở dữ liệu quan hệ (PostgreSQL 14+)
 -- Chuẩn hoá theo mã nguồn hiện tại: src/domain/types.ts, src/domain/work-style.ts, src/services/*,
--- src/repositories/json-file.ts (DB_VERSION = 8). Mỗi bảng ghi rõ kiểu dữ liệu TypeScript tương ứng.
+-- database/repositories/json-file.ts (DB_VERSION = 8). Mỗi bảng ghi rõ kiểu dữ liệu TypeScript tương ứng.
 --
 -- Nguyên tắc:
 --   • Khoá chính dạng TEXT giữ đúng mã đang dùng trong code (VD 'neu', 'ke-toan', 'neu-ke-toan', 'u-001')
@@ -13,7 +13,8 @@
 --   • "Xoá" trường/ngành/chương trình ở trang quản trị là TẠM ẨN (cột hidden), không xoá dòng.
 --   • Dữ liệu chỉ để giải thích (mini-test phong cách, MBTI) nằm ở bảng riêng, KHÔNG được công thức gợi ý đọc.
 --
--- Chạy:  psql -d trovio -f schema.sql  →  psql -d trovio -f seed-reference.sql  →  psql -d trovio -f seed-catalog.sql
+-- Chạy:  psql -d trovio -f schema.sql  →  psql -d trovio -f seed.sql
+-- Migration tăng dần nằm trong database/migrations/ và được database/scripts/migrate-pg.ts áp dụng.
 -- =====================================================================================================
 
 BEGIN;
@@ -118,8 +119,15 @@ CREATE TABLE major_groups (
   name        TEXT NOT NULL,
   icon        TEXT NOT NULL,
   tone        TEXT NOT NULL CHECK (tone IN ('primary', 'accent', 'success', 'danger', 'pink', 'teal', 'violet', 'slate')),
-  position    SMALLINT NOT NULL DEFAULT 0
+  description TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 320),
+  position    SMALLINT NOT NULL DEFAULT 0 CHECK (position >= 0),
+  featured    BOOLEAN NOT NULL DEFAULT true,
+  hidden      BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX major_groups_public_order_idx ON major_groups (featured DESC, position, name) WHERE NOT hidden;
+CREATE TRIGGER major_groups_touch BEFORE UPDATE ON major_groups FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 -- School (+ SchoolOverrides/customSchools của bản JSON gộp vào đây)
 CREATE TABLE schools (
@@ -135,6 +143,8 @@ CREATE TABLE schools (
   students      INTEGER CHECK (students >= 0),
   highlight     TEXT NOT NULL DEFAULT '',
   website       TEXT NOT NULL DEFAULT '' CHECK (website = '' OR website ~ '^https?://'),
+  logo_url      TEXT CHECK (logo_url IS NULL OR logo_url ~ '^https://'),
+  cover_url     TEXT CHECK (cover_url IS NULL OR cover_url ~ '^https://'),
   description   TEXT NOT NULL DEFAULT '',
   scholarships  TEXT NOT NULL DEFAULT '',
   hidden        BOOLEAN NOT NULL DEFAULT false,                   -- quản trị viên tạm ẩn
@@ -163,14 +173,13 @@ CREATE TABLE majors (
   group_id    TEXT NOT NULL REFERENCES major_groups (id),
   summary     TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL DEFAULT '',
-  demand      TEXT NOT NULL CHECK (demand IN ('Rất cao', 'Cao', 'Trung bình')),
-  growth      NUMERIC(5, 2) NOT NULL DEFAULT 0,                   -- % tăng trưởng nhu cầu/năm
   hidden      BOOLEAN NOT NULL DEFAULT false,                     -- ngành mới = "Chờ duyệt" (ẩn) tới khi duyệt
   is_custom   BOOLEAN NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX majors_group_idx ON majors (group_id);
+CREATE UNIQUE INDEX majors_code_uq ON majors (code);
 CREATE TRIGGER majors_touch BEFORE UPDATE ON majors FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 -- Major.riasec = [3 nhóm Holland] — RIASEC gắn THEO NGÀNH (không theo nhóm ngành)
@@ -180,33 +189,6 @@ CREATE TABLE major_riasec (
   riasec_code CHAR(1) NOT NULL REFERENCES riasec_types (code),
   PRIMARY KEY (major_id, rank),
   UNIQUE (major_id, riasec_code)
-);
-
--- Major.curriculum[] (CurriculumBlock) và items[]
-CREATE TABLE major_curriculum_blocks (
-  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  major_id    TEXT NOT NULL REFERENCES majors (id) ON DELETE CASCADE,
-  title       TEXT NOT NULL,                                      -- 'Cơ sở ngành', 'Chuyên ngành'
-  position    SMALLINT NOT NULL DEFAULT 0
-);
-
-CREATE TABLE major_curriculum_items (
-  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  block_id    BIGINT NOT NULL REFERENCES major_curriculum_blocks (id) ON DELETE CASCADE,
-  name        TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  position    SMALLINT NOT NULL DEFAULT 0
-);
-
--- Major.careers[] (Career)
-CREATE TABLE major_careers (
-  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  major_id    TEXT NOT NULL REFERENCES majors (id) ON DELETE CASCADE,
-  title       TEXT NOT NULL,
-  salary_text TEXT NOT NULL,                                      -- '15 - 22 triệu/tháng'
-  description TEXT NOT NULL DEFAULT '',
-  level       TEXT NOT NULL CHECK (level IN ('Quản lý & chiến lược', 'Thực thi & chuyên môn')),
-  position    SMALLINT NOT NULL DEFAULT 0
 );
 
 -- Program (chương trình đào tạo = ngành × trường; ERD cũ gọi là truong_nganh)
@@ -322,9 +304,6 @@ CREATE TABLE users (
   parent_consent     BOOLEAN NOT NULL DEFAULT false,
   onboarded          BOOLEAN NOT NULL DEFAULT false,
   email_reminders    BOOLEAN NOT NULL DEFAULT false,              -- nhận email nhắc hạn
-  survey_opt_in      BOOLEAN NOT NULL DEFAULT false,              -- C4: đồng ý khảo sát sau 1 năm
-  survey_opt_in_at   TIMESTAMPTZ,
-  survey_invited_at  TIMESTAMPTZ,
   last_login_at      TIMESTAMPTZ,
   data_updated_at    TIMESTAMPTZ,                                 -- UserData.updatedAt (đồng bộ đa thiết bị)
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -579,66 +558,6 @@ CREATE TABLE recommend_rule_params (
 );
 
 -- =====================================================================================================
--- 7. VIỆC LÀM & THU NHẬP — mọi con số gắn với một nguồn
--- =====================================================================================================
-
--- DataSource (nguồn gốc + nguồn quản trị viên thêm)
-CREATE TABLE data_sources (
-  id          TEXT PRIMARY KEY,
-  title       TEXT NOT NULL,
-  publisher   TEXT NOT NULL,
-  year        SMALLINT NOT NULL CHECK (year BETWEEN 1990 AND 2100),
-  url         TEXT CHECK (url IS NULL OR url ~ '^https?://'),
-  kind        TEXT NOT NULL CHECK (kind IN ('van-ban', 'thong-ke', 'khao-sat-truong', 'bao-chi', 'khao-sat-doanh-nghiep', 'minh-hoa')),
-  trust       TEXT NOT NULL CHECK (trust IN ('cao', 'trung-binh', 'tham-khao', 'minh-hoa')),
-  note        TEXT NOT NULL DEFAULT '',
-  accessed_at DATE NOT NULL,
-  is_custom   BOOLEAN NOT NULL DEFAULT false
-);
-
--- MajorOutcome (employmentRate / startingSalary / experiencedSalary) — mỗi chỉ số một dòng (OutcomeMetric)
-CREATE TABLE major_outcomes (
-  major_id    TEXT NOT NULL REFERENCES majors (id) ON DELETE CASCADE,
-  metric      TEXT NOT NULL CHECK (metric IN ('employment_rate', 'starting_salary', 'experienced_salary')),
-  value       NUMERIC(8, 2) NOT NULL CHECK (value >= 0),         -- % hoặc triệu/tháng
-  low         NUMERIC(8, 2),
-  high        NUMERIC(8, 2),
-  year        SMALLINT NOT NULL,
-  source_id   TEXT NOT NULL REFERENCES data_sources (id),
-  sample_size INTEGER CHECK (sample_size > 0),
-  note        TEXT,
-  data_updated TEXT NOT NULL CHECK (data_updated ~ '^[0-9]{4}-[0-9]{2}$'),
-  PRIMARY KEY (major_id, metric),
-  CHECK (metric <> 'employment_rate' OR value <= 100),
-  CHECK (low IS NULL OR high IS NULL OR low <= high)
-);
-
--- SchoolOutcome
-CREATE TABLE school_outcomes (
-  school_id              TEXT PRIMARY KEY REFERENCES schools (id) ON DELETE CASCADE,
-  employment_rate        NUMERIC(5, 2) CHECK (employment_rate BETWEEN 0 AND 100),
-  employment_year        SMALLINT,
-  employment_source_id   TEXT REFERENCES data_sources (id),
-  employment_sample_size INTEGER,
-  employment_note        TEXT,
-  salary_note            TEXT,
-  salary_year            SMALLINT,
-  salary_source_id       TEXT REFERENCES data_sources (id),
-  cohort                 TEXT,
-  CHECK ((employment_rate IS NULL) = (employment_source_id IS NULL))
-);
-
--- Benchmark (mốc so sánh: thu nhập bình quân cả nước…)
-CREATE TABLE benchmarks (
-  id          TEXT PRIMARY KEY,
-  label       TEXT NOT NULL,
-  value       NUMERIC(10, 2) NOT NULL,
-  unit        TEXT NOT NULL,
-  year        SMALLINT NOT NULL,
-  source_id   TEXT NOT NULL REFERENCES data_sources (id)
-);
-
--- =====================================================================================================
 -- 8. MỐC TUYỂN SINH & NHẮC HẠN
 -- =====================================================================================================
 
@@ -680,60 +599,8 @@ CREATE TABLE reminder_log (
 );
 
 -- =====================================================================================================
--- 9. CỘNG ĐỒNG: cảm nhận sinh viên, hỏi đáp, khảo sát sau 1 năm
+-- 9. CỘNG ĐỒNG: hỏi đáp sinh viên
 -- =====================================================================================================
-
--- SchoolReview (kiểm duyệt trước khi hiển thị)
-CREATE TABLE school_reviews (
-  id                 TEXT PRIMARY KEY,
-  school_id          TEXT NOT NULL REFERENCES schools (id) ON DELETE CASCADE,
-  user_id            TEXT REFERENCES users (id) ON DELETE CASCADE,         -- xoá tài khoản = xoá cảm nhận đã viết (jsonUserRepository.delete)
-  author_name        TEXT NOT NULL,
-  anonymous          BOOLEAN NOT NULL DEFAULT false,
-  relation           TEXT NOT NULL CHECK (relation IN ('sinh-vien', 'cuu-sinh-vien')),
-  cohort             SMALLINT CHECK (cohort BETWEEN 1990 AND 2100),
-  major_id           TEXT REFERENCES majors (id) ON DELETE SET NULL,
-  rating_teaching    SMALLINT NOT NULL CHECK (rating_teaching BETWEEN 1 AND 5),
-  rating_facilities  SMALLINT NOT NULL CHECK (rating_facilities BETWEEN 1 AND 5),
-  rating_activities  SMALLINT NOT NULL CHECK (rating_activities BETWEEN 1 AND 5),
-  rating_career      SMALLINT NOT NULL CHECK (rating_career BETWEEN 1 AND 5),
-  title              TEXT NOT NULL CHECK (length(title) BETWEEN 3 AND 120),
-  content            TEXT NOT NULL CHECK (length(content) BETWEEN 20 AND 3000),
-  status             TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'hidden')),
-  reject_reason      TEXT,
-  school_email       BOOLEAN NOT NULL DEFAULT false,              -- xác thực bằng email trường
-  is_demo            BOOLEAN NOT NULL DEFAULT false,              -- dữ liệu minh hoạ
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-  moderated_at       TIMESTAMPTZ,
-  moderated_by       TEXT REFERENCES users (id) ON DELETE SET NULL
-);
-CREATE INDEX school_reviews_school_idx ON school_reviews (school_id, status);
-CREATE TRIGGER school_reviews_touch BEFORE UPDATE ON school_reviews FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
-
--- SchoolReview.flags[] — cờ tự động (thông tin liên hệ, quảng cáo, ngôn từ…)
-CREATE TABLE review_flags (
-  review_id   TEXT NOT NULL REFERENCES school_reviews (id) ON DELETE CASCADE,
-  flag        TEXT NOT NULL,
-  PRIMARY KEY (review_id, flag)
-);
-
--- SchoolReview.helpful[] — mỗi tài khoản bấm "Hữu ích" 1 lần
-CREATE TABLE review_helpful_votes (
-  review_id   TEXT NOT NULL REFERENCES school_reviews (id) ON DELETE CASCADE,
-  user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  voted_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (review_id, user_id)
-);
-
--- SchoolReview.reports[] — 3 tài khoản báo cáo → tự ẩn chờ duyệt lại
-CREATE TABLE review_reports (
-  review_id   TEXT NOT NULL REFERENCES school_reviews (id) ON DELETE CASCADE,
-  user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  reason      TEXT NOT NULL,
-  reported_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (review_id, user_id)
-);
 
 -- QaQuestion — hỏi đáp sinh viên theo chương trình
 CREATE TABLE qa_questions (
@@ -770,21 +637,6 @@ CREATE TABLE qa_answer_reports (
   user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   reported_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (answer_id, user_id)
-);
-
--- OutcomeSurvey — C4 khảo sát sau 1 năm học
-CREATE TABLE outcome_surveys (
-  id                   TEXT PRIMARY KEY,
-  program_id           TEXT NOT NULL REFERENCES programs (id) ON DELETE CASCADE,
-  user_id              TEXT REFERENCES users (id) ON DELETE SET NULL,
-  satisfaction         SMALLINT NOT NULL CHECK (satisfaction BETWEEN 1 AND 5),
-  choose_again         TEXT NOT NULL CHECK (choose_again IN ('yes', 'no', 'unsure')),
-  choose_school_again  TEXT CHECK (choose_school_again IN ('yes', 'no', 'unsure')),
-  trovio_right         TEXT NOT NULL CHECK (trovio_right IN ('yes', 'no', 'unsure')),
-  wish                 TEXT NOT NULL DEFAULT '',
-  cohort               SMALLINT NOT NULL,
-  is_demo              BOOLEAN NOT NULL DEFAULT false,
-  created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- =====================================================================================================
@@ -837,32 +689,14 @@ CREATE TABLE class_members (
 );
 
 -- =====================================================================================================
--- 11. VẬN HÀNH & QUẢN TRỊ: báo lỗi, thông báo, nhật ký, nhập liệu, cổng trường, chatbot, thống kê
+-- 11. VẬN HÀNH & QUẢN TRỊ: thông báo, nhật ký, nhập liệu, cổng trường, chatbot, thống kê
 -- =====================================================================================================
-
--- DataReport — "Báo dữ liệu sai"
-CREATE TABLE data_reports (
-  id          TEXT PRIMARY KEY,
-  program_id  TEXT REFERENCES programs (id) ON DELETE SET NULL,
-  page        TEXT NOT NULL,
-  topic       TEXT NOT NULL CHECK (topic IN ('diem-chuan', 'hoc-phi', 'chi-tieu', 'to-hop', 'thong-tin-truong', 'khac')),
-  detail      TEXT NOT NULL CHECK (length(detail) BETWEEN 10 AND 2000),
-  email       TEXT,
-  user_id     TEXT REFERENCES users (id) ON DELETE SET NULL,
-  status      TEXT NOT NULL DEFAULT 'moi' CHECK (status IN ('moi', 'dang-xu-ly', 'da-xu-ly', 'khong-hop-le')),
-  admin_note  TEXT,
-  handled_by  TEXT REFERENCES users (id) ON DELETE SET NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX data_reports_status_idx ON data_reports (status, created_at DESC);
-CREATE TRIGGER data_reports_touch BEFORE UPDATE ON data_reports FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 -- AppNotification — chuông thông báo
 CREATE TABLE notifications (
   id          TEXT PRIMARY KEY,
   user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  kind        TEXT NOT NULL CHECK (kind IN ('review-approved', 'review-rejected', 'report-update', 'reminder', 'supplementary', 'class-reminder', 'qa-answer', 'survey-invite', 'school-submission')),
+  kind        TEXT NOT NULL CHECK (kind IN ('reminder', 'supplementary', 'class-reminder', 'qa-answer', 'school-submission')),
   title       TEXT NOT NULL,
   body        TEXT NOT NULL,
   href        TEXT CHECK (href IS NULL OR href ~ '^/'),           -- chỉ đường dẫn nội bộ
@@ -877,7 +711,7 @@ CREATE TABLE audit_logs (
   at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   actor_id    TEXT REFERENCES users (id) ON DELETE SET NULL,
   actor_email TEXT NOT NULL,                                      -- giữ lại kể cả khi tài khoản bị xoá
-  target_type TEXT NOT NULL DEFAULT 'program' CHECK (target_type IN ('program', 'major-outcome', 'source', 'review', 'report', 'timeline', 'chat-alias', 'school', 'major', 'quiz', 'rules', 'import', 'user', 'school-submission')),
+  target_type TEXT NOT NULL DEFAULT 'program' CHECK (target_type IN ('program', 'qa', 'timeline', 'chat-alias', 'school', 'major', 'quiz', 'rules', 'import', 'user', 'school-submission')),
   target_id   TEXT NOT NULL,                                      -- AuditEntry.programId (id đối tượng)
   action      TEXT NOT NULL CHECK (action IN ('update', 'verify', 'reset', 'approve', 'reject', 'delete', 'create'))
 );

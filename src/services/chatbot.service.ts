@@ -3,7 +3,7 @@
  *
  * Thiết kế để KHÔNG đưa thông tin sai về tuyển sinh:
  * 1. Trả lời bằng cách truy xuất dữ liệu có cấu trúc của Trovio (ngành, trường, chương trình, điểm chuẩn,
- *    việc làm có nguồn, cảm nhận đã duyệt, mốc tuyển sinh) — không "sáng tác" nội dung.
+ *    chương trình và mốc tuyển sinh) — không "sáng tác" nội dung.
  * 2. Mọi con số kèm năm và nguồn; câu trả lời có liên kết tới trang gốc để người dùng kiểm tra.
  * 3. Từ chối dự đoán điểm chuẩn, cam kết đỗ, gian lận; câu hỏi ngoài phạm vi → nói rõ "chưa có thông tin".
  * 4. (Tuỳ chọn) lớp LLM chỉ được diễn đạt lại; mọi con số trong câu trả lời LLM phải có trong dữ kiện,
@@ -13,11 +13,10 @@ import { randomUUID } from "node:crypto";
 import type { ChatAlias, Major, Program, PublicUser, RiasecResult, School } from "../domain/types";
 import { MAX_QUESTION, type ChatAnswer, type ChatItem, type ChatKind, type ChatSource } from "../domain/chat";
 import { RIASEC_INFO } from "../domain/riasec";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
+import { hasTuitionData } from "../lib/format";
 import { normalizeVi } from "../lib/text";
 import { ADMISSION_METHODS, cutoffFor, formatMethodScore } from "./scoring.service";
-import { outcomeService } from "./outcome.service";
-import { reviewService } from "./review.service";
 import { matchMajor, riasecService, sanitizeRiasec } from "./riasec.service";
 import { timelineService } from "./timeline.service";
 import { polishWithLlm } from "./chatbot-llm";
@@ -144,9 +143,7 @@ const I = {
   help: ["ban la ai", "ban lam duoc gi", "ban giup duoc gi", "huong dan", "hoi gi"],
   cutoff: ["diem chuan", "lay bao nhieu diem", "bao nhieu diem", "diem dau vao", "diem trung tuyen", "can bao nhieu diem"],
   tuition: ["hoc phi", "chi phi", "bao nhieu tien", "ton bao nhieu", "phi hoc"],
-  salary: ["luong", "thu nhap", "kiem duoc", "ty le co viec", "ty le viec lam"],
-  jobs: ["viec lam", "ra truong lam gi", "co hoi", "lam nghe gi", "lam cong viec gi", "vi tri", "nghe nghiep", "lam gi", "xin viec", "kiem viec", "that nghiep"],
-  info: ["hoc gi", "hoc nhung gi", "la gi", "gioi thieu", "mon hoc", "chuong trinh hoc", "noi dung", "hoc nhung mon"],
+  info: ["la gi", "gioi thieu", "thong tin nganh"],
   fit: ["hop voi ai", "phu hop voi ai", "tinh cach", "so thich", "riasec", "can nhung gi", "can ky nang"],
   evaluate: [
     "co tot khong", "tot khong", "co nen", "nen hoc khong", "co hop voi", "co phu hop", "trien vong", "tuong lai", "co hot", "hot khong",
@@ -158,10 +155,9 @@ const I = {
   notCovered: ["ky tuc xa", "ktx", "cho o", "nha o", "xe buyt", "dong phuc", "can tin", "gui xe", "hoc quan su"],
   schoolsFor: ["truong nao", "o dau", "hoc o dau", "truong dao tao", "dao tao o", "nhung truong"],
   combos: ["to hop", "khoi", "xet mon", "thi mon", "xet khoi", "mon xet"],
-  methods: ["phuong thuc", "hoc ba", "danh gia nang luc", "dgnl", "hsa", "xet tuyen thang"],
+  methods: ["phuong thuc", "hoc ba", "xet tuyen thang"],
   rules: ["nguyen vong", "thu tu nguyen vong", "uu tien", "khu vuc uu tien", "diem uu tien", "kv1", "kv2", "kv3", "kv2 nt", "doi tuong uu tien"],
   recommend: ["nen hoc nganh gi", "nen chon nganh", "hop voi toi", "chon nganh", "khong biet hoc gi", "nen hoc gi", "chon truong nao", "tu van"],
-  reviews: ["cam nhan", "review", "danh gia truong", "moi truong hoc", "sinh vien noi", "hoc co tot", "co tot khong"],
   timeline: ["lich tuyen sinh", "khi nao", "han chot", "han dang ky", "moc", "bao gio", "thoi gian dang ky", "lich thi"],
   scholarship: ["hoc bong"],
   compare: ["so sanh"],
@@ -171,7 +167,7 @@ const I = {
 // Soạn câu trả lời
 // ---------------------------------------------------------------------------
 
-const DEMO_NOTE = "Điểm chuẩn, học phí trên Trovio (bản demo) là dữ liệu minh hoạ — luôn đối chiếu đề án tuyển sinh chính thức của trường.";
+const DATA_NOTE = "Thông tin phản ánh dữ liệu Trovio đang có; hãy đối chiếu đề án tuyển sinh chính thức của trường trước khi quyết định.";
 const OFFICIAL_PORTAL: ChatSource = { label: "Cổng thông tin tuyển sinh của Bộ GD&ĐT", href: "https://thisinh.thitotnghiepthpt.edu.vn", external: true };
 
 const vn = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
@@ -209,10 +205,6 @@ function subjectOf(major: Major | null, school: School | null): string {
 
 function methodAsked(n: string) {
   if (has(n, ["hoc ba"])) return "hocba" as const;
-  if (has(n, ["tsa", "danh gia tu duy", "dgtd", "tu duy bach khoa", "tu duy hust"])) return "tsa" as const;
-  if (has(n, ["dgnl hcm", "danh gia nang luc hcm", "dgnl tphcm", "dhqg hcm", "v act"])) return "dgnl-hcm" as const;
-  if (has(n, ["hsa", "dgnl ha noi", "dgnl hn", "dhqg ha noi", "dhqghn"])) return "dgnl-hn" as const;
-  if (has(n, ["danh gia nang luc", "dgnl"])) return "dgnl-hcm" as const;
   return "thpt" as const;
 }
 
@@ -272,13 +264,13 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
 
   // --- 2. Xã giao ---
   if (has(n, I.thanks) && words.length <= 6) {
-    return base("thanks", "answer", "Rất vui được hỗ trợ bạn! Bạn có thể hỏi tiếp về ngành học, điểm chuẩn, học phí hoặc việc làm.", { context: ctx, suggestions: defaultSuggestions() });
+    return base("thanks", "answer", "Rất vui được hỗ trợ bạn! Bạn có thể hỏi tiếp về ngành, trường, điểm chuẩn hoặc học phí.", { context: ctx, suggestions: defaultSuggestions() });
   }
   if ((has(n, I.greet) && words.length <= 5) || has(n, I.help)) {
     return base(
       "help",
       "answer",
-      "Chào bạn! Mình là trợ lý ngành học của Trovio. Mình trả lời dựa trên dữ liệu của Trovio và luôn kèm nguồn để bạn kiểm tra: ngành học gì, trường nào đào tạo, điểm chuẩn các năm, học phí, việc làm & thu nhập, cảm nhận sinh viên, mốc tuyển sinh. Mình không dự đoán điểm chuẩn.",
+      "Chào bạn! Mình là trợ lý Trovio. Bạn có thể hỏi về ngành, trường, điểm chuẩn, học phí và mốc tuyển sinh. Mình không dự đoán điểm chuẩn.",
       { context: ctx, suggestions: defaultSuggestions() },
     );
   }
@@ -340,25 +332,14 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   }
 
   if (has(n, I.recommend) && !explicitMajor) {
-    const riasec = sanitizeRiasec(ctxIn.riasec);
-    if (riasec) {
-      const recs = await riasecService.recommendMajors(riasec as Pick<RiasecResult, "percents" | "code">, 3);
-      return base("recommend", "answer", `Dựa trên kết quả trắc nghiệm RIASEC của bạn (mã ${riasec.code.join("-")}), các ngành phù hợp nhất là:`, {
-        context: ctx,
-        items: recs.map((r) => ({ title: r.major.name, meta: `${r.match}% phù hợp · ${r.group.name}`, href: `/nganh/${r.major.slug}` })),
-        note: "Mức phù hợp dựa trên sở thích, chưa xét điểm và tài chính — xem thêm “Dành cho bạn” ở trang chủ.",
-        sources: [{ label: "Kết quả trắc nghiệm của bạn", href: "/trac-nghiem/ket-qua" }, { label: "Cách tính mức phù hợp", href: "/cach-goi-y#danh-cho-ban" }],
-        suggestions: recs.slice(0, 2).map((r) => `Ngành ${r.major.name} học gì?`),
-      });
-    }
     return base(
       "recommend",
       "answer",
-      "Chọn ngành nên dựa trên sở thích, năng lực và điều kiện tài chính. Bạn có thể làm trắc nghiệm sở thích RIASEC (7–10 phút) rồi nhập điểm — Trovio sẽ gợi ý ngành và chương trình phù hợp kèm lý do.",
+      "Chọn ngành nên dựa trên điểm thi hoặc học bạ, tổ hợp môn và điều kiện tài chính. Nhập điểm để Trovio gợi ý chương trình phù hợp kèm lý do.",
       {
         context: ctx,
-        sources: [{ label: "Làm trắc nghiệm RIASEC", href: "/trac-nghiem" }, { label: "Nhập điểm", href: "/diem-cua-toi" }],
-        suggestions: ["Ngành Công nghệ thông tin học gì?", "Lương ngành Marketing"],
+        sources: [{ label: "Nhập điểm", href: "/diem-cua-toi" }, { label: "Xem gợi ý", href: "/goi-y" }],
+        suggestions: ["Trường nào đào tạo Công nghệ thông tin?", "Điểm chuẩn ngành Marketing"],
       },
     );
   }
@@ -368,16 +349,20 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     const method = methodAsked(n);
     const cfg = ADMISSION_METHODS[method];
     const bySchool = new Map<string, number>();
-    for (const p of k.programs) if (cutoffFor(p, method)) bySchool.set(p.schoolId, (bySchool.get(p.schoolId) ?? 0) + 1);
+    for (const p of k.programs) {
+      const cutoff = cutoffFor(p, method);
+      if (!cutoff) continue;
+      bySchool.set(p.schoolId, (bySchool.get(p.schoolId) ?? 0) + 1);
+    }
     const list = k.schools.filter((s) => bySchool.has(s.id));
     if (list.length === 0) {
       return base("methods-schools", "unknown", `Trovio chưa có dữ liệu trường xét tuyển bằng ${cfg.label}.`, {
         sources: [{ label: "Bảng quy đổi theo phương thức", href: "/cach-goi-y#phuong-thuc" }, OFFICIAL_PORTAL],
       });
     }
-    return base("methods-schools", "answer", `Các trường trên Trovio có điểm chuẩn theo ${cfg.label} (theo dữ liệu đã công bố):`, {
+    return base("methods-schools", "answer", `Các trường trên Trovio có điểm chuẩn theo ${cfg.label} trong dữ liệu hiện có:`, {
       items: list.slice(0, 8).map((s) => ({ title: s.name, meta: `${bySchool.get(s.id)} chương trình`, href: `/chuong-trinh?q=${encodeURIComponent(s.shortName)}&method=${method}` })),
-      note: `${DEMO_NOTE} Điểm chuẩn ${cfg.short} trong bản demo là số ước tính. Danh sách chỉ gồm các trường Trovio đang có dữ liệu, không phải toàn bộ trường xét phương thức này.`,
+      note: `${DATA_NOTE} Danh sách chỉ gồm các trường Trovio đang có dữ liệu, không phải toàn bộ trường xét phương thức này.`,
       sources: [{ label: `Xem chương trình xét ${cfg.short}`, href: `/chuong-trinh?method=${method}` }, { label: "Bảng quy đổi theo phương thức", href: "/cach-goi-y#phuong-thuc" }],
       suggestions: [`Điểm chuẩn ${cfg.short} ngành Marketing`, "Thứ tự nguyện vọng quan trọng thế nào?"],
     });
@@ -387,11 +372,11 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     return base(
       "methods",
       "answer",
-      "Trovio hỗ trợ so sánh theo 5 phương thức: điểm thi tốt nghiệp THPT (thang 30), học bạ (thang 30), đánh giá năng lực ĐHQG Hà Nội – HSA (thang 150), ĐHQG TP.HCM (thang 1200) và đánh giá tư duy ĐH Bách Khoa Hà Nội – TSA (thang 100). Mỗi trường chọn phương thức riêng; ngưỡng An toàn / Vừa sức được quy đổi theo thang điểm và đề án chính thức.",
+      "Trovio hỗ trợ so sánh theo 2 phương thức: điểm thi tốt nghiệp THPT (thang 30) và học bạ (thang 30). Mỗi trường chọn phương thức riêng; ngưỡng An toàn / Vừa sức được tính theo điểm chuẩn và đề án chính thức.",
       {
         context: ctx,
         sources: [{ label: "Bảng quy đổi theo phương thức", href: "/cach-goi-y#phuong-thuc" }, { label: "Nhập điểm theo phương thức", href: "/diem-cua-toi" }],
-        suggestions: ["Điểm chuẩn học bạ ngành Marketing", "Trường nào xét ĐGNL HCM?"],
+        suggestions: ["Điểm chuẩn học bạ ngành Marketing", "Trường nào xét học bạ?"],
       },
     );
   }
@@ -439,20 +424,22 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
             const s = k.schools.find((x) => x.id === id)!;
             const ps = programsOfAll(k, null, id);
             const cut = ps.flatMap((p) => (p.cutoffs[0] ? [p.cutoffs[0].score] : []));
-            return { title: s.name, meta: `${ps.length} chương trình · điểm chuẩn THPT ${range(cut, (x) => formatMethodScore(x))} · học phí ${range(ps.flatMap((p) => [p.tuitionMin, p.tuitionMax]))} triệu/năm`, href: `/truong/${s.slug}` };
+            const fees = ps.flatMap((p) => hasTuitionData(p.tuitionMin, p.tuitionMax) ? [p.tuitionMin, p.tuitionMax] : []);
+            return { title: s.name, meta: `${ps.length} chương trình · điểm chuẩn THPT ${range(cut, (x) => formatMethodScore(x))} · học phí ${fees.length ? `${range(fees)} triệu/năm` : "chưa có dữ liệu"}`, href: `/truong/${s.slug}` };
           })
         : mIds.map((id) => {
             const m = k.majors.find((x) => x.id === id)!;
             const ps = programsOfAll(k, id, null);
             const cut = ps.flatMap((p) => (p.cutoffs[0] ? [p.cutoffs[0].score] : []));
-            return { title: `Ngành ${m.name}`, meta: `${ps.length} chương trình · điểm chuẩn THPT ${range(cut, (x) => formatMethodScore(x))} · học phí ${range(ps.flatMap((p) => [p.tuitionMin, p.tuitionMax]))} triệu/năm`, href: `/nganh/${m.slug}` };
+            const fees = ps.flatMap((p) => hasTuitionData(p.tuitionMin, p.tuitionMax) ? [p.tuitionMin, p.tuitionMax] : []);
+            return { title: `Ngành ${m.name}`, meta: `${ps.length} chương trình · điểm chuẩn THPT ${range(cut, (x) => formatMethodScore(x))} · học phí ${fees.length ? `${range(fees)} triệu/năm` : "chưa có dữ liệu"}`, href: `/nganh/${m.slug}` };
           });
       return base("compare", "answer", "So sánh nhanh theo dữ liệu trên Trovio (điểm chuẩn năm gần nhất đã công bố):", {
         context: ctx,
         items,
-        note: `${DEMO_NOTE} Chọn chương trình cụ thể để so sánh chi tiết (tối đa 3).`,
+        note: `${DATA_NOTE} Chọn chương trình cụ thể để so sánh chi tiết (tối đa 3).`,
         sources: [{ label: "Mở trang So sánh", href: "/so-sanh" }],
-        suggestions: bySchool ? sIds.map((id) => `Cảm nhận sinh viên ${k.schools.find((x) => x.id === id)!.shortName}`).slice(0, 2) : mIds.map((id) => `Lương ngành ${k.majors.find((x) => x.id === id)!.name}`).slice(0, 2),
+        suggestions: bySchool ? sIds.map((id) => `Học phí ${k.schools.find((x) => x.id === id)!.shortName}`).slice(0, 2) : mIds.map((id) => `Điểm chuẩn ngành ${k.majors.find((x) => x.id === id)!.name}`).slice(0, 2),
       });
     }
   }
@@ -486,9 +473,12 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     }
     const method = methodAsked(n);
     const cfg = ADMISSION_METHODS[method];
-    const pick = (p: Program): { year: number; score: number; estimated?: boolean } | null => {
+    const pick = (p: Program): { year: number; score: number } | null => {
       if (!askedYear) return cutoffFor(p, method);
-      if (method === "thpt") return p.cutoffs.find((c) => c.year === askedYear) ?? null;
+      if (method === "thpt") {
+        const cutoff = p.cutoffs.find((c) => c.year === askedYear && !c.estimated);
+        return cutoff ? { year: cutoff.year, score: cutoff.score } : null;
+      }
       const c = cutoffFor(p, method);
       return c && c.year === askedYear ? c : null;
     };
@@ -508,15 +498,15 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
       context: ctx,
       items: list.slice(0, 6).map(({ p, c }) => ({
         title: `${p.name} – ${schoolName(p.schoolId)}`,
-        meta: `${formatMethodScore(c!.score, method)} điểm${cfg.max !== 30 ? `/${cfg.max}` : ""} · năm ${c!.year}${c!.estimated ? " · ƯỚC TÍNH" : ""}`,
+        meta: `${formatMethodScore(c!.score, method)} điểm${cfg.max !== 30 ? `/${cfg.max}` : ""} · năm ${c!.year}`,
         href: `/chuong-trinh/${p.slug}`, programId: p.id,
       })),
-      note: `${list.some((x) => x.c!.estimated) ? "Điểm chuẩn học bạ/ĐGNL trên Trovio hiện là số ƯỚC TÍNH suy ra từ điểm thi THPT, chưa phải điểm trường công bố. " : ""}${DEMO_NOTE} Trovio không dự đoán điểm chuẩn năm tới.`,
+      note: `${DATA_NOTE} Trovio không dự đoán điểm chuẩn năm tới.`,
       sources: [
         { label: "Nhập điểm để xem An toàn / Vừa sức / Thử sức", href: "/diem-cua-toi" },
         ...(list.length > 6 ? [{ label: `Xem tất cả ${list.length} chương trình`, href: `/chuong-trinh?${major ? `majors=${major.id}` : `q=${encodeURIComponent(school!.shortName)}`}${method !== "thpt" ? `&method=${method}` : ""}` }] : []),
       ],
-      suggestions: [major ? `Học phí ngành ${major.name}` : `Học phí ${school!.shortName}`, major ? `Lương ngành ${major.name}` : `Cảm nhận sinh viên ${school!.shortName}`],
+      suggestions: [major ? `Học phí ngành ${major.name}` : `Học phí ${school!.shortName}`, major ? `Trường nào đào tạo ngành ${major.name}?` : `Học bổng ${school!.shortName}`],
     });
   }
 
@@ -531,114 +521,36 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
         meta: quota ? `${p.quota.toLocaleString("vi-VN")} chỉ tiêu · cập nhật ${p.updatedAt.split("-").reverse().join("/")}` : `${vn(p.durationYears)} năm · ${p.trainingType}`,
         href: `/chuong-trinh/${p.slug}`, programId: p.id,
       })),
-      note: quota ? `${DEMO_NOTE} Chỉ tiêu có thể chia theo phương thức xét tuyển.` : "Thời gian đào tạo theo chương trình chuẩn; có thể rút ngắn hoặc kéo dài theo tiến độ tích luỹ tín chỉ.",
+      note: quota ? `${DATA_NOTE} Chỉ tiêu có thể chia theo phương thức xét tuyển.` : "Thời gian đào tạo theo chương trình chuẩn; có thể rút ngắn hoặc kéo dài theo tiến độ tích luỹ tín chỉ.",
       suggestions: [major ? `Điểm chuẩn ngành ${major.name}` : `Điểm chuẩn ${school!.shortName}`],
     });
   }
 
   if (has(n, I.tuition)) {
     if (!major && !school) return base("tuition", "clarify", "Bạn muốn xem học phí của ngành hoặc trường nào?", { suggestions: ["Học phí ngành Y khoa", "Học phí Đại học FPT"] });
-    const list = programsOf(major?.id, school?.id).sort((a, b) => a.tuitionMin - b.tuitionMin);
+    const list = programsOf(major?.id, school?.id)
+      .filter((p) => hasTuitionData(p.tuitionMin, p.tuitionMax))
+      .sort((a, b) => a.tuitionMin - b.tuitionMin);
     if (list.length === 0) return base("tuition", "unknown", "Trovio chưa có dữ liệu học phí cho lựa chọn này.", { context: ctx });
-    return base("tuition", "answer", `Học phí dự kiến (triệu đồng/năm) của ${subjectOf(major, school)}:`, {
+    return base("tuition", "answer", `Học phí đang có dữ liệu (triệu đồng/năm) của ${subjectOf(major, school)}:`, {
       context: ctx,
       items: list.slice(0, 6).map((p) => ({
         title: `${p.name} – ${schoolName(p.schoolId)}`,
-        meta: p.tuitionMax === 0 ? "Miễn học phí (theo dữ liệu)" : p.tuitionMin === p.tuitionMax ? `${vn(p.tuitionMin)} triệu/năm` : `${vn(p.tuitionMin)}–${vn(p.tuitionMax)} triệu/năm`,
+        meta: p.tuitionMin === p.tuitionMax ? `${vn(p.tuitionMin)} triệu/năm` : `${vn(p.tuitionMin)}–${vn(p.tuitionMax)} triệu/năm`,
         href: `/chuong-trinh/${p.slug}`, programId: p.id,
       })),
-      note: `${DEMO_NOTE} Học phí có thể tăng theo lộ trình của trường.`,
+      note: `${DATA_NOTE} Học phí có thể tăng theo lộ trình của trường.`,
       suggestions: [major ? `Trường nào đào tạo ngành ${major.name}?` : `Học bổng ${school!.shortName}`],
     });
   }
 
-  if ((has(n, I.salary) || has(n, I.jobs)) && (major || school)) {
-    if (major) {
-      const [outcome, benchmarks] = await Promise.all([outcomeService.getMajor(major.id), outcomeService.benchmarks()]);
-      const items: ChatItem[] = [];
-      const sources: ChatSource[] = [{ label: `Việc làm & thu nhập ngành ${major.name}`, href: `/nganh/${major.slug}#viec-lam` }];
-      const trustNote = (t: string) => (t === "minh-hoa" ? " · MINH HOẠ" : "");
-      if (outcome?.employmentRate) {
-        const m = outcome.employmentRate;
-        items.push({ title: "Tỷ lệ có việc làm trong 12 tháng", meta: `${vn(m.metric.value)}% · ${m.metric.year} · nguồn: ${m.source.publisher}${trustNote(m.source.trust)}` });
-      }
-      if (outcome?.startingSalary) {
-        const m = outcome.startingSalary;
-        const range = m.metric.low !== undefined && m.metric.high !== undefined ? ` (phổ biến ${vn(m.metric.low)}–${vn(m.metric.high)})` : "";
-        items.push({ title: "Lương khởi điểm (trung vị)", meta: `${vn(m.metric.value)} triệu/tháng${range} · ${m.metric.year} · nguồn: ${m.source.publisher}${trustNote(m.source.trust)}` });
-      }
-      if (outcome?.experiencedSalary) {
-        const m = outcome.experiencedSalary;
-        items.push({ title: "Thu nhập sau 3–5 năm", meta: `${vn(m.metric.value)} triệu/tháng · ${m.metric.year} · nguồn: ${m.source.publisher}${trustNote(m.source.trust)}` });
-      }
-      const income = benchmarks.find((b) => b.id === "income-2025");
-      if (income) {
-        items.push({ title: "Mốc so sánh: thu nhập bình quân lao động cả nước", meta: `${vn(income.value)} ${income.unit} · ${income.year} · nguồn: ${income.source.publisher}` });
-        if (income.source.url) sources.push({ label: `${income.source.publisher} – ${income.source.title}`, href: income.source.url, external: true });
-      }
-      const real = [outcome?.employmentRate, outcome?.startingSalary, outcome?.experiencedSalary].some((m) => m && m.source.trust !== "minh-hoa");
-      const careers = major.careers.map((c) => c.title).join(", ");
-      return base("salary", items.length ? "answer" : "unknown", `Ngành ${major.name} — các vị trí phổ biến: ${careers}.${items.length ? " Số liệu việc làm & thu nhập:" : " Trovio chưa có số liệu thu nhập có nguồn cho ngành này."}`, {
-        context: ctx,
-        items,
-        note: real
-          ? "Số liệu thu nhập dao động theo địa phương và năng lực; xem nguồn để biết phạm vi khảo sát."
-          : "Số liệu theo ngành hiện là MINH HOẠ (chưa phải thống kê thật). Chỉ số thu nhập bình quân cả nước là số liệu chính thức.",
-        sources: [...sources, { label: "Nguồn dữ liệu & cách đọc số liệu", href: "/viec-lam#nguon-du-lieu" }],
-        suggestions: [`Trường nào đào tạo ngành ${major.name}?`, `Ngành ${major.name} học gì?`],
-      });
-    }
-    const so = await outcomeService.getSchool(school!.id);
-    if (!so?.employmentRate) {
-      return base("salary", "unknown", `Trovio chưa thu thập được báo cáo khảo sát việc làm của ${school!.shortName}. Theo Thông tư 09/2024/TT-BGDĐT, trường phải công khai tỷ lệ người học tốt nghiệp có việc làm trong 12 tháng trên website.`, {
-        context: ctx,
-        sources: [{ label: `Website ${school!.shortName}`, href: school!.website, external: true }, { label: "Việc làm theo ngành", href: "/viec-lam" }],
-      });
-    }
-    return base("salary", "answer", `Kết quả khảo sát việc làm của ${school!.shortName}${so.cohort ? ` (${so.cohort.toLowerCase()})` : ""}:`, {
-      context: ctx,
-      items: [
-        { title: "Tỷ lệ có việc làm", meta: `${vn(so.employmentRate.metric.value)}% · nguồn: ${so.employmentRate.source.publisher}` },
-        ...(so.salaryNote ? [{ title: "Thu nhập", meta: `${so.salaryNote.text} · nguồn: ${so.salaryNote.source.publisher}` }] : []),
-      ],
-      note: so.employmentRate.metric.note,
-      sources: [
-        ...(so.employmentRate.source.url ? [{ label: so.employmentRate.source.title, href: so.employmentRate.source.url, external: true }] : []),
-        { label: `Trang trường ${school!.shortName}`, href: `/truong/${school!.slug}` },
-      ],
-    });
-  }
-
-  if ((has(n, I.salary) || has(n, I.jobs)) && !major && !school) {
-    const income = (await outcomeService.benchmarks()).find((b) => b.id === "income-2025");
-    return base("salary", "clarify", "Bạn muốn xem việc làm & thu nhập của ngành nào? Bảng theo ngành có ở trang Việc làm & thu nhập — mỗi số liệu kèm nguồn và mức tin cậy. Số liệu theo ngành trong bản demo là minh hoạ nên Trovio không xếp hạng “ngành lương cao nhất”.", {
-      items: income ? [{ title: "Mốc chính thức: thu nhập bình quân lao động cả nước", meta: `${vn(income.value)} ${income.unit} · ${income.year} · nguồn: ${income.source.publisher}` }] : [],
-      sources: [{ label: "Việc làm & thu nhập theo ngành", href: "/viec-lam" }, ...(income?.source.url ? [{ label: income.source.publisher, href: income.source.url, external: true }] : [])],
-      suggestions: ["Lương ngành Công nghệ thông tin", "Lương ngành Kế toán"],
-    });
-  }
-
-  if (has(n, I.reviews) && school) {
-    const { summary } = await reviewService.listPublic(school.id);
-    if (summary.count === 0) {
-      return base("reviews", "unknown", `Chưa có cảm nhận sinh viên nào về ${school.shortName} được kiểm duyệt.`, {
-        context: ctx,
-        sources: [{ label: `Viết cảm nhận về ${school.shortName}`, href: `/truong/${school.slug}` }],
-      });
-    }
-    return base(
-      "reviews",
-      "answer",
-      `${school.shortName} có ${summary.count} cảm nhận đã kiểm duyệt, điểm trung bình ${vn(summary.overall ?? 0)}/5 (giảng dạy ${vn(summary.byCriterion.teaching ?? 0)}, cơ sở vật chất ${vn(summary.byCriterion.facilities ?? 0)}, hoạt động ${vn(summary.byCriterion.activities ?? 0)}, hỗ trợ việc làm ${vn(summary.byCriterion.career ?? 0)}).`,
-      {
-        context: ctx,
-        note: "Cảm nhận là trải nghiệm cá nhân của người viết, không phải đánh giá chính thức.",
-        sources: [{ label: `Đọc cảm nhận tại trang ${school.shortName}`, href: `/truong/${school.slug}` }],
-      },
-    );
-  }
-
   if (has(n, I.scholarship) && school) {
+    if (!school.scholarships.trim()) {
+      return base("scholarship", "unknown", `Trovio chưa có dữ liệu học bổng đã xác minh của ${school.shortName}.`, {
+        context: ctx,
+        sources: [{ label: `Website ${school.shortName}`, href: school.website, external: true }],
+      });
+    }
     return base("scholarship", "answer", `Học bổng tại ${school.shortName}: ${school.scholarships}`, {
       context: ctx,
       note: "Điều kiện học bổng thay đổi theo năm — kiểm tra thông báo trên website trường.",
@@ -658,7 +570,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
       {
         context: ctx,
         items: list.slice(0, 6).map((p) => ({ title: `${p.name} – ${schoolName(p.schoolId)}`, meta: p.combos.join(", ") || "Chưa có dữ liệu tổ hợp", href: `/chuong-trinh/${p.slug}`, programId: p.id })),
-        note: DEMO_NOTE,
+        note: DATA_NOTE,
       },
     );
   }
@@ -675,21 +587,17 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
 
   // "Ngành X có tốt không / có nên học / có khó không / triển vọng?" → không phán xét chung, đưa dữ kiện có nguồn để tự cân nhắc.
   if (has(n, I.evaluate) && major && !school) {
-    const [outcome, riasec] = [await outcomeService.getMajor(major.id), sanitizeRiasec(ctxIn.riasec)];
+    const riasec = sanitizeRiasec(ctxIn.riasec);
     const ps = programsOf(major.id, null);
     const cut = ps.flatMap((p) => (p.cutoffs[0] ? [p.cutoffs[0].score] : []));
     const fees = ps.flatMap((p) => [p.tuitionMin, p.tuitionMax]).filter((x) => x > 0);
-    const demoLabel = (t: string) => (t === "minh-hoa" ? " · MINH HOẠ" : "");
     const mine = riasec ? matchMajor(riasec, major) : null;
     const items: ChatItem[] = [
       {
         title: "Hợp với xu hướng sở thích",
         meta: `${major.riasec.map((t) => `${t} – ${RIASEC_INFO[t].label}`).join(", ")}${mine !== null ? ` · mức phù hợp với bạn: ${mine}%` : ""}`,
       },
-      { title: "Học phần tiêu biểu (độ khó phụ thuộc năng lực từng người)", meta: major.curriculum.flatMap((b) => b.items.map((i) => i.name)).slice(0, 5).join(", ") },
     ];
-    if (outcome?.employmentRate) items.push({ title: "Tỷ lệ có việc làm trong 12 tháng", meta: `${vn(outcome.employmentRate.metric.value)}% · ${outcome.employmentRate.metric.year} · ${outcome.employmentRate.source.publisher}${demoLabel(outcome.employmentRate.source.trust)}` });
-    if (outcome?.startingSalary) items.push({ title: "Lương khởi điểm (trung vị)", meta: `${vn(outcome.startingSalary.metric.value)} triệu/tháng · ${outcome.startingSalary.metric.year} · ${outcome.startingSalary.source.publisher}${demoLabel(outcome.startingSalary.source.trust)}` });
     if (ps.length) {
       items.push({
         title: `Đào tạo tại ${new Set(ps.map((p) => p.schoolId)).size} trường trên Trovio`,
@@ -697,7 +605,6 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
         href: `/nganh/${major.slug}`,
       });
     }
-    const demo = [outcome?.employmentRate, outcome?.startingSalary].some((m) => m && m.source.trust === "minh-hoa");
     return base(
       "evaluate",
       "answer",
@@ -705,13 +612,9 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
       {
         context: ctx,
         items,
-        note: `${demo ? "Số liệu việc làm theo ngành trong bản demo là MINH HOẠ. " : ""}${DEMO_NOTE}${mine === null ? " Làm trắc nghiệm RIASEC để biết mức phù hợp về sở thích của bạn." : ""}`,
-        sources: [
-          { label: `Chi tiết ngành ${major.name}`, href: `/nganh/${major.slug}` },
-          { label: "Việc làm & thu nhập theo ngành", href: "/viec-lam" },
-          ...(mine === null ? [{ label: "Làm trắc nghiệm RIASEC", href: "/trac-nghiem" }] : []),
-        ],
-        suggestions: [`Ngành ${major.name} học gì?`, `Trường nào đào tạo ngành ${major.name}?`, `Lương ngành ${major.name}`],
+        note: DATA_NOTE,
+        sources: [{ label: `Chi tiết ngành ${major.name}`, href: `/nganh/${major.slug}` }],
+        suggestions: [`Giới thiệu ngành ${major.name}`, `Trường nào đào tạo ngành ${major.name}?`],
       },
     );
   }
@@ -719,26 +622,21 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   if (has(n, I.fit) && major) {
     const riasec = sanitizeRiasec(ctxIn.riasec);
     const mine = riasec ? matchMajor(riasec, major) : null;
-    return base("fit", "answer", `Ngành ${major.name} hợp với người có xu hướng ${major.riasec.map((t) => `${RIASEC_INFO[t].label.toLowerCase()} (${t})`).join(", ")}.${mine !== null ? ` Theo kết quả trắc nghiệm của bạn (mã ${riasec!.code.join("-")}), mức phù hợp về sở thích là ${mine}%.` : " Bạn có thể làm trắc nghiệm RIASEC để biết mức phù hợp của mình."}`, {
+    return base("fit", "answer", `Ngành ${major.name} hợp với người có xu hướng ${major.riasec.map((t) => `${RIASEC_INFO[t].label.toLowerCase()} (${t})`).join(", ")}. Nên đối chiếu thêm điểm thi THPT hoặc học bạ và điều kiện tài chính.`, {
       context: ctx,
-      note: "Mức phù hợp chỉ xét sở thích nghề nghiệp; nên cân nhắc thêm năng lực học tập, điểm số và điều kiện tài chính.",
+      note: "Nhãn sở thích chỉ để tham khảo; điểm xét tuyển lấy từ điểm thi THPT hoặc học bạ.",
       items: major.riasec.map((t) => ({ title: `${t} – ${RIASEC_INFO[t].label}`, meta: RIASEC_INFO[t].desc })),
-      sources: [{ label: "Làm trắc nghiệm RIASEC để kiểm tra", href: "/trac-nghiem" }, { label: `Ngành ${major.name}`, href: `/nganh/${major.slug}` }],
-      suggestions: [`Ngành ${major.name} học gì?`, `Lương ngành ${major.name}`],
+      sources: [{ label: `Ngành ${major.name}`, href: `/nganh/${major.slug}` }, { label: "Nhập điểm", href: "/diem-cua-toi" }],
+      suggestions: [`Giới thiệu ngành ${major.name}`, `Trường nào đào tạo ngành ${major.name}?`],
     });
   }
 
-  if (major && (has(n, I.info) || has(n, I.jobs) || (!explicitSchool && words.length <= 8))) {
-    const subjects = major.curriculum.flatMap((b) => b.items.map((i) => i.name)).slice(0, 6);
+  if (major && (has(n, I.info) || (!explicitSchool && words.length <= 8))) {
     return base("major-info", "answer", `${major.name}: ${major.summary}`, {
       context: ctx,
-      items: [
-        { title: "Học phần tiêu biểu", meta: subjects.join(", ") },
-        { title: "Vị trí việc làm", meta: major.careers.map((c) => c.title).join(", ") },
-        { title: "Hợp với xu hướng", meta: major.riasec.map((t) => `${t} – ${RIASEC_INFO[t].label}`).join(", ") },
-      ],
+      items: [{ title: "Hợp với xu hướng", meta: major.riasec.map((t) => `${t} – ${RIASEC_INFO[t].label}`).join(", ") }],
       sources: [{ label: `Chi tiết ngành ${major.name}`, href: `/nganh/${major.slug}` }],
-      suggestions: [`Điểm chuẩn ngành ${major.name}`, `Lương ngành ${major.name}`, `Trường nào đào tạo ngành ${major.name}?`],
+      suggestions: [`Điểm chuẩn ngành ${major.name}`, `Học phí ngành ${major.name}`, `Trường nào đào tạo ngành ${major.name}?`],
     });
   }
 
@@ -747,15 +645,15 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     return base("school-info", "answer", `${school.name} (${school.city}) — ${school.highlight}. Trovio có ${list.length} chương trình của trường.`, {
       context: ctx,
       items: list.slice(0, 6).map((p) => ({ title: p.name, meta: p.cutoffs[0] ? `Điểm chuẩn ${p.cutoffs[0].year}: ${formatMethodScore(p.cutoffs[0].score)}` : "Chưa có dữ liệu chính thức", href: `/chuong-trinh/${p.slug}`, programId: p.id })),
-      note: DEMO_NOTE,
+      note: DATA_NOTE,
       sources: [{ label: `Trang trường ${school.shortName}`, href: `/truong/${school.slug}` }, { label: "Website chính thức", href: school.website, external: true }],
-      suggestions: [`Học phí ${school.shortName}`, `Cảm nhận sinh viên ${school.shortName}`, `Học bổng ${school.shortName}`],
+      suggestions: [`Học phí ${school.shortName}`, `Các ngành của ${school.shortName}`, `Học bổng ${school.shortName}`],
     });
   }
 
   if (has(n, I.compare)) {
     return base("compare", "answer", "Bạn có thể so sánh tối đa 3 chương trình (điểm chuẩn, học phí, phương thức, mức phù hợp) ở trang So sánh — bấm “Thêm so sánh” trên thẻ chương trình.", {
-      sources: [{ label: "Mở trang So sánh", href: "/so-sanh" }, { label: "Việc làm theo ngành", href: "/viec-lam" }],
+      sources: [{ label: "Mở trang So sánh", href: "/so-sanh" }],
     });
   }
 
@@ -763,7 +661,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   return base(
     "unknown",
     "unknown",
-    "Mình chưa có thông tin đáng tin cậy để trả lời câu này nên sẽ không đoán. Bạn thử hỏi về một ngành hoặc trường cụ thể (điểm chuẩn, học phí, học gì, việc làm), hoặc xem mục Trợ giúp.",
+    "Mình chưa có thông tin đáng tin cậy để trả lời câu này nên sẽ không đoán. Bạn thử hỏi về một ngành hoặc trường cụ thể, điểm chuẩn hay học phí.",
     { context: ctx, sources: [{ label: "Trợ giúp & câu hỏi thường gặp", href: "/tro-giup" }], suggestions: defaultSuggestions() },
   );
 }
@@ -774,7 +672,7 @@ function fmtDate(iso: string) {
 }
 
 function defaultSuggestions() {
-  return ["Ngành Marketing học gì?", "Điểm chuẩn ngành Công nghệ thông tin", "Lương ngành Kế toán", "Thứ tự nguyện vọng quan trọng thế nào?"];
+  return ["Giới thiệu ngành Marketing", "Điểm chuẩn ngành Công nghệ thông tin", "Học phí ngành Kế toán", "Thứ tự nguyện vọng quan trọng thế nào?"];
 }
 
 /** Che thông tin cá nhân trước khi lưu câu hỏi vào nhật ký. */
@@ -786,7 +684,7 @@ export function maskQuestion(q: string): string {
 }
 
 /** Từ quá chung, không cho làm từ khoá (dễ khớp nhầm). */
-const ALIAS_STOPWORDS = new Set(["nganh", "truong", "hoc", "diem", "co", "khong", "it", "ai", "neu", "gi", "nao", "dai hoc", "cao dang", "hoc phi", "luong", "viec lam", "ra truong"]);
+const ALIAS_STOPWORDS = new Set(["nganh", "truong", "hoc", "diem", "co", "khong", "it", "ai", "neu", "gi", "nao", "dai hoc", "cao dang", "hoc phi"]);
 
 export const chatbotService = {
   async listAliases() {

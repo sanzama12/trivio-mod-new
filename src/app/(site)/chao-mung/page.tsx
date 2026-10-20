@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Chào mừng" };
 
 const features = [
   { icon: LuSearch, title: "Tìm chương trình phù hợp", desc: "So sánh điểm chuẩn, học phí và vị trí các trường." },
-  { icon: LuCompass, title: "Khám phá sở thích", desc: "Làm bài trắc nghiệm RIASEC miễn phí để tìm ngành phù hợp." },
+  { icon: LuCompass, title: "Khám phá ngành học", desc: "Xem danh mục ngành, chương trình và điểm chuẩn để tìm hướng phù hợp." },
   { icon: LuHeart, title: "Lưu & lập nguyện vọng", desc: "Lưu chương trình yêu thích và sắp xếp thứ tự nguyện vọng dự kiến." },
 ];
 
@@ -61,10 +61,10 @@ export default async function WelcomePage({ searchParams }: Props) {
           <p className="font-semibold text-slate-900">Bạn muốn bắt đầu từ đâu?</p>
           <div className="mt-4 flex flex-wrap justify-center gap-3">
             <Link href="/diem-cua-toi" className={buttonClass({ size: "lg" })}>
-              Nhập điểm & tìm chương trình
+              Tạo hồ sơ học tập & xét tuyển
             </Link>
-            <Link href="/trac-nghiem" className={buttonClass({ variant: "outline", size: "lg" })}>
-              Làm trắc nghiệm
+            <Link href="/nganh" className={buttonClass({ variant: "outline", size: "lg" })}>
+              Khám phá ngành học
             </Link>
           </div>
           <Link href={next} className="mt-5 inline-block text-sm text-slate-500 underline-offset-4 hover:underline">

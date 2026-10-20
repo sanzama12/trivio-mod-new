@@ -14,7 +14,7 @@ import { Dialog, Drawer, Pager, paginate } from "./overlay";
 import { useAdminPost } from "./use-admin-post";
 import { ago, fmtDate, inputCls, Panel, selectCls, td, th } from "./ui";
 
-type Detail = { user: { id: string; email: string; verified: boolean; hasPassword: boolean; hasGoogle: boolean; gradYear: number | null; province: string | null; under16: boolean }; usage: { saved: number; wishlist: number; quizDone: boolean; hasScores: boolean; reminders: number } };
+type Detail = { user: { id: string; email: string; verified: boolean; hasPassword: boolean; hasGoogle: boolean; gradYear: number | null; province: string | null; under16: boolean }; usage: { saved: number; wishlist: number; hasScores: boolean; reminders: number } };
 
 const STATUS: Record<AdminUserRow["status"], { label: string; tone: BadgeTone }> = {
   active: { label: "Hoạt động", tone: "success" },
@@ -216,7 +216,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Mức sử dụng (không hiện dữ liệu cá nhân chi tiết)</p>
                 <p className="mt-2 text-slate-700">
-                  {detail.usage.saved} chương trình đã lưu · {detail.usage.wishlist} nguyện vọng · {detail.usage.quizDone ? "đã" : "chưa"} làm trắc nghiệm · {detail.usage.hasScores ? "đã" : "chưa"} nhập điểm · {detail.usage.reminders} nhắc hạn
+                  {detail.usage.saved} chương trình đã lưu · {detail.usage.wishlist} nguyện vọng · {detail.usage.hasScores ? "đã" : "chưa"} nhập điểm · {detail.usage.reminders} nhắc hạn
                 </p>
               </div>
             )}
@@ -243,7 +243,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
                 <input type="checkbox" className="mt-0.5 size-4 accent-primary-600" checked={view.moderator} disabled={busy} onChange={async (e) => (await act(view, { action: "moderator", value: e.target.checked }, e.target.checked ? "Đã cấp quyền kiểm duyệt viên." : "Đã thu quyền kiểm duyệt viên.")).ok && setView({ ...view, moderator: !view.moderator })} />
                 <span>
                   <span className="font-semibold text-slate-900">Kiểm duyệt viên</span>
-                  <span className="block text-[13px] text-slate-500">Được duyệt cảm nhận và hỏi đáp sinh viên. Không sửa được số liệu tuyển sinh hoặc gửi email khách hàng.</span>
+                  <span className="block text-[13px] text-slate-500">Được quản lý hỏi đáp sinh viên. Không sửa được số liệu tuyển sinh hoặc gửi email khách hàng.</span>
                 </span>
               </label>
             )}
@@ -308,7 +308,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
           </>
         }
       >
-        <p className="text-sm text-slate-600">Xoá vĩnh viễn tài khoản cùng danh sách đã lưu, nguyện vọng, cảm nhận, thông báo. Không thể hoàn tác.</p>
+        <p className="text-sm text-slate-600">Xoá vĩnh viễn tài khoản cùng danh sách đã lưu, nguyện vọng và thông báo. Không thể hoàn tác.</p>
         <label htmlFor="del-confirm" className="mt-4 block text-sm font-semibold text-slate-800">
           Nhập lại email để xác nhận
         </label>

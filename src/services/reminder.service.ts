@@ -5,7 +5,7 @@
  * Hàm `sendDue` được gọi mỗi ngày bởi bộ lập lịch (VD Vercel Cron → POST /api/cron/reminders, có CRON_SECRET),
  * gửi email trước mốc 7 ngày và 1 ngày; nhật ký chống gửi trùng.
  */
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { timelineService } from "./timeline.service";
 import { notificationService } from "./notification.service";
 import { vnDay } from "./analytics.service";

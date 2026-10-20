@@ -3,19 +3,19 @@ import type { ReactNode } from "react";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { cn } from "@/lib/cn";
 
-export function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
+export function Breadcrumb({ items, inverse = false }: { items: { label: string; href?: string }[]; inverse?: boolean }) {
   return (
-    <nav aria-label="Breadcrumb" className="text-[13px] text-slate-500">
+    <nav aria-label="Breadcrumb" className={cn("text-[13px]", inverse ? "text-slate-300" : "text-slate-500")}>
       <ol className="flex flex-wrap items-center gap-1.5">
         {items.map((it, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            {i > 0 && <LuChevronRight className="size-3.5 text-slate-400" aria-hidden />}
+            {i > 0 && <LuChevronRight className={cn("size-3.5", inverse ? "text-slate-500" : "text-slate-400")} aria-hidden />}
             {it.href ? (
-              <Link href={it.href} className="hover:text-primary-700">
+              <Link href={it.href} className={inverse ? "hover:text-white" : "hover:text-primary-700"}>
                 {it.label}
               </Link>
             ) : (
-              <span aria-current="page" className="font-medium text-slate-700">
+              <span aria-current="page" className={cn("font-medium", inverse ? "text-white" : "text-slate-700")}>
                 {it.label}
               </span>
             )}

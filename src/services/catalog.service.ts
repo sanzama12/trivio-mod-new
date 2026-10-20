@@ -2,11 +2,10 @@
  * SERVICE LAYER — danh mục trường, ngành, tổ hợp môn.
  */
 import type { Major, MajorGroup, Region, School, SchoolType } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { firstLetterVi, matchesQuery } from "../lib/text";
 
 import { countBy } from '../lib/collections';
-import { programService } from './program.service';
 
 export interface MajorListItem {
   major: Major;
@@ -14,7 +13,38 @@ export interface MajorListItem {
   programCount: number;
 }
 
+export interface MajorGroupSummary {
+  group: MajorGroup;
+  majorCount: number;
+  programCount: number;
+  schoolCount: number;
+}
+
 export const catalogService = {
+  async getDiscoveryPage(opts: { group?: string; q?: string; letter?: string } = {}) {
+    const { groups, majors, schools, stats } = await repositories.catalog.findDiscoveryCatalog();
+    const countByGroup = countBy(majors, (major) => major.groupId);
+    const summaries: MajorGroupSummary[] = groups.map((group) => ({
+      group,
+      majorCount: countByGroup.get(group.id) ?? 0,
+      programCount: stats.programCountByGroup[group.id] ?? 0,
+      schoolCount: stats.schoolCountByGroup[group.id] ?? 0,
+    }));
+    const groupMap = new Map(groups.map((group) => [group.id, group]));
+    const defaultGroup: MajorGroup = { id: "khac", slug: "khac", name: "Khác", icon: "book", tone: "slate" };
+    const items: MajorListItem[] = majors
+      .filter((major) => !opts.group || major.groupId === opts.group)
+      .filter((major) => !opts.q || matchesQuery(opts.q, major.name, major.code, major.summary))
+      .filter((major) => !opts.letter || firstLetterVi(major.name) === opts.letter)
+      .map((major) => ({
+        major,
+        group: groupMap.get(major.groupId) ?? defaultGroup,
+        programCount: stats.programCountByMajor[major.id] ?? 0,
+      }))
+      .sort((a, b) => a.major.name.localeCompare(b.major.name, "vi"));
+    return { groups: summaries, items, schools };
+  },
+
   /** Danh mục công khai theo thứ tự gốc, dùng cho các luồng lập kế hoạch. */
   async getMajors(): Promise<Major[]> {
     return repositories.majors.findAll();
@@ -33,9 +63,18 @@ export const catalogService = {
   },
 
   /** Dữ liệu nhẹ dùng chung cho các luồng định hướng; View không cần biết repository. */
-  async getGuidanceOptions() {
+  async getGoalOptions() {
+    const [majors, combos] = await Promise.all([repositories.majors.findAll(), this.getCombos()]);
+    return { majors, combos };
+  },
+
+  async getGoalPrograms(majorId: string) {
+    return repositories.catalog.findGuidancePrograms(majorId);
+  },
+
+  async getPlanningOptions() {
     const [programs, majors, combos] = await Promise.all([
-      programService.listAll(),
+      repositories.catalog.findPlanningPrograms(),
       repositories.majors.findAll(),
       this.getCombos(),
     ]);
@@ -50,22 +89,29 @@ export const catalogService = {
     return repositories.catalog.findFaq();
   },
 
-  async getGroupsWithCounts() {
-    const [groups, majors] = await Promise.all([repositories.majors.findGroups(), repositories.majors.findAll()]);
+  async getGroupsWithCounts(): Promise<MajorGroupSummary[]> {
+    const [groups, majors, stats] = await Promise.all([
+      repositories.majors.findGroups(),
+      repositories.majors.findAll(),
+      repositories.catalog.findDiscoveryStats(),
+    ]);
     const countByGroup = countBy(majors, (major) => major.groupId);
-    return groups.map((group) => ({ group, majorCount: countByGroup.get(group.id) ?? 0 }));
+    return groups.map((group) => ({
+      group,
+      majorCount: countByGroup.get(group.id) ?? 0,
+      programCount: stats.programCountByGroup[group.id] ?? 0,
+      schoolCount: stats.schoolCountByGroup[group.id] ?? 0,
+    }));
   },
 
   async listMajors(opts: { group?: string; q?: string; letter?: string } = {}): Promise<MajorListItem[]> {
-    const [groups, majors, programs] = await Promise.all([
+    const [groups, majors, stats] = await Promise.all([
       repositories.majors.findGroups(),
       repositories.majors.findAll(),
-      repositories.programs.findAll(),
+      repositories.catalog.findDiscoveryStats(),
     ]);
     const groupMap = new Map(groups.map((g) => [g.id, g]));
     const defaultGroup: MajorGroup = { id: "khac", slug: "khac", name: "Khác", icon: "book", tone: "slate" };
-    const countByMajor = new Map<string, number>();
-    for (const p of programs) countByMajor.set(p.majorId, (countByMajor.get(p.majorId) ?? 0) + 1);
     return majors
       .filter((m) => !opts.group || m.groupId === opts.group)
       .filter((m) => !opts.q || matchesQuery(opts.q, m.name, m.code, m.summary))
@@ -73,7 +119,7 @@ export const catalogService = {
       .map((major) => ({
         major,
         group: groupMap.get(major.groupId) ?? defaultGroup,
-        programCount: countByMajor.get(major.id) ?? 0,
+        programCount: stats.programCountByMajor[major.id] ?? 0,
       }))
       .sort((a, b) => a.major.name.localeCompare(b.major.name, "vi"));
   },

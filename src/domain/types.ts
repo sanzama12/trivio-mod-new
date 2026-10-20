@@ -9,8 +9,8 @@ export type RiasecType = "R" | "I" | "A" | "S" | "E" | "C";
 export type Competition = "Cao" | "Trung bình" | "Thấp";
 export type FitLevel = "an-toan" | "vua-suc" | "thu-suc";
 
-/** Phương thức xét tuyển có điểm chuẩn để so sánh (THPT, Học bạ, ĐGNL HN, ĐGNL HCM, TSA Bách Khoa). */
-export type AdmissionMethodKey = "thpt" | "hocba" | "dgnl-hn" | "dgnl-hcm" | "tsa";
+/** Phương thức xét tuyển có điểm chuẩn để so sánh (THPT, Học bạ). */
+export type AdmissionMethodKey = "thpt" | "hocba";
 export type AltMethodKey = Exclude<AdmissionMethodKey, "thpt">;
 
 /** Khu vực ưu tiên theo quy chế tuyển sinh. */
@@ -43,6 +43,10 @@ export interface School {
   students: number;
   highlight: string;
   website: string;
+  /** Ảnh bìa trường đã được kiểm duyệt; null khi chưa có. */
+  coverUrl?: string | null;
+  /** Logo chính thức hoặc nguồn logo đã được kiểm duyệt; null khi chưa có. */
+  logoUrl: string | null;
   description: string;
   scholarships: string;
   /** Quản trị viên tạm ẩn (không hiện cho học sinh). */
@@ -56,19 +60,13 @@ export interface MajorGroup {
   slug: string;
   name: string;
   icon: string; // key trong bảng icon của lớp UI
-  tone: "primary" | "accent" | "success" | "danger" | "pink" | "teal" | "violet" | "slate";
-}
-
-export interface CurriculumBlock {
-  title: string;
-  items: { name: string; desc: string }[];
-}
-
-export interface Career {
-  title: string;
-  salary: string; // "15 - 22 triệu/tháng"
-  desc: string;
-  level: "Quản lý & chiến lược" | "Thực thi & chuyên môn";
+  /** Mô tả ngắn giúp học sinh hiểu phạm vi của nhóm trước khi mở danh sách ngành. */
+  description?: string;
+  /** Thứ tự biên tập trên các bề mặt danh mục. */
+  position?: number;
+  /** Ưu tiên xuất hiện ở khu khám phá; không đồng nghĩa với quảng cáo. */
+  featured?: boolean;
+  tone: "primary" | "accent" | "success" | "danger" | "pink" | "teal" | "violet" | "slate"; // palette key
 }
 
 export interface Major {
@@ -80,10 +78,6 @@ export interface Major {
   riasec: [RiasecType, RiasecType, RiasecType];
   summary: string;
   description: string;
-  curriculum: CurriculumBlock[];
-  careers: Career[];
-  demand: "Rất cao" | "Cao" | "Trung bình";
-  growth: number; // % tăng trưởng nhu cầu tuyển dụng/năm
   hidden?: boolean;
   custom?: boolean;
 }
@@ -123,7 +117,7 @@ export interface Program {
   combos: string[];
   /** Điểm chuẩn phương thức điểm thi THPT, thang 30. Rỗng nếu trường không xét điểm thi. */
   cutoffs: CutoffScore[];
-  /** Điểm chuẩn gần nhất của các phương thức khác (học bạ thang 30, ĐGNL HN thang 150, ĐGNL HCM thang 1200). */
+  /** Điểm chuẩn gần nhất của các phương thức khác (học bạ thang 30). */
   altCutoffs: MethodCutoff[];
   tuitionMin: number; // triệu đồng/năm
   tuitionMax: number;
@@ -148,6 +142,35 @@ export interface Program {
   adminVerifiedAt?: string | null;
   hidden?: boolean;
   custom?: boolean;
+}
+
+/** Read model tối giản cho luồng đặt mục tiêu; không mang dữ liệu quản trị/chi tiết. */
+export interface GuidanceProgram {
+  id: string;
+  slug: string;
+  name: string;
+  majorId: string;
+  groupId: string;
+  schoolId: string;
+  schoolName: string;
+  schoolCode: string;
+  city: string;
+  region: Region;
+  trainingType: string;
+  combos: string[];
+  cutoffs: CutoffScore[];
+  altCutoffs: MethodCutoff[];
+  tuitionMin: number;
+  tuitionMax: number;
+}
+
+/** Read model cho công cụ chọn môn lớp 10. */
+export interface PlanningProgram {
+  id: string;
+  majorId: string;
+  combos: string[];
+  /** Số chương trình có cùng ngành và cùng tập tổ hợp. */
+  count: number;
 }
 
 /** Nhóm số liệu trường xác nhận trên cổng trường. */
@@ -249,13 +272,9 @@ export interface User {
   disabled?: boolean;
   /** Lần đăng nhập gần nhất (thống kê quản trị). */
   lastLoginAt?: string | null;
-  /** Kiểm duyệt viên: vào được mục kiểm duyệt cảm nhận và hỏi đáp. */
+  /** Kiểm duyệt viên: vào được mục quản lý hỏi đáp. */
   moderator?: boolean;
   schoolStaff?: SchoolStaff | null;
-  /** Đồng ý nhận lời mời khảo sát sau 1 năm (mặc định tắt). */
-  surveyOptIn?: boolean;
-  surveyOptInAt?: string | null;
-  surveyInvitedAt?: string | null;
 }
 
 /** Dữ liệu an toàn để gửi ra client (không có hash mật khẩu, id Google). */
@@ -267,10 +286,11 @@ export type PublicUser = Omit<User, "passwordHash" | "googleId" | "failedAttempt
 
 /** Hồ sơ điểm của học sinh (S07). */
 export interface ScoreProfile {
-  /** Phương thức của hồ sơ điểm; thiếu = "thpt" (hồ sơ tạo trước khi có tính năng này). */
+  /** Phương thức chính; thiếu = "thpt" (hồ sơ tạo trước khi có tính năng này). */
   method?: AdmissionMethodKey;
-  /** Tổ hợp môn (THPT, học bạ). Rỗng với ĐGNL. */
+  /** Tổ hợp đang chọn (THPT, học bạ). */
   combo: string;
+  /** Điểm từng môn (thang 10). Dùng để tính tổ hợp mạnh, không chỉ 3 môn của một tổ hợp. */
   scores: Record<string, number>;
   priorityRegion: PriorityRegion;
   priorityGroup: PriorityGroup;
@@ -278,6 +298,10 @@ export interface ScoreProfile {
   budgetMax: number | null; // triệu/năm
   schoolTypes: SchoolType[];
   groupIds: string[];
+  /** Phương thức xét tuyển dự kiến (có thể nhiều). Thiếu = chỉ `method`. */
+  methods?: AdmissionMethodKey[];
+  /** Ngành cụ thể đang quan tâm (ngoài nhóm ngành). */
+  interestMajorIds?: string[];
 }
 
 export interface AdmissionScore {
@@ -294,6 +318,12 @@ export interface RiasecResult {
   code: [RiasecType, RiasecType, RiasecType];
   completedAt: string;
   answered: number;
+  /** Phiên bản bộ câu hỏi đã dùng để có thể tái lập kết quả. */
+  assessmentVersion: string;
+  /** Phiên bản thuật toán chấm điểm. */
+  scoringModelVersion: string;
+  /** Tổng số câu của phiên bản bài đánh giá. */
+  questionCount: number;
   /** Độ phân hóa của kết quả (độ lệch chuẩn giữa 6 nhóm). < 8 = chưa phân hóa rõ nét (flat profile). */
   differentiation?: number;
   /** Đánh dấu bài làm chọn quá đều cần nhắc nhở học sinh làm lại cẩn thận. */
@@ -411,106 +441,9 @@ export interface AuditEntry {
   /** id đối tượng bị thay đổi (tên trường giữ nguyên để tương thích nhật ký cũ). */
   programId: string;
   /** Loại đối tượng; thiếu = chương trình. */
-  targetType?: "program" | "major-outcome" | "source" | "review" | "report" | "timeline" | "chat-alias" | "school" | "major" | "quiz" | "rules" | "import" | "user" | "school-submission";
+  targetType?: "program" | "qa" | "timeline" | "chat-alias" | "school" | "major" | "rules" | "import" | "user" | "school-submission";
   action: "update" | "verify" | "reset" | "approve" | "reject" | "delete" | "create";
   changes: { field: string; before: string; after: string }[];
-}
-
-// ---------------------------------------------------------------------------
-// Việc làm & thu nhập — mọi con số đều phải gắn với một nguồn.
-// ---------------------------------------------------------------------------
-
-export type SourceKind = "van-ban" | "thong-ke" | "khao-sat-truong" | "bao-chi" | "khao-sat-doanh-nghiep" | "minh-hoa";
-/** Mức tin cậy hiển thị cho người dùng. */
-export type TrustLevel = "cao" | "trung-binh" | "tham-khao" | "minh-hoa";
-
-export interface DataSource {
-  id: string;
-  title: string;
-  publisher: string;
-  year: number;
-  url: string | null;
-  kind: SourceKind;
-  trust: TrustLevel;
-  /** Phương pháp / phạm vi / điều cần lưu ý khi đọc số liệu. */
-  note: string;
-  accessedAt: string; // YYYY-MM-DD
-}
-
-export interface OutcomeMetric {
-  value: number;
-  low?: number;
-  high?: number;
-  year: number;
-  sourceId: string;
-  sampleSize?: number;
-  note?: string;
-}
-
-/** Kết quả đầu ra theo ngành (toàn quốc / tổng hợp). */
-export interface MajorOutcome {
-  majorId: string;
-  /** % người tốt nghiệp có việc làm trong 12 tháng. */
-  employmentRate?: OutcomeMetric;
-  /** Lương khởi điểm (triệu đồng/tháng): value = trung vị, low–high = khoảng phổ biến. */
-  startingSalary?: OutcomeMetric;
-  /** Thu nhập sau 3–5 năm (triệu đồng/tháng). */
-  experiencedSalary?: OutcomeMetric;
-  updatedAt: string; // YYYY-MM
-}
-
-/** Kết quả khảo sát việc làm do từng trường công bố. */
-export interface SchoolOutcome {
-  schoolId: string;
-  employmentRate?: OutcomeMetric;
-  /** Thông tin thu nhập dạng mô tả (VD: "72% có lương trên 9 triệu/tháng"). */
-  salaryNote?: { text: string; year: number; sourceId: string };
-  cohort?: string;
-}
-
-/** Mốc so sánh cả nước (số liệu thống kê chính thức). */
-export interface Benchmark {
-  id: string;
-  label: string;
-  value: number;
-  unit: string;
-  year: number;
-  sourceId: string;
-}
-
-// ---------------------------------------------------------------------------
-// Cảm nhận sinh viên (kiểm duyệt trước khi hiển thị)
-// ---------------------------------------------------------------------------
-
-export type ReviewStatus = "pending" | "approved" | "rejected" | "hidden";
-export type ReviewCriterion = "teaching" | "facilities" | "activities" | "career";
-
-export interface SchoolReview {
-  id: string;
-  schoolId: string;
-  userId: string;
-  authorName: string;
-  anonymous: boolean;
-  relation: "sinh-vien" | "cuu-sinh-vien";
-  cohort: number | null;
-  majorId: string | null;
-  ratings: Record<ReviewCriterion, number>;
-  title: string;
-  content: string;
-  status: ReviewStatus;
-  /** Cờ do bộ lọc tự động gắn để người kiểm duyệt chú ý. */
-  flags: string[];
-  rejectReason: string | null;
-  createdAt: string;
-  updatedAt: string;
-  moderatedAt: string | null;
-  moderatedBy: string | null;
-  helpful: string[];
-  reports: { by: string; reason: string; at: string }[];
-  /** Email tài khoản thuộc tên miền của trường. */
-  schoolEmail: boolean;
-  /** Dữ liệu minh hoạ của bản demo. */
-  demo?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -539,31 +472,10 @@ export interface TimelineEvent {
 
 
 // ---------------------------------------------------------------------------
-// Báo dữ liệu sai, thông báo, cấu hình mốc tuyển sinh, từ khoá chatbot, thống kê, khảo sát
+// Thông báo, cấu hình mốc tuyển sinh, từ khoá chatbot, thống kê, khảo sát
 // ---------------------------------------------------------------------------
 
-export type DataReportStatus = "moi" | "dang-xu-ly" | "da-xu-ly" | "khong-hop-le";
-
-/** Báo dữ liệu sai do người dùng gửi từ trang Trợ giúp / trang chương trình. */
-export interface DataReport {
-  id: string;
-  /** Chương trình liên quan (nếu gửi từ trang chương trình hoặc chọn được). */
-  programId: string | null;
-  /** Người dùng tự mô tả trang/chương trình liên quan. */
-  page: string;
-  topic: "diem-chuan" | "hoc-phi" | "chi-tieu" | "to-hop" | "thong-tin-truong" | "khac";
-  detail: string;
-  /** Email nhận phản hồi (tuỳ chọn; chỉ quản trị viên xem). */
-  email: string | null;
-  userId: string | null;
-  status: DataReportStatus;
-  adminNote: string | null;
-  createdAt: string;
-  updatedAt: string;
-  handledBy: string | null;
-}
-
-export type NotificationKind = "review-approved" | "review-rejected" | "report-update" | "reminder" | "supplementary" | "class-reminder" | "qa-answer" | "survey-invite" | "school-submission";
+export type NotificationKind = "reminder" | "supplementary" | "class-reminder" | "qa-answer" | "school-submission";
 
 /** Đợt xét tuyển bổ sung được quản trị và lưu trong PostgreSQL. */
 export interface SupplementaryRound {
@@ -695,39 +607,11 @@ export interface TeacherClass {
   memberConsents?: Record<string, StudentShareConsent>;
 }
 
-/** Phản hồi sau 1 năm học (ẩn danh khi công bố). */
-export interface OutcomeSurvey {
-  id: string;
-  programId: string;
-  userId: string | null;
-  satisfaction: 1 | 2 | 3 | 4 | 5;
-  chooseAgain: "yes" | "no" | "unsure";
-  /** "Sẽ chọn lại trường này" (thêm từ 10/2026; phản hồi cũ không có). */
-  chooseSchoolAgain?: "yes" | "no" | "unsure";
-  trovioRight: "yes" | "no" | "unsure";
-  wish: string;
-  cohort: number;
-  createdAt: string;
-  demo?: boolean;
-}
-
-
 // ---------------------------------------------------------------------------
 // Quản trị nâng cao (A01–A09) & cổng trường
 // ---------------------------------------------------------------------------
 
-/** Cấu hình bài trắc nghiệm do quản trị viên chỉnh (ghi đè dữ liệu gốc). */
-export interface QuizConfig {
-  /** Sửa / ẩn câu gốc theo id. */
-  overrides: Record<number, { text?: string; type?: RiasecType; hidden?: boolean }>;
-  /** Câu do quản trị viên thêm (id ≥ 1000). */
-  custom: RiasecQuestion[];
-  /** Trọng số ưu tiên gợi ý theo nhóm Holland chính của ngành (mặc định 1.0). */
-  typeWeights: Record<RiasecType, number>;
-  updatedAt: string | null;
-}
-
-export type RecRuleKind = "riasec-match" | "budget" | "diversity" | "goal-priority" | "min-years" | "boost-cutoff" | "boost-school-type";
+export type RecRuleKind = "budget" | "diversity" | "goal-priority" | "min-years" | "boost-cutoff" | "boost-school-type";
 export type RecRuleStatus = "active" | "draft" | "disabled";
 
 export interface RecRule {

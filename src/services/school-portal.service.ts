@@ -6,8 +6,8 @@
  */
 import { randomUUID } from "node:crypto";
 import type { Program, PublicUser, SchoolSubmission, VerifyField } from "../domain/types";
-import { repositories } from "../repositories";
-import { isSchoolEmail } from "./review.service";
+import { repositories } from "@database/repositories";
+import { isSchoolEmail } from "./community-utils";
 import { notificationService } from "./notification.service";
 import { toPublicUser } from "./auth.service";
 
@@ -59,8 +59,8 @@ async function staffSchool(user: PublicUser) {
 }
 
 async function writeOverride(actor: PublicUser, p: Program, patch: Partial<Program>, field: string, before: string, after: string, action: "update" | "verify") {
-  const existing = (await repositories.programAdmin.getOverride(p.id)) ?? {};
-  await repositories.programAdmin.setOverride(p.id, { ...existing, ...patch }, { id: randomUUID(), at: now(), actorId: actor.id, actorEmail: actor.email, programId: p.id, action, changes: [{ field, before, after }] });
+
+  await repositories.programAdmin.patchProgram(p.id, { ...patch }, { id: randomUUID(), at: now(), actorId: actor.id, actorEmail: actor.email, programId: p.id, action, changes: [{ field, before, after }] });
 }
 
 async function notifyAdmins(title: string, body: string, href: string) {

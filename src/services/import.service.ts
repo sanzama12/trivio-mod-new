@@ -7,16 +7,18 @@
  *   - Trường và ngành mới tự động được tạo, kể cả khi tên đang để trống.
  *   - Có thể tải file Excel mẫu đầy đủ để nhập và bổ sung dần.
  */
+import { withAtomicResult } from "@database/client";
+import { isMajorCode } from "@database/identity";
 import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import type { AdmissionMethod, AdmissionMethodKey, MethodCutoff, Program, PublicUser } from "../domain/types";
 import { PROVINCE_REGION } from "../domain/provinces";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 import { MAX_SHEET_ROWS, parseCsv, parseXlsx } from "../lib/sheet";
 import { slugify } from "./catalog-admin.service";
 import { unifiedEntryService, type UnifiedEntryContext } from "./unified-entry.service";
 import { normalizeVi } from "../lib/text";
-import { normalizeMajorIdentity } from "./major-mapping.service";
+import { findMajorForImport, normalizeMajorIdentity } from "./major-mapping.service";
 
 type Fail = { ok: false; status: number; field?: string; message: string };
 const now = () => new Date().toISOString();
@@ -95,18 +97,12 @@ const num = (v: string) => {
 const IMPORT_METHOD_MAX: Record<AdmissionMethodKey, number> = {
   thpt: 30,
   hocba: 30,
-  "dgnl-hn": 150,
-  "dgnl-hcm": 1200,
-  tsa: 100,
 };
 
 function importMethodKey(value: string): AdmissionMethodKey | null {
   const method = importMethodIdentity(value);
   if (!value.trim() || method.includes("thpt") || method.includes("tot nghiep")) return "thpt";
   if (method.includes("hoc ba")) return "hocba";
-  if (method.includes("hsa") || method.includes("ha noi")) return "dgnl-hn";
-  if (method.includes("v act") || method.includes("vact") || method.includes("hcm")) return "dgnl-hcm";
-  if (method.includes("tsa") || method.includes("tu duy")) return "tsa";
   return null;
 }
 
@@ -540,7 +536,7 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
     let schoolCode = data.ma_truong.trim().toUpperCase();
     let school = schoolCode ? ctx.schoolByCode.get(schoolCode) : undefined;
 
-    if (!school && data.ten_truong) {
+    if (!school && !schoolCode && data.ten_truong) {
       const normalizedSchoolName = normalizeVi(data.ten_truong).toLowerCase();
       school = ctx.schoolByName.get(normalizedSchoolName);
       if (school) {
@@ -565,15 +561,8 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
       }
     }
 
-    if (!schoolCode) {
-      if (data.ten_truong) {
-        schoolCode = slugify(data.ten_truong).replace(/-/g, "").slice(0, 8).toUpperCase();
-        data.ma_truong = schoolCode;
-        warnings.push({ field: "ma_truong", message: `Trường mới sẽ được tạo tự động: "${data.ten_truong}" (mã: ${schoolCode})` });
-      } else {
-        errors.push({ field: "ma_truong", message: "Bản ghi mới cần mã trường hoặc tên trường" });
-      }
-    } else if (!school) {
+    if (!schoolCode) errors.push({ field: "ma_truong", message: "Cần mã trường do trường công bố; không tự sinh mã từ tên." });
+    if (!school && !data.tinh_thanh) errors.push({ field: "tinh_thanh", message: "Cần tỉnh/thành phố cho trường mới." }); else if (!school) {
       warnings.push({
         field: "ma_truong",
         message: data.ten_truong
@@ -641,15 +630,11 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
 
     let major = null as Ctx["majors"][number] | null;
     if (!existing) {
-      const normalizedMajorName = normalizeMajorIdentity(data.ten_chuong_trinh);
-      major = normalizedMajorName && !/^\d+$/.test(normalizedMajorName)
-        ? ctx.majorByName.get(normalizedMajorName) ?? null
-        : ctx.majorByCode.get(data.ma_nganh.trim().toUpperCase()) ?? null;
-      if (!major && data.ten_chuong_trinh) {
-        warnings.push({ field: "ma_nganh", message: `Ngành mới sẽ được tạo tự động: "${data.ten_chuong_trinh}"` });
-      } else if (!major) {
-        warnings.push({ field: "ma_nganh", message: "Chưa có mã/tên ngành; hệ thống sẽ tạo bản ghi tạm theo mã xét tuyển" });
+      major = findMajorForImport(ctx.majors, data.ten_chuong_trinh, data.ma_nganh) ?? null;
+      if (!major && !isMajorCode(data.ma_nganh)) {
+        errors.push({ field: "ma_nganh", message: "Cần mã ngành chuẩn hoặc tên khớp duy nhất với ngành đã có; không tạo mã giả." });
       }
+
     }
 
     if (!data.nguon) warnings.push({ field: "nguon", message: "Chưa ghi nguồn (bổ sung sau)" });
@@ -711,9 +696,7 @@ function mergeImportRows(rows: ImportRow[]): ImportRowData {
 const METHOD_META: Record<AdmissionMethodKey, Omit<AdmissionMethod, "requirement">> = {
   thpt: { key: "thpt", name: "Xét điểm thi tốt nghiệp THPT", desc: "Theo điểm thi tốt nghiệp THPT.", tag: "Điểm thi" },
   hocba: { key: "hocba", name: "Xét học bạ THPT", desc: "Theo kết quả học tập THPT.", tag: "Học bạ" },
-  "dgnl-hn": { key: "dgnl-hn", name: "Đánh giá năng lực ĐHQG Hà Nội (HSA)", desc: "Theo điểm HSA.", tag: "ĐGNL" },
-  "dgnl-hcm": { key: "dgnl-hcm", name: "Đánh giá năng lực ĐHQG TP.HCM (V-ACT)", desc: "Theo điểm V-ACT.", tag: "ĐGNL" },
-  tsa: { key: "tsa", name: "Đánh giá tư duy (TSA)", desc: "Theo điểm TSA.", tag: "ĐGTD" },
+
 };
 
 function collectImportDetails(rows: ImportRow[]): { cutoffs: Program["cutoffs"]; altCutoffs: MethodCutoff[]; methods: AdmissionMethod[] } {
@@ -792,7 +775,10 @@ export const importService = {
   },
 
   /** Công bố các dòng hợp lệ. Hỗ trợ tự tạo trường/ngành mới và chấp nhận thiếu điểm/học phí. */
-  async publish(actor: PublicUser, fileNameInput: unknown, rowsInput: unknown): Promise<{ ok: true; created: number; updated: number; batchId: string; updatedPrograms?: string[]; message?: string } | Fail> {
+  async publish(actor: PublicUser, fileNameInput: unknown, rowsInput: unknown) {
+    return withAtomicResult(() => importService.publishAtomic(actor, fileNameInput, rowsInput));
+  },
+  async publishAtomic(actor: PublicUser, fileNameInput: unknown, rowsInput: unknown): Promise<{ ok: true; created: number; updated: number; batchId: string; updatedPrograms?: string[]; message?: string } | Fail> {
     if (!Array.isArray(rowsInput) || rowsInput.length === 0) return { ok: false, status: 400, message: "Không có dòng dữ liệu." };
     if (rowsInput.length > MAX_SHEET_ROWS) return { ok: false, status: 400, message: `Tối đa ${MAX_SHEET_ROWS} dòng.` };
     const ctx = await context();
@@ -828,8 +814,7 @@ export const importService = {
     };
 
     const updatedPrograms: string[] = [];
-    const existingOverrides = await repositories.programAdmin.getOverrides([...updates.keys()]);
-    const overrideBatch: Parameters<typeof repositories.programAdmin.setOverridesBatch>[0] = [];
+    const overrideBatch: Parameters<typeof repositories.programAdmin.patchProgramsBatch>[0] = [];
 
     // Cập nhật các chương trình đã có (báo trùng và cập nhật)
     for (const [programId, rows] of updates) {
@@ -945,10 +930,9 @@ export const importService = {
         Object.assign(currentMajor, nextMajor);
       }
 
-      const existingOverride = existingOverrides.get(programId) ?? {};
       overrideBatch.push({
         programId,
-        patch: { ...existingOverride, ...patch, updatedAt: now().slice(0, 7) },
+        patch: { ...patch, updatedAt: now().slice(0, 7) },
         audit: {
           id: randomUUID(),
           at: now(),
@@ -990,6 +974,7 @@ export const importService = {
         source: first.nguon || `Nhập từ file ${preview.fileName}`,
       }, batchCtx);
 
+      if (!res.ok) throw new Error(res.message);
       if (res.ok) {
         const createdProgram = batchCtx.programs.find((program) => program.id === res.programId);
         if (createdProgram) {
@@ -1014,7 +999,7 @@ export const importService = {
       await repositories.catalogAdmin.createProgramsBatch(batchCtx.programsToInsert);
     }
     if (overrideBatch.length > 0) {
-      await repositories.programAdmin.setOverridesBatch(overrideBatch);
+      await repositories.programAdmin.patchProgramsBatch(overrideBatch);
     }
 
     const batch = {
@@ -1057,7 +1042,7 @@ export const importService = {
 
   /** File CSV mẫu đầy đủ; giữ lại để tương thích với các liên kết/công cụ cũ. */
   templateCsv() {
-    return `﻿${IMPORT_COLUMNS.join(",")}\n7480201,Công nghệ thông tin,CEA,Trường Đại học Nghệ An,Nghệ An,,7480201,2026,17,,,,A00 A01,,Điểm thi THPT,,\n7340115,Marketing,CEA,Trường Đại học Nghệ An,Nghệ An,,7340115,2026,,,,,,,Điểm ĐGNL HSA,68,\n`;
+    return `﻿${IMPORT_COLUMNS.join(",")}\n7480201,Công nghệ thông tin,CEA,Trường Đại học Nghệ An,Nghệ An,,7480201,2026,17,,,,A00 A01,,Điểm thi THPT,,\n7340115,Marketing,CEA,Trường Đại học Nghệ An,Nghệ An,,7340115,2026,24,,,,A00 A01,,Điểm học bạ,,\n`;
   },
 
   /** Tên cũ được giữ để không làm hỏng đường dẫn CSV đã lưu trước đây. */
@@ -1131,7 +1116,7 @@ export const importService = {
         chi_tieu: "",
         to_hop: "",
         nguon: "",
-        phuong_thuc: "Điểm ĐGNL HSA",
+        phuong_thuc: "Điểm học bạ",
         diem_rieng: 68,
         ghi_chu: "",
       },
@@ -1170,7 +1155,7 @@ export const importService = {
       sheet.getCell(row, 15).dataValidation = {
         type: "list",
         allowBlank: true,
-        formulae: ['"Điểm thi THPT,Điểm học bạ,Điểm ĐGNL HSA,Điểm ĐGNL V-ACT,Điểm ĐGTD TSA"'],
+        formulae: ['"Điểm thi THPT,Điểm học bạ"'],
       };
       sheet.getCell(row, 16).dataValidation = { type: "decimal", operator: "between", allowBlank: true, formulae: [0, 1200] };
     }
@@ -1192,7 +1177,7 @@ export const importService = {
       { column: "hoc_phi_min, hoc_phi_max", required: "Tùy chọn", description: "Đơn vị triệu đồng/năm. Có thể để trống và nhập sau." },
       { column: "chi_tieu, to_hop, nguon", required: "Tùy chọn", description: "Có thể để trống. Tổ hợp cách nhau bằng dấu cách, ví dụ A00 A01 D01." },
       { column: "phuong_thuc", required: "Tùy chọn", description: "Thuộc khóa dòng cùng mã trường và ID ngành. Khác phương thức vẫn được nhận; chỉ trùng cả ba giá trị mới bị bỏ qua." },
-      { column: "diem_rieng", required: "Tùy chọn", description: "Điểm theo thang riêng của HSA (150), V-ACT (1200) hoặc TSA (100)." },
+      { column: "diem_rieng", required: "Tùy chọn", description: "Điểm học bạ (thang 30) khi phương thức là Điểm học bạ." },
       { column: "ghi_chu", required: "Tùy chọn", description: "Thông tin bổ sung cho phương thức; có thể để trống." },
     ]);
     guide.views = [{ state: "frozen", ySplit: 1 }];

@@ -27,7 +27,7 @@ export const TOUR_STEPS: TourStep[] = [
   { target: "nav-quiz", title: "Trắc nghiệm sở thích", body: "7–10 phút, ra mã RIASEC 3 chữ cái và các nhóm ngành hợp với bạn. Trovio không dùng ngày sinh hay cung hoàng đạo." },
   { target: "for-you", title: "Nhãn khả năng & gợi ý có lý do", body: "Mỗi gợi ý ghi rõ vì sao. Chưa có điểm hoặc chưa đủ 3 năm điểm chuẩn thì Trovio ghi “Chưa đủ dữ liệu” thay vì đoán." },
   { target: "saved", title: "Lưu & lập nguyện vọng", body: "Bấm ♡ để lưu, rồi sắp xếp nguyện vọng, kiểm tra chiến lược và gửi link chỉ xem cho phụ huynh." },
-  { target: "chat", title: "Hỏi trợ lý bất cứ lúc nào", body: "Hỏi về ngành, điểm chuẩn, học phí, việc làm. Câu trả lời luôn kèm nguồn. Chúc bạn chọn đúng ngành!" },
+  { target: "chat", title: "Hỏi trợ lý bất cứ lúc nào", body: "Hỏi về ngành, điểm chuẩn và học phí. Câu trả lời luôn kèm nguồn. Chúc bạn chọn đúng ngành!" },
 ];
 
 type Rect = { top: number; left: number; width: number; height: number };

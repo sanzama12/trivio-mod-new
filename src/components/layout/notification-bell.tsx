@@ -1,21 +1,17 @@
 "use client";
 
-/** Chuông thông báo: cảm nhận được duyệt/từ chối, báo lỗi đã xử lý, nhắc hạn tuyển sinh. */
+/** Chuông thông báo cho mốc tuyển sinh và hoạt động cộng đồng. */
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { LuBell, LuCalendarClock, LuCircleCheck, LuCircleX, LuDatabase, LuMessageCircleQuestion, LuRoute, LuSchool } from "react-icons/lu";
+import { LuBell, LuCalendarClock, LuMessageCircleQuestion, LuRoute, LuSchool } from "react-icons/lu";
 import type { AppNotification } from "@/domain/types";
 import { cn } from "@/lib/cn";
 
 const ICON = {
-  "review-approved": { Icon: LuCircleCheck, cls: "text-success-700 bg-success-50" },
-  "review-rejected": { Icon: LuCircleX, cls: "text-danger-700 bg-danger-50" },
-  "report-update": { Icon: LuDatabase, cls: "text-primary-700 bg-primary-50" },
   reminder: { Icon: LuCalendarClock, cls: "text-accent-700 bg-accent-50" },
   supplementary: { Icon: LuRoute, cls: "text-primary-700 bg-primary-50" },
   "class-reminder": { Icon: LuSchool, cls: "text-accent-700 bg-accent-50" },
   "qa-answer": { Icon: LuMessageCircleQuestion, cls: "text-success-700 bg-success-50" },
-  "survey-invite": { Icon: LuMessageCircleQuestion, cls: "text-primary-700 bg-primary-50" },
   "school-submission": { Icon: LuSchool, cls: "text-primary-700 bg-primary-50" },
 } as const;
 
@@ -110,7 +106,7 @@ export function NotificationBell() {
           ) : (
             <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
               {items.map((n) => {
-                const { Icon, cls } = ICON[n.kind] ?? ICON["report-update"];
+                const { Icon, cls } = ICON[n.kind] ?? ICON.reminder;
                 const body = (
                   <>
                     <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full", cls)}>

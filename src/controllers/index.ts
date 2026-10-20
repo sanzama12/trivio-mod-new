@@ -7,7 +7,6 @@ export * from "./recommendation.controller";
 export * from "./scoring.controller";
 export * from "./chatbot.controller";
 export * from "./program.controller";
-export * from "./quiz.controller";
 export * from "./wishlist.controller";
 export * from "./auth.controller";
 export * from "./catalog.controller";

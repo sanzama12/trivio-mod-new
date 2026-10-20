@@ -102,12 +102,15 @@ function ScoreSlider({ value, onChange, program: refProgram, method }: { value: 
   );
 }
 
-export function GoalChat({ majors, programs, combos }: { majors: LiteMajor[]; programs: LiteProgram[]; combos: Combo[] }) {
+export function GoalChat({ majors, combos }: { majors: LiteMajor[]; combos: Combo[] }) {
   const { goal, setGoal, quiz, profile, hydrated } = useTrovio();
   const toast = useToast();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [step, setStep] = useState<Step>(1);
   const [q, setQ] = useState("");
+  const [programs, setPrograms] = useState<LiteProgram[]>([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
+  const [programsError, setProgramsError] = useState(false);
 
   // Lần đầu có dữ liệu trên máy: nạp mục tiêu cũ (nếu có) để sửa.
   useEffect(() => {
@@ -118,6 +121,34 @@ export function GoalChat({ majors, programs, combos }: { majors: LiteMajor[]; pr
     } else setDraft({ ...EMPTY, budgetMax: profile?.budgetMax ?? null, regions: profile?.regions ?? [] });
   }, [hydrated, draft, goal, profile]);
   const d = draft ?? EMPTY;
+  useEffect(() => {
+    if (!d.majorId) {
+      setPrograms([]);
+      setProgramsLoading(false);
+      setProgramsError(false);
+      return;
+    }
+    const controller = new AbortController();
+    setPrograms([]);
+    setProgramsLoading(true);
+    setProgramsError(false);
+    fetch(`/api/programs/guidance?majorId=${encodeURIComponent(d.majorId)}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Không tải được dữ liệu chương trình");
+        return response.json() as Promise<{ items: LiteProgram[] }>;
+      })
+      .then((data) => setPrograms(data.items))
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          console.error(error);
+          setProgramsError(true);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProgramsLoading(false);
+      });
+    return () => controller.abort();
+  }, [d.majorId]);
   const set = (patch: Partial<Draft>, next?: Step) => {
     setDraft({ ...d, ...patch });
     if (next) setStep(next);
@@ -196,8 +227,8 @@ export function GoalChat({ majors, programs, combos }: { majors: LiteMajor[]; pr
                   />
                 ))}
                 {suggestions.length === 0 && <p className="text-[13px] text-slate-500">Không tìm thấy ngành “{q}”.</p>}
-                <Link href="/trac-nghiem" className="self-center px-2 text-[13px] font-semibold text-primary-600 hover:underline">
-                  Chưa biết – làm trắc nghiệm
+                <Link href="/nganh" className="self-center px-2 text-[13px] font-semibold text-primary-600 hover:underline">
+                  Xem danh mục ngành
                 </Link>
               </div>
             )}
@@ -219,7 +250,9 @@ export function GoalChat({ majors, programs, combos }: { majors: LiteMajor[]; pr
                 <Bubble>Bạn xét tuyển bằng tổ hợp nào? Mình chỉ hiện các cách mà trường dạy {major.name} đang dùng.</Bubble>
                 {step === 2 ? (
                   <div className="flex flex-wrap gap-2">
-                    {choices.map((c) => (
+                    {programsLoading && <p className="text-[13px] text-slate-500">Đang tải chương trình của ngành…</p>}
+                    {programsError && <p className="text-[13px] text-danger-700">Chưa tải được dữ liệu. Hãy chọn lại ngành để thử lại.</p>}
+                    {!programsLoading && !programsError && choices.map((c) => (
                       <Reply
                         key={`${c.method}-${c.combo}`}
                         title={c.combo ?? ADMISSION_METHODS[c.method].short}
@@ -228,10 +261,10 @@ export function GoalChat({ majors, programs, combos }: { majors: LiteMajor[]; pr
                         onClick={() => pickChoice(c.method, c.combo)}
                       />
                     ))}
-                    {choices.length === 0 && <p className="text-[13px] text-slate-500">Chưa có chương trình nào của ngành này có điểm chuẩn để so.</p>}
+                    {!programsLoading && !programsError && choices.length === 0 && <p className="text-[13px] text-slate-500">Chưa có chương trình nào của ngành này có điểm chuẩn để so.</p>}
                   </div>
                 ) : null}
-                {hidden.length > 0 && step === 2 && (
+                {!programsLoading && hidden.length > 0 && step === 2 && (
                   <p className="text-xs text-slate-500">Đã ẩn {hidden.join(", ")} — không chương trình nào của ngành này xét các tổ hợp đó.</p>
                 )}
               </Bot>

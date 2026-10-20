@@ -50,7 +50,7 @@ export function CostCalculator({ tuitionMin, tuitionMax, durationYears }: { tuit
         {field("t", "Học phí năm đầu", tuition, setTuition, "triệu/năm", `Theo dữ liệu: ${tuitionMin === tuitionMax ? tuitionMin : `${tuitionMin}–${tuitionMax}`} triệu/năm`)}
         {field("y", "Số năm học", years, setYears, "năm")}
         {field("i", "Học phí tăng mỗi năm", inc, setInc, "%", "Nhiều trường tăng theo lộ trình — xem đề án")}
-        {field("s", "Học bổng / miễn giảm", scholar, setScholar, "% học phí")}
+        {field("s", "Mức giảm do bạn tự nhập", scholar, setScholar, "% học phí")}
         {field("l", "Sinh hoạt phí", living, setLiving, "triệu/tháng", "Giả định — nhập theo hoàn cảnh gia đình bạn")}
         {field("m", "Số tháng sinh hoạt mỗi năm", months, setMonths, "tháng")}
         {field("o", "Chi phí một lần", oneTime, setOneTime, "triệu", "Máy tính, nhập học, giáo trình…")}
@@ -59,7 +59,7 @@ export function CostCalculator({ tuitionMin, tuitionMax, durationYears }: { tuit
       <div className="mt-5 grid gap-4 rounded-xl bg-primary-50 p-4 md:grid-cols-[1fr_1.4fr]" aria-live="polite">
         <div>
           <p className="flex items-center gap-1.5 text-[13px] font-semibold text-primary-800">
-            <LuCalculator className="size-4" aria-hidden /> Tổng chi phí ước tính cả khoá
+            <LuCalculator className="size-4" aria-hidden /> Tổng chi phí theo giả định
           </p>
           <p className="mt-1 text-3xl font-extrabold text-slate-900">{formatMillion(r.total)}</p>
           <p className="mt-1 text-[13px] text-slate-700">
@@ -91,7 +91,7 @@ export function CostCalculator({ tuitionMin, tuitionMax, durationYears }: { tuit
       </div>
       <p className="mt-3 flex items-start gap-1.5 text-xs text-slate-500">
         <LuInfo className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-        Công cụ tham khảo: học phí theo dữ liệu Trovio (bản demo là số minh hoạ), các giả định còn lại do bạn nhập. Không gồm lãi vay.{" "}
+        Công cụ tính từ học phí Trovio đang có và các giả định do bạn tự nhập. Mức giảm không phải chính sách học bổng hay miễn học phí của trường. Không gồm lãi vay.{" "}
         <Link href="/chi-phi" className="font-semibold text-primary-700 hover:underline">
           So sánh chi phí các chương trình đã lưu
         </Link>

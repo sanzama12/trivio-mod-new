@@ -10,8 +10,8 @@ View (React) -> Controller (HTTP) -> Model (use-case + repository) -> PostgreSQL
 
 - `src/domain`: entity, value object và quy tắc thuần TypeScript.
 - `src/services`: use-case/nghiệp vụ; không biết `NextRequest`, `NextResponse` hay React.
-- `src/repositories`: hợp đồng và adapter PostgreSQL.
-- `src/lib/db.ts`: hạ tầng kết nối PostgreSQL duy nhất.
+- `database/repositories`: hợp đồng và adapter PostgreSQL.
+- `database/client.ts`: hạ tầng kết nối PostgreSQL duy nhất.
 
 Model không được import từ `src/controllers`, `src/views`, `src/components` hoặc `src/app`.
 
@@ -28,7 +28,7 @@ Controller không chứa truy vấn SQL và không chứa quy tắc nghiệp v�
 - `src/lib/api-client.ts`: client typed duy nhất để Client Component gọi API.
 - Server Component đọc Model trực tiếp theo khuyến nghị Next.js; không gọi vòng qua `/api`.
 
-View không import repository hay `src/data`.
+View không import repository hay `database/seeds`.
 
 ## Read-model và hiệu năng
 

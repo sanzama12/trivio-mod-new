@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LuBadgeCheck, LuCheck, LuTriangleAlert, LuX } from "react-icons/lu";
-import { FLAG_LABELS } from "@/domain/reviews";
+import { CONTENT_FLAG_LABELS } from "@/services/community-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -93,7 +93,7 @@ function Flags({ flags }: { flags: string[] }) {
     <div className="mt-2 flex flex-wrap gap-1.5">
       {flags.map((f) => (
         <Badge key={f} tone="danger">
-          <LuTriangleAlert className="size-3" aria-hidden /> {FLAG_LABELS[f] ?? f}
+          <LuTriangleAlert className="size-3" aria-hidden /> {CONTENT_FLAG_LABELS[f] ?? f}
         </Badge>
       ))}
     </div>

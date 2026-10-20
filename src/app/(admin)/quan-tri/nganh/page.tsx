@@ -30,7 +30,6 @@ export default async function AdminMajorsPage() {
             name: r.major.name,
             groupId: r.major.groupId,
             groupName: r.groupName,
-            riasec: r.major.riasec,
             summary: r.major.summary,
             programs: r.programs,
             hidden: !!r.major.hidden,

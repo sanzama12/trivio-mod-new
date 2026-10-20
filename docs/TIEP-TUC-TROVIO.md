@@ -21,7 +21,7 @@
 | Thư mục dự án trên Mac | `/Users/nguyen.tran/Documents/DATN UIUX/code/trovio-web` |
 | Stack | Next.js **16.3.6** (App Router, `src/proxy.ts` thay middleware) · React 19 · TypeScript · Tailwind CSS v4 (`@theme` trong `src/app/globals.css`) · icon `react-icons/lu` |
 | Node trên Mac | v22.x · dev server người dùng thường chạy sẵn ở **:3000** (`next dev`, output `.next/dev`, nên `next build` chạy song song được) |
-| Dữ liệu | File JSON `.data/trovio-db.json`, **DB_VERSION = 6**, tự migrate (v5: hỏi đáp, lớp học, khảo sát sau 1 năm; v6: dữ liệu minh hoạ mới). Xoá file = về dữ liệu demo |
+| Dữ liệu | PostgreSQL theo `database/schema.sql`; dữ liệu mẫu theo `database/seed.sql` |
 | Figma | “Trovio — EdTech Platform”, trang *Page 1 · Đồng bộ style*, theme Indigo 2026 |
 
 ### Chạy lệnh
@@ -60,7 +60,7 @@ BASE_URL=http://localhost:3100 CRON_SECRET=e2e-secret node tests/e2e/smoke.mjs  
 | Giáo viên (lớp mẫu `DEMO12`) | gv@trovio.vn | Trovio@2026 |
 | Sinh viên email trường (trả lời hỏi đáp NEU) | linh@st.neu.edu.vn | Trovio@2026 |
 | Cán bộ tuyển sinh NEU (đã duyệt, `/cong-truong`) | tuyensinh@neu.edu.vn | Trovio@2026 |
-| Kiểm duyệt viên (chỉ cảm nhận / hỏi đáp / báo lỗi) | kiemduyet@trovio.vn | Trovio@2026 |
+| Kiểm duyệt viên (chỉ hỏi đáp) | kiemduyet@trovio.vn | Trovio@2026 |
 
 Env (xem `.env.example`): `SESSION_SECRET`, `APP_URL`, `TROVIO_DEMO` (mặc định bật ở dev, tắt ở `npm start`), `ADMIN_EMAILS`, `CRON_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `CHATBOT_LLM`/`ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` (mặc định tắt), `TROVIO_DB_FILE`.
 
@@ -69,32 +69,32 @@ Env (xem `.env.example`): `SESSION_SECRET`, `APP_URL`, `TROVIO_DEMO` (mặc đ�
 ## 4. Kiến trúc phân lớp
 
 ```
-src/domain        kiểu & hằng số nghiệp vụ (types.ts, reviews.ts, sus.ts, chat.ts, riasec…)
-src/data          dữ liệu gốc: 16 trường, 24 ngành, 52 chương trình, lịch, việc làm, users demo, reviews demo
-src/repositories  types.ts (22 interface) · json-file.ts (dữ liệu người dùng) · memory.ts (tĩnh) · index.ts (điểm cắm duy nhất)
-src/services      nghiệp vụ: scoring, recommendation, wishlist-strategy, share, auth, admin, outcome, review,
-                  chatbot(+chatbot-llm), data-report, notification, timeline, reminder, analytics, mailer…
+src/domain        kiểu & hằng số nghiệp vụ (types.ts, sus.ts, chat.ts, riasec…)
+database/seeds          dữ liệu gốc: 16 trường, 24 ngành, 52 chương trình, lịch và users demo
+database/repositories  types.ts (22 interface) · json-file.ts (dữ liệu người dùng) · memory.ts (tĩnh) · index.ts (điểm cắm duy nhất)
+src/services      nghiệp vụ: scoring, recommendation, wishlist-strategy, share, auth, admin, outcome,
+                  chatbot(+chatbot-llm), notification, timeline, reminder, analytics, mailer…
 src/app/api       route handler (requireUser/requireAdmin, rateLimit, jsonBody giới hạn size)
 src/app, src/components   giao diện; src/stores/trovio-store.tsx = state client (localStorage khách, đồng bộ khi đăng nhập)
 src/lib           auth, http, rate-limit, cost.ts, track.ts, text, format, env
 src/proxy.ts      chống CSRF (Origin/Sec-Fetch-Site) + header bảo mật
 ```
-- Đổi sang CSDL thật: chỉ viết repository mới theo `src/repositories/types.ts` và thay trong `index.ts`.
+- Đổi sang CSDL thật: chỉ viết repository mới theo `database/repositories/types.ts` và thay trong `index.ts`.
 - Token màu Tailwind: primary 50–900 (#4F46E5), accent (cam), success, danger, riasec-*; neutral = slate.
 
 ---
 
 ## 5. Chức năng đã có (tóm tắt)
 
-**Khám phá:** trang chủ (lộ trình 5 bước, “Dành cho bạn”), `/chuong-trinh` (lọc theo 4 phương thức; trang tìm kiếm nằm trong route group `(tim-kiem)` cùng `loading.tsx`), chi tiết chương trình (điểm 3 năm, An toàn/Vừa sức/Thử sức: chênh ≥ +1 / ≥ −0,5, tính tổng chi phí, nút Báo dữ liệu sai), trường (tabs, Cảm nhận SV, Việc làm SV), ngành, so sánh ≤ 3.
+**Khám phá:** trang chủ (lộ trình 5 bước, “Dành cho bạn”), `/chuong-trinh` (lọc theo 4 phương thức; trang tìm kiếm nằm trong route group `(tim-kiem)` cùng `loading.tsx`), chi tiết chương trình (điểm 3 năm, An toàn/Vừa sức/Thử sức: chênh ≥ +1 / ≥ −0,5, tính tổng chi phí), trường (tabs), ngành, so sánh ≤ 3.
 
 **Cá nhân hoá:** RIASEC 60 câu, `/diem-cua-toi` (THPT/học bạ 30, ĐGNL HN 150, HCM 1200, điểm ưu tiên giảm khi ≥ 22,5), gợi ý (RIASEC 45% · trúng tuyển 35% · vị trí 10% · nhóm ngành 10%), `/da-luu` (kiểm tra chiến lược NV, “nếu điểm thay đổi ±2”, xuất PDF), chia sẻ phụ huynh `/chia-se/[id]` (7/30 ngày, góp ý), `/moc-tuyen-sinh` (Nhắc tôi, .ics, banner ≤14 ngày, **email nhắc trước 7 & 1 ngày**), `/chi-phi`.
 
-**Nội dung:** `/viec-lam` (mỗi số có nguồn, mức tin cậy suy ra từ loại nguồn), cảm nhận SV (kiểm duyệt trước, cờ tự động, báo cáo 3 lần → ẩn, **lọc ngành/khoá khi ≥ 4 cảm nhận**, “Xem thêm” 8/lần, thông báo khi duyệt/từ chối), **chatbot** (truy xuất dữ liệu, từ chối dự đoán/cam kết đỗ/gian lận, ngữ cảnh trang & hội thoại, RIASEC “ngành này có hợp không”, nút Lưu/So sánh trong câu trả lời, từ khoá do admin thêm, 20 câu/phút), **báo dữ liệu sai** (`/tro-giup#bao-loi`, `?ct=<slug>` điền sẵn), **chuông thông báo**.
+**Nội dung:** **chatbot** (truy xuất dữ liệu, từ chối dự đoán/cam kết đỗ/gian lận, ngữ cảnh trang & hội thoại, RIASEC “ngành này có hợp không”, nút Lưu/So sánh trong câu trả lời, từ khoá do admin thêm, 20 câu/phút), **chuông thông báo**.
 
 **Tài khoản:** đăng ký + OTP, đăng nhập email/Google, khoá sau 5 lần sai, đổi mật khẩu thu hồi phiên, xoá tài khoản, dưới 16 tuổi cần đồng ý phụ huynh.
 
-**Quản trị `/quan-tri/*`:** dữ liệu chương trình (ô “Còn là số ước tính”), việc làm, cảm nhận, báo lỗi, mốc tuyển sinh (chính thức bắt buộc link https; quay về lịch gốc bấm 2 lần), chatbot (thống kê + từ khoá), thống kê (phễu 6 bước + SUS + CSV).
+**Quản trị `/quan-tri/*`:** dữ liệu chương trình (ô “Còn là số ước tính”), mốc tuyển sinh (chính thức bắt buộc link https; quay về lịch gốc bấm 2 lần), chatbot (thống kê + từ khoá), thống kê (phễu 6 bước + SUS + CSV).
 
 **Đo lường:** phễu ẩn danh `lib/track.ts` (tôn trọng DNT/GPC, tắt được ở `/chinh-sach-rieng-tu`), khảo sát SUS `/khao-sat`.
 
@@ -117,7 +117,6 @@ src/proxy.ts      chống CSRF (Origin/Sec-Fetch-Site) + header bảo mật
 | 10 Hỏi SV + kênh GV (gọn) | mục “Hỏi sinh viên” ở trang chương trình, `/lop-hoc`, `/quan-tri/hoi-dap` | `services/community.service.ts`, `class.service.ts` |
 | 11 Học bổng/miễn giảm/vay/KTX | khối “Tài chính cho việc học” ở trang chương trình, `/chi-phi#ho-tro` | `data/financial-aid.ts`, `components/program/finance-block.tsx`, `financial-aid.tsx` |
 | 12 Bản nhẹ + Zalo (gọn) | `/nhe` (ngoài layout chính) | chia sẻ lịch sang Zalo bằng Web Share; **chưa có Zalo Mini App/ZNS** |
-| 13 Khảo sát sau 1 năm | `/phan-hoi-nganh`, thống kê ở trang chương trình | công bố khi ≥ 20 phản hồi |
 | 14 Trường đã xác nhận | huy hiệu ở trang chương trình; gắn/gỡ ở `/quan-tri/chuong-trinh/[id]` | `services/verification.ts` (12 tháng), `adminService.setSchoolVerified` |
 
 - Bảo mật/riêng tư đã rà: mọi API mới có `requireUser/requireAdmin` đúng chỗ, giới hạn tần suất, giới hạn kích thước body, regex id; hỏi đáp & lời nhắn tự che SĐT/email/link + kiểm duyệt; API lớp học **không trả id/email học sinh** (`PublicClass`); giáo viên chỉ thấy trạng thái; khảo sát cần tài khoản đã xác thực.
@@ -127,7 +126,7 @@ src/proxy.ts      chống CSRF (Origin/Sec-Fetch-Site) + header bảo mật
 ## 6. Lỗi đã sửa gần nhất (29–30/09) — đừng làm hỏng lại
 
 1. **Chatbot “Trợ lý đang bận”**: DB v3 cũ nằm trong cache `globalThis.__trovioDb` qua hot-reload → thiếu `chatAliases` → 500.
-   Sửa ở `src/repositories/json-file.ts`: chỉ dùng cache khi `cached.data.version === DB_VERSION`; `/api/chat` bọc try/catch trả JSON 500 rõ ràng; `knowledge()` bỏ qua lỗi đọc alias.
+   Sửa ở `database/repositories/json-file.ts`: chỉ dùng cache khi `cached.data.version === DB_VERSION`; `/api/chat` bọc try/catch trả JSON 500 rõ ràng; `knowledge()` bỏ qua lỗi đọc alias.
 2. **Trang chủ 500 khi DB mới**: nhiều request cùng migrate/ghi, trùng tên file tạm → ENOENT.
    Sửa: `load()` single-flight (`g.__trovioDbLoading`), file tạm dùng `randomUUID()`.
 3. **Chương trình không tồn tại trả 200**: `loading.tsx` bao cả `[slug]` → chuyển vào `src/app/(site)/chuong-trinh/(tim-kiem)/`.
@@ -161,11 +160,11 @@ Ngoài ra: `README.md` (đầy đủ API, bảo mật, cron), Claude Doc “chec
 - [ ] Header HSTS + Content-Security-Policy (chưa có).
 - [ ] Thay email/hotline giả định ở `/chinh-sach-rieng-tu` (privacy@trovio.vn, 1900 8198).
 - [ ] Nhắc qua **Zalo** thật (ZNS/Zalo OA) + đóng gói Zalo Mini App thật — hiện có bản web `/zalo` + `/nhe` và nút “Rủ nhóm lớp”.
-- [x] Cổng trường `/cong-truong`, “Hữu ích/Báo cáo” hỏi đáp, nhắc riêng từng học sinh, lời mời khảo sát sau 1 năm (opt-in, cron) — xong 04/10.
+- [x] Cổng trường `/cong-truong`, “Hữu ích/Báo cáo” hỏi đáp và nhắc riêng từng học sinh — xong 04/10.
 - [ ] Thay dữ liệu minh hoạ: đợt xét bổ sung 2027, chính sách hỗ trợ/KTX, hỏi đáp & khảo sát demo, lớp `DEMO12`, huy hiệu xác nhận demo.
 - [ ] Nối `services/mailer.ts` với SMTP thật; cron `/api/cron/reminders` (Bearer `CRON_SECRET`).
 - [ ] Rate-limit sang Redis khi chạy nhiều instance; chuyển JSON → PostgreSQL (xem checklist docx).
-- [ ] Nhập dữ liệu tuyển sinh thật, xoá dữ liệu minh hoạ (7 cảm nhận demo, số liệu việc làm minh hoạ, điểm ĐGNL/học bạ ước tính).
+- [ ] Nhập dữ liệu tuyển sinh thật, xoá dữ liệu minh hoạ (điểm ĐGNL/học bạ ước tính).
 - [ ] Tổ chức test người dùng thật 5–8 người (SUS mục tiêu ≥ 72).
 - [ ] Cập nhật `Bao-cao-kiem-thu-Trovio.docx` nếu cần bản báo cáo mới.
 
@@ -184,17 +183,17 @@ Ngoài ra: `README.md` (đầy đủ API, bảo mật, cron), Claude Doc “chec
 
 File “Trovio — EdTech Platform”, trang *Page 1 · Đồng bộ style*. Font Be Vietnam Pro, biến màu “Trovio · Màu” (mode Indigo 2026), component trong section 🧩 Components.
 
-**Đã đồng bộ với code (sửa trực tiếp):** Header (6 mục menu, chuông, user-menu, 4 biến thể mới Việc làm / Mốc tuyển sinh), Footer, Program Card, Chat Launcher; S01–S16, G01–G04, SYS, Onboarding; mobile: menu ☰ có Việc làm + Mốc tuyển sinh, M-S01 có lộ trình 5 bước (bỏ hàng số liệu). Chat Launcher đã thêm vào mọi màn site (trừ S09 làm bài).
+**Đã đồng bộ với code (sửa trực tiếp):** Header, chuông, user-menu, Footer, Program Card, Chat Launcher; S01–S16, G01–G04, SYS, Onboarding; M-S01 có lộ trình 5 bước (bỏ hàng số liệu). Chat Launcher đã thêm vào mọi màn site (trừ S09 làm bài).
 - A01–A09 và 2 màn Admin cũ **giữ nguyên, gắn nhãn “Chưa triển khai”** (code dùng 1 trang /quan-tri 7 tab).
 
-**Section “🔄 Đồng bộ code · Màn bổ sung (10/2026)”** (y=24400): S03 tab Cảm nhận SV / Việc làm SV · /viec-lam · /moc-tuyen-sinh · /chi-phi · /chia-se/[id] · hộp thoại chia sẻ phụ huynh · /khao-sat (SUS) · trợ lý đang mở · menu Thông báo · menu Người dùng · trang chủ đã đăng nhập (“Dành cho bạn”) · 8 màn quản trị (Dữ liệu chương trình, Sửa chương trình, Việc làm, Kiểm duyệt cảm nhận, Báo lỗi, Mốc tuyển sinh, Chatbot, Thống kê & khảo sát).
-- Màn quản trị dùng dữ liệu minh hoạ ở chỗ DB demo đang trống (báo lỗi, phễu, điểm SUS).
+**Section “🔄 Đồng bộ code · Màn bổ sung (10/2026)”** (y=24400): /moc-tuyen-sinh · /chi-phi · /chia-se/[id] · hộp thoại chia sẻ phụ huynh · /khao-sat (SUS) · trợ lý đang mở · menu Thông báo · menu Người dùng · trang chủ đã đăng nhập (“Dành cho bạn”) · các màn quản trị dữ liệu chương trình, mốc tuyển sinh, chatbot và thống kê.
+- Màn quản trị dùng dữ liệu minh hoạ ở chỗ DB demo đang trống (phễu, điểm SUS).
 
 **Section “✨ Đề xuất A · 6 cải tiến” (hi-fi):** N1 Vì sao Trovio gợi ý (drawer, trọng số 45/35/10/10 + học phí là bộ lọc) · N2 Gợi ý khớp mục tiêu + cảnh báo + nhãn mới “Chưa đủ dữ liệu” · N3 Đặt mục tiêu qua hội thoại (chỉ hiện tổ hợp hợp lệ, thanh kéo có vạch điểm chuẩn 3 năm) · N4 Tour 6 bước do trợ lý dẫn + N4b kịch bản tour · N5 Thẻ chia sẻ RIASEC + danh sách NV (1080×1350) · N6 Đăng ký có cam kết “không hỏi SĐT, ngày sinh, Facebook”.
 
 **Section “🎯 Đề xuất B · 3 hướng ưu tiên” (hi-fi):** B1a Chọn môn lớp 10 → ngành mở/khoá · B1b Từ ngành → nên chọn môn gì · B2 Ma trận quyết định có trọng số · B3 Kế hoạch B + theo dõi mùa công bố điểm & xét bổ sung.
 
-**Section “💡 Đề xuất C · 5 hướng dài hạn” (concept):** C1 Hỏi sinh viên thật + trang giáo viên · C2 Học bổng/miễn giảm/vay vốn/KTX · C3 Zalo Mini App + bản nhẹ · C4 Khảo sát hài lòng sau 1 năm · C5 Trường xác nhận dữ liệu (huy hiệu).
+**Section “💡 Đề xuất C · hướng dài hạn” (concept):** C1 Hỏi sinh viên thật + trang giáo viên · C2 Học bổng/miễn giảm/vay vốn/KTX · C3 Zalo Mini App + bản nhẹ · C5 Trường xác nhận dữ liệu (huy hiệu).
 
 **Quy ước khi làm tiếp trên Figma:**
 - Nhãn khả năng theo code: An toàn ≥ +1 điểm, Vừa sức từ −0,5 đến < +1, Thử sức < −0,5. Nhãn “Chưa đủ dữ liệu” đã có trong code (khi chưa có điểm hoặc < 3 năm điểm chuẩn).
@@ -210,23 +209,22 @@ File “Trovio — EdTech Platform”, trang *Page 1 · Đồng bộ style*. Fon
 
 Yêu cầu: “những gì Figma có thì phải triển khai hết lên code”. Lựa chọn của người dùng: `/quan-tri` đổi sang **thanh bên A01–A09**; quản trị **chạy thật, lưu DB**; C3/C5 làm **bản web chạy được**.
 
-**Quản trị (route group `src/app/(admin)/quan-tri`, khung `components/admin/admin-shell.tsx`)** — thanh bên tối 240px theo Figma, nhóm “Cộng đồng & vận hành” chứa các mục cũ (cảm nhận, hỏi đáp, báo lỗi, việc làm, mốc, chatbot, thống kê). Màn hẹp: menu ngăn kéo.
+**Quản trị (route group `src/app/(admin)/quan-tri`, khung `components/admin/admin-shell.tsx`)** — thanh bên tối 240px theo Figma, nhóm “Cộng đồng & vận hành” chứa hỏi đáp, mốc, chatbot và thống kê. Màn hẹp: menu ngăn kéo.
 
 | Màn | Route | Chức năng (đều ghi nhật ký) |
 | --- | --- | --- |
-| A01 Tổng quan dữ liệu | `/quan-tri` | 4 chỉ số, bảng vấn đề tự phát hiện (thiếu nguồn, điểm chênh > 2, thiếu điểm năm mới, trùng mã, bản sửa của trường, báo lỗi), tiến độ xác minh, hoạt động gần đây, duyệt bản sửa từ Cổng trường |
+| A01 Tổng quan dữ liệu | `/quan-tri` | 4 chỉ số, bảng vấn đề tự phát hiện (thiếu nguồn, điểm chênh > 2, thiếu điểm năm mới, trùng mã, bản sửa của trường), tiến độ xác minh, hoạt động gần đây, duyệt bản sửa từ Cổng trường |
 | A02 Trường & Cơ sở | `/quan-tri/truong` | lọc, thêm/sửa trong ngăn kéo (kiểm tra từng ô ✓/✗/⚠ như Figma), tạm ẩn/hiện lại, chọn nhiều |
 | A03 Ngành | `/quan-tri/nganh` | thêm/sửa (mã 7 số, nhóm, 3 nhóm Holland); ngành mới = “Chờ duyệt” (ẩn) tới khi duyệt |
 | A04 Chương trình | `/quan-tri/chuong-trinh` (+ `/[id]` sửa) | lọc trường/ngành/hệ, thêm chương trình, tạm ẩn; nhật ký ở cuối trang |
 | A05 Điểm & Học phí | `/quan-tri/diem-hoc-phi` | sửa nhanh điểm năm mới nhất/học phí trên bảng, xác minh hàng loạt, nguồn tham chiếu (https + ngày + ghi chú), xoá điểm 1 năm, xuất CSV (chống CSV injection), tab học phí theo khoá |
-| A06 Bài test RIASEC | `/quan-tri/trac-nghiem` | sửa/ẩn/thêm câu (mỗi nhóm ≥ 3 câu), trọng số nhóm 0,5–2,0 (dùng trong gợi ý), xuất JSON |
 | A07 Nhập & Kiểm duyệt | `/quan-tri/nhap-du-lieu` | tải CSV/XLSX (≤ 2 MB, 2.000 dòng; bộ đọc XLSX tự viết `lib/sheet.ts`, chặn zip bomb), lỗi/cảnh báo từng dòng, sửa dòng, hộp thoại “Xác nhận công bố dữ liệu”, dòng lỗi bị bỏ qua, lịch sử lô nhập |
 | A08 Người dùng | `/quan-tri/nguoi-dung` | thống kê, lọc vai trò/trạng thái/ngày, xem chi tiết, khoá (đăng xuất mọi thiết bị, chặn cả Google) / mở khoá, xoá (gõ lại email), tạo tài khoản + gửi link đặt mật khẩu, cấp kiểm duyệt viên, duyệt cán bộ tuyển sinh |
 | A09 Quy tắc gợi ý | `/quan-tri/quy-tac-goi-y` | trọng số 4 tiêu chí (tổng 100%), quy tắc bật/tắt/bản nháp/sao chép/cấu hình, **chạy thử** top 3 với trọng số chưa lưu |
 
-**Phía người dùng:** C5 `/cong-truong` (cán bộ tuyển sinh xác nhận từng nhóm số liệu → đủ 4 nhóm = huy hiệu; gửi bản sửa kèm minh chứng https → quản trị duyệt; trang chương trình hiện “đã xác nhận / chờ trường xác nhận” từng ô) · C3 `/zalo` (Mini App bản web, thẻ “Mã sở thích của …” + “Làm trắc nghiệm giống …”, nút “Rủ nhóm lớp” cả trong hộp thoại thẻ chia sẻ) · C1 “Hữu ích (n) · Báo cáo” cho câu trả lời (3 báo cáo → ẩn chờ duyệt lại), “Gửi nhắc” riêng từng học sinh (mã mờ HMAC, 1 lần/24 giờ) · C4 “Sẽ chọn lại trường này” + công tắc “Năm sau bạn có muốn trả lời 3 câu không?” (mặc định tắt, tắt lại trong Hồ sơ; cron gửi lời mời sau 12 tháng) · M-S02 bộ lọc bottom sheet trên điện thoại (“Xem N kết quả” đếm trực tiếp) · UI Patterns: toast mới (viền màu, ✕, “Hoàn tác”), thanh cookie (thống kê chỉ chạy sau khi đồng ý), hộp thoại “Xác nhận xoá” (xoá nguyện vọng + Hoàn tác) và “Chưa lưu thay đổi” (sửa hồ sơ), ngăn kéo “Báo cáo lỗi dữ liệu” ngay trên trang chương trình, cảnh báo “Phiên sẽ hết hạn sau 5 phút” + Gia hạn.
+**Phía người dùng:** C5 `/cong-truong` (cán bộ tuyển sinh xác nhận từng nhóm số liệu → đủ 4 nhóm = huy hiệu; gửi bản sửa kèm minh chứng https → quản trị duyệt; trang chương trình hiện “đã xác nhận / chờ trường xác nhận” từng ô) · C3 `/zalo` (Mini App bản web, thẻ “Mã sở thích của …” + “Làm trắc nghiệm giống …”, nút “Rủ nhóm lớp” cả trong hộp thoại thẻ chia sẻ) · C1 “Hữu ích (n) · Báo cáo” cho câu trả lời (3 báo cáo → ẩn chờ duyệt lại), “Gửi nhắc” riêng từng học sinh (mã mờ HMAC, 1 lần/24 giờ) · C4 “Sẽ chọn lại trường này” + công tắc “Năm sau bạn có muốn trả lời 3 câu không?” (mặc định tắt, tắt lại trong Hồ sơ; cron gửi lời mời sau 12 tháng) · M-S02 bộ lọc bottom sheet trên điện thoại (“Xem N kết quả” đếm trực tiếp) · UI Patterns: toast mới (viền màu, ✕, “Hoàn tác”), thanh cookie (thống kê chỉ chạy sau khi đồng ý), hộp thoại “Xác nhận xoá” (xoá nguyện vọng + Hoàn tác) và “Chưa lưu thay đổi” (sửa hồ sơ), cảnh báo “Phiên sẽ hết hạn sau 5 phút” + Gia hạn.
 
-**Dữ liệu:** `DB_VERSION = 8` (thêm overrides/custom cho trường-ngành-chương trình, quizConfig, recommendConfig, importBatches, schoolSubmissions; seed `tuyensinh@neu.edu.vn`, `kiemduyet@trovio.vn`). Service mới: `catalog-admin`, `data-ops`, `quiz-admin`, `import`, `user-admin`, `rules`, `school-portal`. Quyền: `requireAdmin` / `requireStaff` (kiểm duyệt viên) / trang dùng `lib/admin-page.ts`.
+**Dữ liệu:** `DB_VERSION = 8` (thêm overrides/custom cho trường-ngành-chương trình, recommendConfig, importBatches, schoolSubmissions; seed `tuyensinh@neu.edu.vn`, `kiemduyet@trovio.vn`). Service mới: `catalog-admin`, `data-ops`, `import`, `user-admin`, `rules`, `school-portal`. Quyền: `requireAdmin` / `requireStaff` (kiểm duyệt viên) / trang dùng `lib/admin-page.ts`.
 
 **Kiểm thử 04/10:** tsc sạch · 84 unit test (thêm `tests/admin-ops.test.ts`) · build OK · E2E 114/114 (mục 12 mới) · ảnh chụp 1440/390 không tràn ngang.
 
@@ -244,7 +242,7 @@ Yêu cầu: thêm 3 ý vào Figma rồi triển khai code, tự kiểm thử. **
 - `src/domain/work-style.ts`: 12 câu (xen kẽ trục, mỗi trục đảo A/B 1 câu), `scoreWorkStyle`, `describeAxis`, `summarizeWorkStyle`, hồ sơ phong cách 22 ngành (`MAJOR_STYLE`) + mặc định theo nhóm (`GROUP_STYLE`, cho ngành admin thêm mới), `matchWorkStyle`/`styleLine`/`styleSentence`/`styleReasons`, MBTI (`MBTI_CODES`, `compareMbti`), `sanitizeWorkStyle`/`sanitizeMbti`.
 - Kiểu `WorkAxis`, `StoredWorkStyle`, `StoredMbti`; `UserData.workStyle?`, `UserData.mbti?` (dữ liệu cũ thiếu → null). Store: `workStyle`, `mbti`, `setWorkStyle`, `setMbti`; đồng bộ + gộp (lấy bản mới hơn) + xoá khi đăng xuất.
 - UI: `components/work-style/work-style-view.tsx` (giới thiệu → câu hỏi tự sang câu, phím tắt, tiêu điểm về câu mới → kết quả 4 trục, gợi ý ngành nhìn theo phong cách, làm lại / xoá có xác nhận), `mbti-card.tsx` (lưới 16 mã, so sánh, “Vì sao RIASEC”), `style-bits.tsx` (StyleLine trên RecCard, StyleWhyBlock trong WhyDrawer, StyleEntryCard + MajorStyleNote ở trang kết quả, StylePills ở Hồ sơ, MajorStyleCard ở trang ngành). Lối vào thêm ở `/trac-nghiem`, `/cach-goi-y` và chính sách riêng tư đã ghi rõ.
-- `data/riasec.ts`: 24 câu viết lại (R1,3,4,9 · I1,4,7,10 · A4,5,9,10 · S2,5,7,9 · E1,4,5,8 · C1,3,6,9), mã câu giữ nguyên. Bỏ số “60” cứng (đếm theo ngân hàng câu). Phễu: `quiz_started`, `style_done`, `mbti_added`, tỉ lệ làm hết trắc nghiệm ở `/quan-tri/thong-ke`.
+- `data/riasec.ts`: 24 câu viết lại (R1,3,4,9 · I1,4,7,10 · A4,5,9,10 · S2,5,7,9 · E1,4,5,8 · C1,3,6,9), mã câu giữ nguyên. Bỏ số “60” cứng (đếm theo ngân hàng câu).
 
 **Bất biến cần giữ:** `recommendation.service`, `scoring.service`, `rules.service`, `riasec.service` KHÔNG được import `work-style` hay đọc `workStyle`/`mbti` (test kiểm tra bằng cách đọc mã nguồn + so điểm trước/sau).
 
@@ -254,12 +252,11 @@ Yêu cầu: thêm 3 ý vào Figma rồi triển khai code, tự kiểm thử. **
 ### 12b. Quản trị: nút về trang chủ + rà soát UX (04/10/2026)
 
 - Nút **“Về trang chủ Trovio”** ngay dưới logo ở thanh bên (logo bấm về Tổng quan), nút **“Trang chủ”** ở thanh trên màn hẹp và ở đầu trang quản trị (màn rộng).
-- Thanh bên gọn hơn (đủ 16 mục không cần cuộn ở 900px), đổi “Kiểm duyệt cảm nhận” → “Duyệt cảm nhận” cho khỏi bị cắt chữ, tự cuộn tới mục đang mở.
 - “Hoạt động gần đây” (A01) hiện tiếng Việt (`domain/audit-labels.ts` → `describeAudit`), không còn lộ tên trường kỹ thuật như `*`, `alias`, `season`.
-- Thẻ số liệu xếp 2 cột trên điện thoại; trạng thái rỗng của Báo lỗi rõ ràng hơn; nhật ký tự xuống dòng với chuỗi dài.
+- Thẻ số liệu xếp 2 cột trên điện thoại; nhật ký tự xuống dòng với chuỗi dài.
 - Sửa lỗi tràn ngang trên điện thoại ở trang Chương trình đào tạo: chữ ẩn `sr-only` trong bảng cuộn ngang làm trang rộng 1043px → thêm quy tắc `.overflow-x-auto { position: relative }` (lớp base, áp dụng toàn web).
 - Kiểm thử: tsc sạch · 96 unit test (thêm `tests/admin-ux.test.ts`) · build OK · E2E 116/116 · ảnh chụp 1440/390 không tràn.
 
 ### 12c. Lược đồ PostgreSQL chuẩn hoá theo code (04/10/2026)
 
-`database/schema.sql` (79 bảng, 4 view, hàm `admission_score`/`fit_level`, trigger chặn điểm vượt thang), `database/seed.sql` **tự sinh** bằng `npx tsx scripts/export-sql.ts > database/seed.sql`, `database/README.md` (đối chiếu ERD cũ → bảng mới). Đã nạp thử trên PostgreSQL 16: số liệu khớp web (16 trường, 22 ngành, 52 chương trình, A01 2/47/3). `tests/sql-schema.test.ts` báo lỗi nếu code thêm giá trị liệt kê mới mà SQL chưa cập nhật → khi đổi kiểu dữ liệu nhớ sửa `schema.sql` rồi chạy lại script sinh seed.
+`database/schema.sql` (79 bảng, 4 view, hàm `admission_score`/`fit_level`, trigger chặn điểm vượt thang), `database/seed.sql` **tự sinh** bằng `npx tsx database/scripts/export-sql.ts > database/seed.sql`, `database/README.md` (đối chiếu ERD cũ → bảng mới). Đã nạp thử trên PostgreSQL 16: số liệu khớp web (16 trường, 22 ngành, 52 chương trình, A01 2/47/3). `tests/sql-schema.test.ts` báo lỗi nếu code thêm giá trị liệt kê mới mà SQL chưa cập nhật → khi đổi kiểu dữ liệu nhớ sửa `schema.sql` rồi chạy lại script sinh seed.

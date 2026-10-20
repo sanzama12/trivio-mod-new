@@ -2,10 +2,10 @@
 
 /**
  * M-S02 — Bộ lọc dạng bottom sheet trên điện thoại (theo Figma "Bộ lọc (Overlay bottom sheet)").
- * Chỉnh nháp → số kết quả cập nhật trực tiếp ("Xem N kết quả") → bấm mới áp dụng lên URL.
+ * Mọi lựa chọn hợp lệ được áp dụng ngay lên URL và danh sách kết quả.
  */
 import { useEffect, useRef, useState } from "react";
-import type { Combo, Region, SchoolType, Subject } from "@/domain/types";
+import type { Combo, MajorGroup, Region, SchoolType, Subject } from "@/domain/types";
 import { ADMISSION_METHODS } from "@/services/scoring.service";
 import { REGION_LABELS, SCHOOL_TYPE_LABELS, serializeProgramFilters, TUITION_RANGES, type ProgramFilters, type TuitionRange } from "@/services/program.filters";
 import { useModal } from "@/components/ui/use-modal";
@@ -15,7 +15,7 @@ import { apiRequest } from "@/lib/api-client";
 const chip = (on: boolean) => cn("rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors", on ? "border-primary-600 bg-primary-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-primary-300");
 const SHORT_TUITION: Record<TuitionRange, string> = { "duoi-15": "Dưới 15 triệu", "15-30": "15–30 triệu", "30-50": "30–50 triệu", "tren-50": "Trên 50 triệu" };
 
-export function MobileFilterSheet({ open, onClose, filters, combos, subjects, onApply }: { open: boolean; onClose: () => void; filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; onApply: (f: ProgramFilters) => void }) {
+export function MobileFilterSheet({ open, onClose, filters, combos, subjects, groups, onChange }: { open: boolean; onClose: () => void; filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; groups: MajorGroup[]; onChange: (f: ProgramFilters) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useModal(ref, open, onClose);
   const [draft, setDraft] = useState<ProgramFilters>(filters);
@@ -50,10 +50,15 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, on
   if (!open) return null;
   const short = (id: string) => subjects.find((s) => s.id === id)?.short ?? id;
   const toggle = <T extends string>(list: T[] | undefined, v: T) => (list?.includes(v) ? list.filter((x) => x !== v) : [...(list ?? []), v]);
+  const applyDraft = (next: ProgramFilters) => {
+    setDraft(next);
+    onChange(next);
+  };
   const setScoreDraft = (v: string) => {
     setScore(v);
     const n = Number(v.replace(",", "."));
-    setDraft((d) => ({ ...d, score: v === "" ? undefined : Number.isFinite(n) && n > 0 && n <= max ? Math.round(n * 100) / 100 : d.score }));
+    if (v === "") return applyDraft({ ...draft, score: undefined });
+    if (Number.isFinite(n) && n > 0 && n <= max) applyDraft({ ...draft, score: Math.round(n * 100) / 100 });
   };
   const invalid = score !== "" && !(Number(score.replace(",", ".")) > 0 && Number(score.replace(",", ".")) <= max);
   const shown = allCombos ? combos : combos.slice(0, 5);
@@ -68,7 +73,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, on
           <h2 id="sheet-title" className="text-xl font-bold text-slate-900">
             Bộ lọc
           </h2>
-          <button type="button" className="text-sm font-semibold text-primary-600" onClick={() => (setDraft(clearAll), setScore(""))}>
+          <button type="button" className="text-sm font-semibold text-primary-600" onClick={() => (applyDraft(clearAll), setScore(""))}>
             Xoá tất cả
           </button>
         </div>
@@ -85,13 +90,37 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, on
               {invalid ? `Điểm phải từ 0 đến ${max}.` : method === "thpt" ? "Tổng điểm 3 môn theo tổ hợp xét tuyển" : ADMISSION_METHODS[method].label}
             </p>
           </div>
+          {groups.length > 0 && (
+          <fieldset>
+            <legend className="text-[15px] font-semibold text-slate-900">Danh mục / Nhóm ngành</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {groups.map((g) => {
+                const on = !!draft.groups?.includes(g.id);
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    aria-pressed={on}
+                    className={cn(chip(on), "max-w-full min-h-10 whitespace-normal text-left")}
+                    onClick={() => {
+                      const next = toggle(draft.groups, g.id);
+                      applyDraft({ ...draft, groups: next });
+                    }}
+                  >
+                    {g.name}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+          )}
           <fieldset>
             <legend className="text-[15px] font-semibold text-slate-900">Khối / Tổ hợp xét tuyển</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {shown.map((c) => {
                 const on = !!draft.combos?.includes(c.code);
                 return (
-                  <button key={c.code} type="button" aria-pressed={on} className={chip(on)} onClick={() => setDraft({ ...draft, combos: toggle(draft.combos, c.code) })}>
+                  <button key={c.code} type="button" aria-pressed={on} className={chip(on)} onClick={() => applyDraft({ ...draft, combos: toggle(draft.combos, c.code) })}>
                     {c.code} {on ? `(${c.subjects.map(short).join(", ")})` : ""}
                   </button>
                 );
@@ -107,7 +136,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, on
             <legend className="text-[15px] font-semibold text-slate-900">Học phí tối đa / năm</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((t) => (
-                <button key={t} type="button" aria-pressed={draft.tuition === t} className={chip(draft.tuition === t)} onClick={() => setDraft({ ...draft, tuition: draft.tuition === t ? undefined : t })}>
+                <button key={t} type="button" aria-pressed={draft.tuition === t} className={chip(draft.tuition === t)} onClick={() => applyDraft({ ...draft, tuition: draft.tuition === t ? undefined : t })}>
                   {SHORT_TUITION[t]}
                 </button>
               ))}
@@ -119,7 +148,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, on
               {(Object.keys(REGION_LABELS) as Region[]).map((r) => {
                 const on = !!draft.regions?.includes(r);
                 return (
-                  <button key={r} type="button" aria-pressed={on} className={chip(on)} onClick={() => setDraft({ ...draft, regions: toggle(draft.regions, r) })}>
+                  <button key={r} type="button" aria-pressed={on} className={chip(on)} onClick={() => applyDraft({ ...draft, regions: toggle(draft.regions, r) })}>
                     {REGION_LABELS[r]}
                   </button>
                 );
@@ -129,13 +158,13 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, on
           <fieldset>
             <legend className="text-[15px] font-semibold text-slate-900">Loại hình</legend>
             <div className="mt-2 flex flex-wrap gap-2">
-              <button type="button" aria-pressed={!draft.types?.length} className={chip(!draft.types?.length)} onClick={() => setDraft({ ...draft, types: [] })}>
+              <button type="button" aria-pressed={!draft.types?.length} className={chip(!draft.types?.length)} onClick={() => applyDraft({ ...draft, types: [] })}>
                 Tất cả
               </button>
               {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => {
                 const on = !!draft.types?.includes(t);
                 return (
-                  <button key={t} type="button" aria-pressed={on} className={chip(on)} onClick={() => setDraft({ ...draft, types: toggle(draft.types, t) })}>
+                  <button key={t} type="button" aria-pressed={on} className={chip(on)} onClick={() => applyDraft({ ...draft, types: toggle(draft.types, t) })}>
                     {SCHOOL_TYPE_LABELS[t]}
                   </button>
                 );
@@ -143,12 +172,9 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, on
             </div>
           </fieldset>
         </div>
-        <div className="grid grid-cols-[1fr_2fr] gap-3 border-t border-slate-100 px-5 py-4">
-          <button type="button" className="h-12 rounded-xl border border-slate-300 text-base font-semibold text-slate-800" onClick={() => (setDraft(filters), setScore(filters.score?.toString() ?? ""))}>
-            Đặt lại
-          </button>
-          <button type="button" disabled={invalid} className="h-12 rounded-xl bg-primary-600 text-base font-semibold text-white hover:bg-primary-700 disabled:opacity-50" onClick={() => onApply(draft)}>
-            {count == null ? "Xem kết quả" : `Xem ${count.toLocaleString("vi-VN")} kết quả`}
+        <div className="border-t border-slate-100 px-5 py-4">
+          <button type="button" className="h-12 w-full rounded-xl bg-primary-600 text-base font-semibold text-white hover:bg-primary-700" onClick={onClose}>
+            {count == null ? "Đóng" : `Đóng · ${count.toLocaleString("vi-VN")} kết quả`}
           </button>
         </div>
       </div>

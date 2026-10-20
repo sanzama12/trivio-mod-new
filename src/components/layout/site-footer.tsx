@@ -19,8 +19,6 @@ const cols = [
     links: [
       { label: "Thuật toán gợi ý", href: "/cach-goi-y" },
       { label: "Nguồn dữ liệu đề án", href: "/cach-goi-y#nguon-du-lieu" },
-      { label: "Việc làm & thu nhập theo ngành", href: "/viec-lam" },
-      { label: "Báo dữ liệu sai", href: "/tro-giup#bao-loi" },
     ],
   },
   {
@@ -91,7 +89,7 @@ export function SiteFooter() {
       <div className="border-t border-slate-800">
         <div className="container-page flex flex-col gap-4 py-6 text-[13px] md:flex-row md:items-center md:justify-between">
           <p>
-            © 2026 Trovio. Bản demo — số liệu điểm chuẩn, học phí là <strong className="font-semibold text-slate-300">dữ liệu minh hoạ</strong>, không dùng để đăng ký nguyện vọng.
+            © 2026 Trovio. Công cụ hỗ trợ ra quyết định; hãy đối chiếu đề án tuyển sinh và thông báo chính thức của trường trước khi đăng ký.
           </p>
           <div className="flex items-center gap-2">
             <a href="https://facebook.com" aria-label="Facebook" className="-m-2 flex size-10 items-center justify-center rounded-lg hover:text-white">

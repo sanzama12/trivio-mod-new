@@ -1,4 +1,4 @@
--- TỰ ĐỘNG SINH bởi scripts/export-sql.ts từ src/data + src/domain + src/services. Không sửa tay — chạy lại script.
+-- TỰ ĐỘNG SINH bởi database/scripts/export-sql.ts từ database/seeds + src/domain + src/services. Không sửa tay — chạy lại script.
 -- Sinh lúc: 2026-10-13T08:02:58.678Z
 BEGIN;
 SET search_path TO trovio, public;
@@ -88,22 +88,22 @@ INSERT INTO work_axes (code, left_label, right_label, position) VALUES
 
 INSERT INTO system_roles (code, name, description) VALUES
   ('admin', 'Quản trị viên', 'Toàn quyền dữ liệu tuyển sinh, người dùng, quy tắc gợi ý (A01–A09)'),
-  ('moderator', 'Kiểm duyệt viên', 'Chỉ duyệt cảm nhận và hỏi đáp'),
+  ('moderator', 'Kiểm duyệt viên', 'Kiểm duyệt hỏi đáp và nội dung cộng đồng'),
   ('school_staff', 'Cán bộ tuyển sinh', 'Xác nhận số liệu / gửi bản sửa cho trường của mình ở Cổng trường');
 
 
 -- ================================================================================================
 -- 2. Nhóm ngành, trường, ngành
 -- ================================================================================================
-INSERT INTO major_groups (id, slug, name, icon, tone, position) VALUES
-  ('cntt', 'cong-nghe-cntt', 'Công nghệ & CNTT', 'code', 'primary', 1),
-  ('kinh-te', 'kinh-te-quan-tri', 'Kinh tế & Quản trị', 'chart', 'accent', 2),
-  ('y-duoc', 'y-duoc-suc-khoe', 'Y Dược & Sức khỏe', 'heart', 'danger', 3),
-  ('ky-thuat', 'ky-thuat-cong-nghe', 'Kỹ thuật & Công nghệ', 'gear', 'teal', 4),
-  ('xa-hoi', 'khoa-hoc-xa-hoi', 'Khoa học Xã hội', 'users', 'violet', 5),
-  ('nghe-thuat', 'nghe-thuat-thiet-ke', 'Nghệ thuật & Thiết kế', 'pen', 'pink', 6),
-  ('giao-duc', 'giao-duc-su-pham', 'Giáo dục & Sư phạm', 'book', 'success', 7),
-  ('nong-lam', 'nong-lam-moi-truong', 'Nông Lâm & Môi trường', 'leaf', 'slate', 8);
+INSERT INTO major_groups (id, slug, name, icon, tone, description, position, featured) VALUES
+  ('cntt', 'cong-nghe-cntt', 'Công nghệ & CNTT', 'code', 'primary', 'Phần mềm, dữ liệu, trí tuệ nhân tạo và các hệ thống số.', 1, true),
+  ('kinh-te', 'kinh-te-quan-tri', 'Kinh tế & Quản trị', 'chart', 'accent', 'Kinh doanh, tài chính, marketing, quản trị và thương mại.', 2, true),
+  ('y-duoc', 'y-duoc-suc-khoe', 'Y Dược & Sức khỏe', 'heart', 'danger', 'Chăm sóc sức khỏe, dược học, y khoa và khoa học sự sống.', 3, true),
+  ('ky-thuat', 'ky-thuat-cong-nghe', 'Kỹ thuật & Công nghệ', 'gear', 'teal', 'Cơ khí, điện, tự động hóa, xây dựng và công nghệ sản xuất.', 4, true),
+  ('xa-hoi', 'khoa-hoc-xa-hoi', 'Khoa học Xã hội', 'users', 'violet', 'Luật, truyền thông, ngôn ngữ, tâm lý và nghiên cứu xã hội.', 5, true),
+  ('nghe-thuat', 'nghe-thuat-thiet-ke', 'Nghệ thuật & Thiết kế', 'pen', 'pink', 'Thiết kế, mỹ thuật, kiến trúc sáng tạo và nghệ thuật ứng dụng.', 6, true),
+  ('giao-duc', 'giao-duc-su-pham', 'Giáo dục & Sư phạm', 'book', 'success', 'Giảng dạy, quản lý giáo dục và phát triển người học.', 7, true),
+  ('nong-lam', 'nong-lam-moi-truong', 'Nông Lâm & Môi trường', 'leaf', 'slate', 'Nông nghiệp, lâm nghiệp, tài nguyên và phát triển bền vững.', 8, true);
 
 
 -- ================================================================================================
@@ -238,22 +238,6 @@ INSERT INTO recommend_rule_params (rule_id, key, value) VALUES
 
 
 -- ================================================================================================
--- 6. Nguồn dữ liệu, việc làm & thu nhập
--- ================================================================================================
-INSERT INTO data_sources (id, title, publisher, year, url, kind, trust, note, accessed_at) VALUES
-  ('nso-2025', 'Thông cáo báo chí về tình hình dân số, lao động, việc làm quý IV và năm 2025', 'Cục Thống kê – Bộ Tài chính', 2025, 'https://www.nso.gov.vn/tin-tuc-thong-ke/2026/01/thong-cao-bao-chi-ve-tinh-hinh-dan-so-lao-dong-viec-lam-quy-iv-va-nam-2025/', 'thong-ke', 'cao', 'Số liệu điều tra lao động – việc làm toàn quốc. Thu nhập bình quân tính cho toàn bộ lao động, không tách theo ngành học hay trình độ đào tạo — chỉ dùng làm mốc so sánh.', '2026-09-29'),
-  ('tt-01-2024', 'Thông tư 01/2024/TT-BGDĐT ban hành Chuẩn cơ sở giáo dục đại học', 'Bộ Giáo dục và Đào tạo', 2024, 'https://thuvienphapluat.vn/van-ban/Giao-duc/Thong-tu-01-2024-TT-BGDDT-Chuan-co-so-giao-duc-dai-hoc-598459.aspx', 'van-ban', 'cao', 'Chuẩn yêu cầu tỷ lệ người tốt nghiệp có việc làm phù hợp với trình độ, tự tạo việc làm hoặc học tiếp trong 12 tháng không thấp hơn 70%; trường công bố kết quả thực hiện chuẩn hằng năm.', '2026-09-29'),
-  ('tt-09-2024', 'Thông tư 09/2024/TT-BGDĐT quy định về công khai trong hoạt động của các cơ sở giáo dục', 'Bộ Giáo dục và Đào tạo', 2024, 'https://thuvienphapluat.vn/van-ban/Giao-duc/Thong-tu-09-2024-TT-BGDDT-cong-khai-trong-hoat-dong-co-so-giao-duc-quoc-dan-581008.aspx', 'van-ban', 'cao', 'Điều 13: cơ sở giáo dục đại học phải công khai tỷ lệ người học tốt nghiệp có việc làm phù hợp với trình độ đào tạo trong 12 tháng sau tốt nghiệp. Đây là nguồn chính thức nên dùng cho số liệu theo từng trường, ngành.', '2026-09-29'),
-  ('tuoitre-2026-01-viec-lam', 'Trường đại học nào nhiều sinh viên sớm có việc làm, lương cao sau khi ra trường?', 'Báo Tuổi Trẻ (21/01/2026)', 2025, 'https://tuoitre.vn/truong-dai-hoc-nao-nhieu-sinh-vien-som-co-viec-lam-luong-cao-sau-khi-ra-truong-20260121180410959.htm', 'bao-chi', 'trung-binh', 'Báo chí tổng hợp kết quả khảo sát do chính các trường thực hiện với sinh viên tốt nghiệp năm 2025. Nên đối chiếu báo cáo gốc của trường; tỷ lệ phản hồi và cách định nghĩa "có việc làm" khác nhau giữa các trường.', '2026-09-29'),
-  ('trovio-demo', 'Số liệu minh hoạ của bản demo Trovio', 'Trovio', 2025, NULL, 'minh-hoa', 'minh-hoa', 'Ước lượng chỉ để minh hoạ giao diện, KHÔNG phải số liệu thống kê. Cần thay bằng số liệu từ báo cáo khảo sát việc làm của các trường hoặc khảo sát có phương pháp công bố rõ ràng.', '2026-09-29');
-
-INSERT INTO benchmarks (id, label, value, unit, year, source_id) VALUES
-  ('income-2025', 'Thu nhập bình quân tháng của lao động cả nước', 8.4, 'triệu đồng/tháng', 2025, 'nso-2025'),
-  ('youth-unemployment-2025', 'Tỷ lệ thất nghiệp thanh niên 15–24 tuổi', 8.64, '%', 2025, 'nso-2025'),
-  ('standard-70', 'Ngưỡng tối thiểu người tốt nghiệp có việc làm phù hợp / học tiếp trong 12 tháng (Chuẩn cơ sở GDĐH)', 70, '%', 2024, 'tt-01-2024');
-
-
--- ================================================================================================
 -- 7. Mốc tuyển sinh
 -- ================================================================================================
 INSERT INTO timeline_config (id, season, official, source_url, note) VALUES
@@ -274,14 +258,14 @@ INSERT INTO timeline_events (id, title, start_date, end_date, category, descript
 -- ================================================================================================
 -- 8. Tài khoản demo (mật khẩu băm scrypt giống web) — CHỈ dùng cho môi trường demo
 -- ================================================================================================
-INSERT INTO users (id, email, name, avatar_url, password_hash, google_id, verified, locked, disabled, failed_attempts, user_role, grad_year, province, under16, parent_consent, onboarded, email_reminders, survey_opt_in, created_at) VALUES
-  ('u-000', 'admin@trovio.vn', 'Quản trị Trovio', NULL, 'scrypt$16384$ap3-DiJ_zmDZJlJZCCIu8w$PtjdiFW8GgJtSXqVdw9M2cCy08iFTomr8mSjIYB07v6dnPh54Ca7jxVzZ_CuDJVWP23HyCDim-rTdhn5NuhyYg', NULL, true, false, false, 0, NULL, NULL, NULL, false, false, true, false, false, '2026-01-05'),
-  ('u-001', 'an@trovio.vn', 'Nguyễn Văn An', NULL, 'scrypt$16384$S8uZ_ql-862vFZEQU2zXGQ$BrrDFycgKZMHa3FRk8RrtIrti2RESmvXXAA20PNab9lRo7qIGAVlyQsPEry3AF8MDYx7sX1W4OnOWdv_0ZbsOA', NULL, true, false, false, 0, 'student', 2027, 'Hà Nội', false, false, true, false, false, '2026-03-10'),
-  ('u-002', 'binh.locked@trovio.vn', 'Trần Thị Bình', NULL, 'scrypt$16384$cagVIVhVbih2lSLpd2JfJw$qWmd7TETsgUx6Gn80zjIGjcVEEU2BpR4tibFzrZeaKZrrJHeIGp0WXK_Dk5xDGaUxEiaXEiGpPONl6B5DOaFRw', NULL, true, true, false, 5, 'student', 2026, 'Đà Nẵng', false, false, true, false, false, '2026-05-02'),
-  ('u-003', 'gv@trovio.vn', 'Phạm Thu Hạnh', NULL, 'scrypt$16384$D0ZI_6ya0rCJ6rdDCfsB4w$eaS7GyMVTKZmO-A9vam96CBrrk0vQ40B9P2Ap6DYmsLMZW4VV5KFzATVbDA7zZxONkpQRMASA3LEQAngKaK3WA', NULL, true, false, false, 0, 'teacher', NULL, 'Hà Nội', false, false, true, false, false, '2026-08-20'),
-  ('u-004', 'linh@st.neu.edu.vn', 'Lê Thu Linh', NULL, 'scrypt$16384$wvOxhFHmjO73AP8pPbvfJA$anIV6SxT_kfCQe91aSIvK1lnpZdCXe042R9Xr7O1gs8UeerpjtubHv1sJKY41B_2BgeZ6O_oh1kWH8hgMbN-2A', NULL, true, false, false, 0, 'student', 2025, 'Hà Nội', false, false, true, false, false, '2026-09-01'),
-  ('u-005', 'tuyensinh@neu.edu.vn', 'Phòng Tuyển sinh NEU', NULL, 'scrypt$16384$u_EGJLQVdhojOoap9TAxbQ$KRkDgnwyhb7eWzaclwD4y8K46IRMRfaBaJXPoJh_xPLs5j79fojcaxd0jWCc9DjMsbWQlBR7jSBnFLRRE7x2NA', NULL, true, false, false, 0, 'school', NULL, 'Hà Nội', false, false, true, false, false, '2026-09-15'),
-  ('u-006', 'kiemduyet@trovio.vn', 'Đỗ Minh Kiểm', NULL, 'scrypt$16384$U6G_6G7dU-GdZdUNxDT9gw$B5N3JcYqFDM9xInR4ah10_LNdKm0CXpRb7DAKg4s6l99lCwm1GfMeim4E_x6L042MCbAKTuWNKqLs947zCabkw', NULL, true, false, false, 0, NULL, NULL, NULL, false, false, true, false, false, '2026-09-20');
+INSERT INTO users (id, email, name, avatar_url, password_hash, google_id, verified, locked, disabled, failed_attempts, user_role, grad_year, province, under16, parent_consent, onboarded, email_reminders, created_at) VALUES
+  ('u-000', 'admin@trovio.vn', 'Quản trị Trovio', NULL, 'scrypt$16384$ap3-DiJ_zmDZJlJZCCIu8w$PtjdiFW8GgJtSXqVdw9M2cCy08iFTomr8mSjIYB07v6dnPh54Ca7jxVzZ_CuDJVWP23HyCDim-rTdhn5NuhyYg', NULL, true, false, 0, NULL, NULL, NULL, false, false, true, false, '2026-01-05'),
+  ('u-001', 'an@trovio.vn', 'Nguyễn Văn An', NULL, 'scrypt$16384$S8uZ_ql-862vFZEQU2zXGQ$BrrDFycgKZMHa3FRk8RrtIrti2RESmvXXAA20PNab9lRo7qIGAVlyQsPEry3AF8MDYx7sX1W4OnOWdv_0ZbsOA', NULL, true, false, 0, 'student', 2027, 'Hà Nội', false, false, true, false, '2026-03-10'),
+  ('u-002', 'binh.locked@trovio.vn', 'Trần Thị Bình', NULL, 'scrypt$16384$cagVIVhVbih2lSLpd2JfJw$qWmd7TETsgUx6Gn80zjIGjcVEEU2BpR4tibFzrZeaKZrrJHeIGp0WXK_Dk5xDGaUxEiaXEiGpPONl6B5DOaFRw', NULL, true, true, false, 5, 'student', 2026, 'Đà Nẵng', false, false, true, false, '2026-05-02'),
+  ('u-003', 'gv@trovio.vn', 'Phạm Thu Hạnh', NULL, 'scrypt$16384$D0ZI_6ya0rCJ6rdDCfsB4w$eaS7GyMVTKZmO-A9vam96CBrrk0vQ40B9P2Ap6DYmsLMZW4VV5KFzATVbDA7zZxONkpQRMASA3LEQAngKaK3WA', NULL, true, false, 0, 'teacher', NULL, 'Hà Nội', false, false, true, false, '2026-08-20'),
+  ('u-004', 'linh@st.neu.edu.vn', 'Lê Thu Linh', NULL, 'scrypt$16384$wvOxhFHmjO73AP8pPbvfJA$anIV6SxT_kfCQe91aSIvK1lnpZdCXe042R9Xr7O1gs8UeerpjtubHv1sJKY41B_2BgeZ6O_oh1kWH8hgMbN-2A', NULL, true, false, 0, 'student', 2025, 'Hà Nội', false, false, true, false, '2026-09-01'),
+  ('u-005', 'tuyensinh@neu.edu.vn', 'Phòng Tuyển sinh NEU', NULL, 'scrypt$16384$u_EGJLQVdhojOoap9TAxbQ$KRkDgnwyhb7eWzaclwD4y8K46IRMRfaBaJXPoJh_xPLs5j79fojcaxd0jWCc9DjMsbWQlBR7jSBnFLRRE7x2NA', NULL, true, false, 0, 'school', NULL, 'Hà Nội', false, false, true, false, '2026-09-15'),
+  ('u-006', 'kiemduyet@trovio.vn', 'Đỗ Minh Kiểm', NULL, 'scrypt$16384$U6G_6G7dU-GdZdUNxDT9gw$B5N3JcYqFDM9xInR4ah10_LNdKm0CXpRb7DAKg4s6l99lCwm1GfMeim4E_x6L042MCbAKTuWNKqLs947zCabkw', NULL, true, false, 0, NULL, NULL, NULL, false, false, true, false, '2026-09-20');
 
 INSERT INTO user_system_roles (user_id, role_code) VALUES
   ('u-000', 'admin'),
@@ -302,86 +286,6 @@ INSERT INTO qa_answers (id, question_id, user_id, display_name, school_domain, t
   ('qa-demo-01-a1', 'qa-demo-01', 'u-004', 'Linh L.', 'st.neu.edu.vn', 'Có 2 môn Toán cao cấp và Xác suất thống kê ở năm 1, mức vừa phải. Thầy cô cho bài tập nhóm nhiều hơn là tính toán khó — bạn yên tâm nhé.', 'approved', '2026-09-21T10:00:00.000Z'),
   ('qa-demo-02-a1', 'qa-demo-02', 'u-004', 'Linh L.', 'st.neu.edu.vn', 'Chính thức là kỳ thực tập năm 4, nhưng từ năm 2 nhiều bạn đã làm cộng tác viên ở agency. Câu lạc bộ của khoa hay giới thiệu chỗ.', 'approved', '2026-09-26T09:00:00.000Z');
 
-INSERT INTO outcome_surveys (id, program_id, user_id, satisfaction, choose_again, choose_school_again, trovio_right, wish, cohort, is_demo, created_at) VALUES
-  ('os-demo-neu-marketing-0-0', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', 'Năm nhất nhiều môn đại cương, chưa học chuyên ngành ngay.', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-1', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-2', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-3', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-4', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-5', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-6', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-7', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-8', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-9', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-10', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-11', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-12', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-0-13', 'neu-marketing', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-0', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-1', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-2', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-3', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-4', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-5', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-6', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-7', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-8', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-9', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-10', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-11', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-12', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-13', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-14', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-15', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-16', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-17', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-18', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-1-19', 'neu-marketing', NULL, 4, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-0', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-1', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-2', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-3', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-4', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-5', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-6', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-7', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-2-8', 'neu-marketing', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-3-0', 'neu-marketing', NULL, 4, 'unsure', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-3-1', 'neu-marketing', NULL, 4, 'unsure', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-3-2', 'neu-marketing', NULL, 4, 'unsure', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-4-0', 'neu-marketing', NULL, 3, 'unsure', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-5-0', 'neu-marketing', NULL, 3, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-5-1', 'neu-marketing', NULL, 3, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-5-2', 'neu-marketing', NULL, 3, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-5-3', 'neu-marketing', NULL, 3, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-5-4', 'neu-marketing', NULL, 3, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-6-0', 'neu-marketing', NULL, 2, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-6-1', 'neu-marketing', NULL, 2, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-6-2', 'neu-marketing', NULL, 2, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-neu-marketing-6-3', 'neu-marketing', NULL, 2, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-0', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', 'Năm nhất nhiều môn đại cương, chưa học chuyên ngành ngay.', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-1', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-2', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-3', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-4', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-5', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-6', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-7', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-0-8', 'hust-cong-nghe-thong-tin', NULL, 5, 'yes', NULL, 'yes', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-0', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-1', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-2', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-3', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-4', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-5', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-6', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-1-7', 'hust-cong-nghe-thong-tin', NULL, 4, 'yes', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-2-0', 'hust-cong-nghe-thong-tin', NULL, 3, 'unsure', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-2-1', 'hust-cong-nghe-thong-tin', NULL, 3, 'unsure', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-2-2', 'hust-cong-nghe-thong-tin', NULL, 3, 'unsure', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-2-3', 'hust-cong-nghe-thong-tin', NULL, 3, 'unsure', NULL, 'unsure', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-3-0', 'hust-cong-nghe-thong-tin', NULL, 2, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z'),
-  ('os-demo-hust-cong-nghe-thong-tin-3-1', 'hust-cong-nghe-thong-tin', NULL, 2, 'no', NULL, 'no', '', 2025, true, '2026-09-15T00:00:00.000Z');
 
 INSERT INTO teacher_classes (id, teacher_id, name, school_name, code, last_remind_at, created_at) VALUES
   ('cls-demo-12a1', 'u-003', '12A1 (minh hoạ)', 'THPT Trovio', 'DEMO12', NULL, '2026-09-05T08:00:00.000Z');

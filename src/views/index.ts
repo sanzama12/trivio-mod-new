@@ -11,4 +11,3 @@ export * from "../components/search/mobile-filter-sheet";
 export * from "../components/chat/chat-widget";
 export * from "../components/wishlist/strategy-panel";
 export * from "../components/wishlist/share-dialog";
-export * from "../components/riasec/quiz-runner";

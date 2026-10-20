@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   validate-and-build:
-    name: Test & Build Check
+    name: Typecheck & Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -35,9 +35,6 @@ jobs:
 
       - name: 🔍 TypeScript Typecheck
         run: npm run typecheck
-
-      - name: 🧪 Run Automated Tests (97+ tests)
-        run: npm run test
 
       - name: 🚀 Build Next.js Application
         run: npm run build

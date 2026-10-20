@@ -1,5 +1,5 @@
 /** Kiểm tra phụ thuộc hạ tầng; Controller không truy vấn SQL trực tiếp. */
-import { query } from '../lib/db';
+import { query } from '@database/client';
 
 export const systemService = {
   async checkDatabase() {

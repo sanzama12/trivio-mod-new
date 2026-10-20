@@ -1,6 +1,6 @@
 /** Dữ liệu cho bản Mini: số câu, số chương trình và ngành gợi ý từ mã chia sẻ. */
 import type { RiasecType } from "../domain/types";
-import { repositories } from "../repositories";
+import { repositories } from "@database/repositories";
 
 export const miniService = {
   async overview(code: RiasecType[] | null) {
