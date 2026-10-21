@@ -22,12 +22,6 @@ export default async function HelpPage() {
             <div id="huong-dan" className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
               <span>Lần đầu dùng Trovio?</span>
               <RestartTourButton />
-              <span className="hidden text-slate-300 sm:inline" aria-hidden>
-                |
-              </span>
-              <Link href="/nhe" className="font-semibold text-primary-700 hover:underline">
-                Mạng yếu? Dùng bản nhẹ
-              </Link>
             </div>
           </div>
         </div>

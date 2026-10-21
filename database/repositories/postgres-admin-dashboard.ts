@@ -1,10 +1,7 @@
-import type { Program, SchoolSubmission } from "@/domain/types";
+import type { Program } from "@/domain/types";
 import { query } from "@database/client";
 
 export interface AdminDashboardProgram { program: Program; schoolName: string; majorName: string }
-export interface AdminSubmissionItem extends SchoolSubmission {
-  fieldLabel: string; programName: string; schoolName: string; byEmail: string;
-}
 type DashboardRow = {
   id: string; slug: string; schoolId: string; majorId: string; name: string;
   admissionCode: string; source: string; sourceUrl: string | null;
@@ -12,9 +9,7 @@ type DashboardRow = {
   schoolName: string; majorName: string; schoolCount: string | number;
   cutoffs: Program["cutoffs"]; altCutoffs: Program["altCutoffs"];
 };
-const FIELD_LABELS: Record<SchoolSubmission["field"], string> = {
-  combos: "Tổ hợp", tuition: "Học phí", cutoff: "Điểm chuẩn", quota: "Chỉ tiêu",
-};
+
 
 export const postgresAdminDashboardRepository = {
   async overviewCatalog(): Promise<{ programs: AdminDashboardProgram[]; schoolCount: number }> {
@@ -66,31 +61,14 @@ export const postgresAdminDashboardRepository = {
     });
     return { programs, schoolCount: Number(rows[0]?.schoolCount ?? 0) };
   },
-  async pendingSubmissions(): Promise<AdminSubmissionItem[]> {
-    const rows = await query<{ payload: SchoolSubmission; programName: string | null; schoolName: string | null; byEmail: string | null }>(`
-      SELECT d.payload, p.name AS "programName", s.short_name AS "schoolName", u.email AS "byEmail"
-      FROM trovio.app_documents d
-      LEFT JOIN trovio.programs p ON p.id = d.payload->>'programId'
-      LEFT JOIN trovio.schools s ON s.id = d.payload->>'schoolId'
-      LEFT JOIN trovio.users u ON u.id = d.payload->>'userId'
-      WHERE d.collection = 'school-submission' AND d.status = 'pending'
-      ORDER BY d.updated_at DESC
-    `);
-    return rows.map((r) => ({ ...r.payload,
-      fieldLabel: FIELD_LABELS[r.payload.field] ?? r.payload.field,
-      programName: r.programName ?? r.payload.programId,
-      schoolName: r.schoolName ?? r.payload.schoolId,
-      byEmail: r.byEmail ?? "(đã xoá)",
-    }));
-  },
   async badges() {
     const [row] = await query<{ qa: string | number; overview: string | number; users: string | number }>(`
       SELECT
         (SELECT COALESCE(sum(CASE WHEN payload->>'status' = 'pending' THEN 1 ELSE 0 END
           + COALESCE((SELECT count(*) FROM jsonb_array_elements(COALESCE(payload->'answers', '[]'::jsonb)) a WHERE a->>'status' = 'pending'), 0)), 0)
           FROM trovio.app_documents WHERE collection = 'qa-question') AS qa,
-        (SELECT count(*) FROM trovio.app_documents WHERE collection = 'school-submission' AND status = 'pending') AS overview,
-        (SELECT count(*) FROM trovio.school_staff WHERE status = 'pending') AS users
+        0 AS overview,
+        0 AS users
     `);
     return { qa: Number(row?.qa ?? 0), overview: Number(row?.overview ?? 0), users: Number(row?.users ?? 0) };
   },

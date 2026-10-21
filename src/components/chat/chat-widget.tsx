@@ -49,7 +49,6 @@ const nextId = () => `m${++seq}`;
 
 export function ChatWidget() {
   const pathname = usePathname();
-  const { quiz } = useTrovio();
   const compareVisible = useCompareBarVisible();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -95,11 +94,10 @@ export function ChatWidget() {
       setInput("");
       setBusy(true);
       try {
-        const riasec = quiz?.result ? { percents: quiz.result.percents, code: quiz.result.code } : undefined;
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ message: question, context: { ...ctx, page: pathname, riasec } }),
+          body: JSON.stringify({ message: question, context: { ...ctx, page: pathname } }),
         });
         const data = (await res.json().catch(() => null)) as { ok?: boolean; answer?: ChatAnswer; logId?: string; message?: string } | null;
         if (res.ok && data?.ok && data.answer) {
@@ -115,7 +113,7 @@ export function ChatWidget() {
         setBusy(false);
       }
     },
-    [busy, ctx, pathname, quiz],
+    [busy, ctx, pathname],
   );
 
   // Cho phép nơi khác mở khung chat (kèm câu hỏi gợi ý).

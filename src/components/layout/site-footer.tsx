@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { LuFacebook, LuLinkedin, LuMail, LuMapPin, LuPhone, LuYoutube } from "react-icons/lu";
 import { Logo } from "./logo";
-import { TOOL_LINKS } from "./tool-links";
 
 const cols = [
   {
@@ -10,7 +9,6 @@ const cols = [
       { label: "Giới thiệu chung", href: "/tro-giup" },
       { label: "Cách Trovio gợi ý", href: "/cach-goi-y" },
       { label: "Mốc tuyển sinh & nhắc hạn", href: "/moc-tuyen-sinh" },
-      { label: "Tính tổng chi phí học", href: "/chi-phi" },
       { label: "Trợ giúp & Liên hệ", href: "/tro-giup" },
     ],
   },
@@ -74,18 +72,6 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
-      <nav aria-label="Công cụ" className="container-page -mt-4 pb-8">
-        <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]">
-          <li className="font-bold text-white">Công cụ:</li>
-          {TOOL_LINKS.map((t) => (
-            <li key={t.href}>
-              <Link href={t.href} className="hover:text-white">
-                {t.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
       <div className="border-t border-slate-800">
         <div className="container-page flex flex-col gap-4 py-6 text-[13px] md:flex-row md:items-center md:justify-between">
           <p>

@@ -10,7 +10,6 @@ import { cn } from "@/lib/cn";
 const ICON = {
   reminder: { Icon: LuCalendarClock, cls: "text-accent-700 bg-accent-50" },
   supplementary: { Icon: LuRoute, cls: "text-primary-700 bg-primary-50" },
-  "class-reminder": { Icon: LuSchool, cls: "text-accent-700 bg-accent-50" },
   "qa-answer": { Icon: LuMessageCircleQuestion, cls: "text-success-700 bg-success-50" },
   "school-submission": { Icon: LuSchool, cls: "text-primary-700 bg-primary-50" },
 } as const;

@@ -75,7 +75,7 @@ export interface Major {
   code: string;
   name: string;
   groupId: string;
-  riasec: [RiasecType, RiasecType, RiasecType];
+  riasec: RiasecType[];
   summary: string;
   description: string;
   hidden?: boolean;
@@ -185,32 +185,7 @@ export interface RiasecQuestion {
   custom?: boolean;
 }
 
-/** "school" = cán bộ tuyển sinh của trường (cổng trường, cần quản trị viên duyệt). */
-export type UserRole = "student" | "parent" | "teacher" | "school";
-
-/** Yêu cầu làm cán bộ tuyển sinh: tự nhận diện trường theo tên miền email, quản trị viên duyệt thủ công. */
-export interface SchoolStaff {
-  schoolId: string;
-  status: "pending" | "approved" | "rejected";
-  requestedAt: string;
-  reviewedAt?: string | null;
-}
-
-export type TeacherVerificationStatus = "none" | "pending" | "verified" | "rejected" | "revoked";
-
-export interface TeacherVerification {
-  id: string;
-  userId: string;
-  schoolName: string;
-  province: string;
-  department?: string;
-  evidenceNotes: string;
-  status: TeacherVerificationStatus;
-  requestedAt: string;
-  reviewedAt?: string | null;
-  reviewedBy?: string | null;
-  rejectionReason?: string | null;
-}
+export type UserRole = "user" | "admin";
 
 export interface StudentShareConsent {
   shareName: boolean;
@@ -256,10 +231,8 @@ export interface User {
   /** Mã xác thực email đã băm và hạn dùng. */
   emailOtpHash?: string | null;
   emailOtpExpires?: string | null;
-  // Hồ sơ bổ sung (onboarding, đều tuỳ chọn)
-  role: UserRole | null;
-  teacherVerificationStatus?: TeacherVerificationStatus;
-  teacherVerificationId?: string | null;
+  /** Quyền từ database; không phải trường tự chọn trong hồ sơ. */
+  role: UserRole;
   gradYear: number | null;
   province: string | null;
   /** Người dùng dưới 16 tuổi cần phụ huynh đồng ý (Nghị định 13/2023/NĐ-CP). */
@@ -272,9 +245,6 @@ export interface User {
   disabled?: boolean;
   /** Lần đăng nhập gần nhất (thống kê quản trị). */
   lastLoginAt?: string | null;
-  /** Kiểm duyệt viên: vào được mục quản lý hỏi đáp. */
-  moderator?: boolean;
-  schoolStaff?: SchoolStaff | null;
 }
 
 /** Dữ liệu an toàn để gửi ra client (không có hash mật khẩu, id Google). */
@@ -361,35 +331,17 @@ export interface StoredQuiz {
   savedToProfile: boolean;
 }
 
-/** 4 trục của mini-test "Phong cách làm việc" (xem domain/work-style.ts). */
-export type WorkAxis = "social" | "stability" | "hands" | "detail";
-
-/** Kết quả mini-test: điểm mỗi trục ∈ {−3, −1, +1, +3} (dương = cực trái). Chỉ để giải thích, không tính điểm. */
-export interface StoredWorkStyle {
-  scores: Record<WorkAxis, number>;
-  completedAt: string;
-}
-
-/** Mã MBTI học sinh tự nhập — góc nhìn tham khảo, không tính điểm. */
-export interface StoredMbti {
-  code: string;
-  updatedAt: string;
-}
-
 /** Dữ liệu cá nhân được đồng bộ theo tài khoản (đa thiết bị). */
 export interface UserData {
   saved: string[];
   wishlist: WishlistItem[];
   profile: StoredProfile | null;
-  quiz: StoredQuiz | null;
   /** id các mốc tuyển sinh người dùng bật "Nhắc tôi". */
   reminders: string[];
   /** Mục tiêu đặt qua hội thoại (/muc-tieu); thiếu = chưa đặt. */
   goal?: Goal | null;
   /** Mini-test phong cách làm việc; thiếu = chưa làm. */
-  workStyle?: StoredWorkStyle | null;
   /** Mã MBTI tự nhập; thiếu = chưa nhập. */
-  mbti?: StoredMbti | null;
   updatedAt: string;
 }
 
@@ -475,7 +427,7 @@ export interface TimelineEvent {
 // Thông báo, cấu hình mốc tuyển sinh, từ khoá chatbot, thống kê, khảo sát
 // ---------------------------------------------------------------------------
 
-export type NotificationKind = "reminder" | "supplementary" | "class-reminder" | "qa-answer" | "school-submission";
+export type NotificationKind = "reminder" | "supplementary" | "qa-answer" | "school-submission";
 
 /** Đợt xét tuyển bổ sung được quản trị và lưu trong PostgreSQL. */
 export interface SupplementaryRound {
@@ -543,8 +495,7 @@ export interface ChatAlias {
 }
 
 /** Sự kiện đo phễu hành vi (ẩn danh, không gắn tài khoản). */
-/** quiz_started / style_done / mbti_added: hành vi phụ (đo tỉ lệ làm hết bài RIASEC, dùng mini-test phong cách, nhập mã MBTI). */
-export const FUNNEL_EVENTS = ["visit", "quiz_done", "score_saved", "program_saved", "wishlist_added", "share_created", "chat_asked", "quiz_started", "style_done", "mbti_added"] as const;
+export const FUNNEL_EVENTS = ["visit", "score_saved", "program_saved", "wishlist_added", "share_created", "chat_asked"] as const;
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
 
 /** Phiếu khảo sát mức độ dễ dùng SUS (System Usability Scale, 10 câu, thang 1–5). */
@@ -585,26 +536,6 @@ export interface QaQuestion {
   status: "pending" | "approved" | "rejected";
   answers: QaAnswer[];
   demo?: boolean;
-}
-
-/** Lớp do giáo viên chủ nhiệm tạo; học sinh tự tham gia bằng mã mời và tự đồng ý chia sẻ tiến độ. */
-export interface TeacherClass {
-  id: string;
-  teacherId: string;
-  name: string;
-  school: string;
-  code: string;
-  /** Hạn dùng của mã tham gia (mặc định 7 ngày kể từ khi tạo). */
-  codeExpiresAt?: string | null;
-  /** Đã thu hồi mã (không cho phép tham gia mới bằng mã này). */
-  codeRevoked?: boolean;
-  createdAt: string;
-  memberIds: string[];
-  lastRemindAt: string | null;
-  /** Lần nhắc riêng gần nhất cho từng học sinh (giới hạn 1 lần / 24 giờ / học sinh). */
-  memberRemindAt?: Record<string, string>;
-  /** Quyền chia sẻ dữ liệu từng học sinh cấp cho lớp này: memberId -> StudentShareConsent */
-  memberConsents?: Record<string, StudentShareConsent>;
 }
 
 // ---------------------------------------------------------------------------

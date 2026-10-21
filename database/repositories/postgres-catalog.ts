@@ -219,11 +219,7 @@ async function findDiscoveryCatalog(): Promise<DiscoveryCatalog> {
           'description', m.description,
           'hidden', m.hidden,
           'custom', m.is_custom,
-          'riasec', COALESCE((
-            SELECT jsonb_agg(r.riasec_code ORDER BY r.rank)
-            FROM trovio.major_riasec r
-            WHERE r.major_id = m.id
-          ), '[]'::jsonb)
+          'riasec', '[]'::jsonb
         ) ORDER BY m.name), '[]'::jsonb)
         FROM trovio.majors m
         WHERE NOT m.hidden
@@ -467,13 +463,6 @@ async function saveMajor(major: Major): Promise<void> {
       [major.id, major.slug, major.code || null, major.name, major.groupId, major.summary, major.description,
         major.hidden ?? false, major.custom ?? false],
     );
-    await client.query(`DELETE FROM trovio.major_riasec WHERE major_id = $1`, [major.id]);
-    for (const [rank, code] of major.riasec.entries()) {
-      await client.query(
-        `INSERT INTO trovio.major_riasec (major_id, riasec_code, rank) VALUES ($1,$2,$3)`,
-        [major.id, code, rank + 1],
-      );
-    }
   });
   afterCommit(invalidatePostgresCache);
   afterCommit(invalidateDiscoveryStats);
@@ -498,21 +487,6 @@ async function saveMajorsBatch(majors: Major[]): Promise<void> {
          slug=EXCLUDED.slug, code=EXCLUDED.code, name=EXCLUDED.name,
          group_id=EXCLUDED.group_id, summary=EXCLUDED.summary,
          description=EXCLUDED.description, hidden=EXCLUDED.hidden, is_custom=EXCLUDED.is_custom`,
-      [payload],
-    );
-    await client.query(
-      `DELETE FROM trovio.major_riasec
-       WHERE major_id IN (
-         SELECT item->>'id' FROM jsonb_array_elements($1::jsonb) AS data(item)
-       )`,
-      [payload],
-    );
-    await client.query(
-      `INSERT INTO trovio.major_riasec (major_id, riasec_code, rank)
-       SELECT major.item->>'id', riasec.code, riasec.rank::smallint
-       FROM jsonb_array_elements($1::jsonb) AS major(item)
-       CROSS JOIN LATERAL jsonb_array_elements_text(major.item->'riasec')
-         WITH ORDINALITY AS riasec(code, rank)`,
       [payload],
     );
   });
@@ -681,13 +655,7 @@ async function listAllMajorsAdmin(): Promise<Major[]> {
       m.id, m.slug, COALESCE(m.code, '') AS code, m.name, m.group_id AS "groupId",
       m.summary, m.description, m.hidden,
       m.is_custom AS "custom",
-      COALESCE(
-        (
-          SELECT json_agg(r.riasec_code ORDER BY r.rank)
-          FROM trovio.major_riasec r
-          WHERE r.major_id = m.id
-        ), '[]'::json
-      ) AS riasec
+      '[]'::json AS riasec
     FROM trovio.majors m
     ORDER BY m.name
   `);

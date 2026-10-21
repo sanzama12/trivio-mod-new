@@ -21,7 +21,6 @@
     "db:verify": "tsx database/scripts/verify-migrations.ts",
     "db:check": "tsx database/scripts/check-pg.ts",
     "db:typecheck": "tsc --noEmit -p database/tsconfig.json",
-    "db:export": "node --conditions=react-server --import tsx database/scripts/export-sql.ts --production",
     "admissions:parse": "tsx database/scripts/parse-all-ts247.ts",
     "db:smoke": "node --conditions=react-server --import tsx database/scripts/smoke.ts",
     "db:verify:news": "node --conditions=react-server --import tsx database/scripts/verify-news.ts",

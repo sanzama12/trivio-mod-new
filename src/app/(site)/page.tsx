@@ -2,10 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { LuArrowRight, LuArrowUpRight } from "react-icons/lu";
 import { catalogService, programService } from "@/services";
-import { admissionTimeline, TIMELINE_SEASON } from "@database/seeds/admission-timeline";
+import { admissionTimeline, TIMELINE_SEASON } from "@/domain/admission-reference";
 import { HeroSearch } from "@/components/home/hero-search";
 import { JourneySteps } from "@/components/home/journey-steps";
-import { ForYouSection } from "@/components/home/for-you";
 import { MajorGroupCard } from "@/components/catalog/major-group-card";
 
 const paths = [
@@ -82,7 +81,7 @@ export default async function HomePage() {
             />
           </div>
           <p className="mt-4 text-sm text-slate-300">
-            Bắt đầu nhanh: <Link href="/diem-cua-toi" className="font-bold text-accent-200 underline underline-offset-4">nhập điểm</Link> rồi xem <Link href="/goi-y" className="font-bold text-accent-200 underline underline-offset-4">gợi ý</Link>.
+            Bắt đầu nhanh: <Link href="/diem-cua-toi" className="font-bold text-accent-200 underline underline-offset-4">nhập điểm</Link> rồi xem <Link href="/chuong-trinh" className="font-bold text-accent-200 underline underline-offset-4">chương trình phù hợp</Link>.
           </p>
         </div>
       </section>
@@ -133,7 +132,6 @@ export default async function HomePage() {
 
       {/* Giữ nguyên chức năng lộ trình + gợi ý */}
       <JourneySteps />
-      <ForYouSection />
 
       {/* Danh mục nhóm ngành: dữ liệu thật, không lặp ảnh trang trí */}
       <section className="border-y border-slate-200 bg-white" aria-labelledby="nhom-nganh">

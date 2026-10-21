@@ -32,14 +32,6 @@ export async function requireAdmin() {
   return { user, error: null } as const;
 }
 
-/** Quản trị viên hoặc kiểm duyệt viên nội dung cộng đồng. */
-export async function requireStaff() {
-  const user = await getCurrentUser();
-  if (!user) return { user: null, error: NextResponse.json({ ok: false, message: "Bạn cần đăng nhập." }, { status: 401 }) } as const;
-  if (!user.admin && !user.moderator) return { user: null, error: NextResponse.json({ ok: false, message: "Bạn không có quyền kiểm duyệt." }, { status: 403 }) } as const;
-  return { user, error: null } as const;
-}
-
 /** Gắn cookie phiên (kèm phiên bản phiên hiện tại của tài khoản). */
 export async function attachSession(res: NextResponse, userId: string) {
   await authService.markLogin(userId);

@@ -10,23 +10,20 @@ import {
   postgresAuditRepository,
   postgresChatAliasRepository,
   postgresChatLogRepository,
-  postgresClassRepository,
   postgresCommentRepository,
   postgresImportBatchRepository,
   postgresNotificationRepository,
   postgresQaRepository,
   postgresRecommendConfigRepository,
   postgresReminderLogRepository,
-  postgresSchoolSubmissionRepository,
   postgresShareRepository,
   postgresSurveyRepository,
   postgresSupplementaryRepository,
-  postgresTeacherVerificationRepository,
   postgresTimelineConfigRepository,
   postgresUserDataRepository,
 } from "./postgres-documents";
 import { postgresCatalogAdminRepository, postgresReferenceCatalogRepository, postgresTimelineRepository } from "./postgres-catalog";
-import { postgresMajorRepository, postgresProgramRepository, postgresQuizRepository, postgresSchoolRepository, postgresUserRepository } from "./postgres";
+import { postgresMajorRepository, postgresProgramRepository, postgresSchoolRepository, postgresUserRepository } from "./postgres";
 import { postgresAdminDashboardRepository } from "./postgres-admin-dashboard";
 
 import { postgresProgramAdminRepository } from "./postgres-program-admin";
@@ -40,14 +37,12 @@ export const repositories = {
   schools: postgresSchoolRepository,
   majors: postgresMajorRepository,
   programs: postgresProgramRepository,
-  quiz: postgresQuizRepository,
   catalog: postgresReferenceCatalogRepository,
   /** Quản trị danh mục */
   programAdmin: postgresProgramAdminRepository,
   catalogAdmin: postgresCatalogAdminRepository,
   recommendConfig: postgresRecommendConfigRepository,
   importBatches: postgresImportBatchRepository,
-  schoolSubmissions: postgresSchoolSubmissionRepository,
   timeline: postgresTimelineRepository,
   users: postgresUserRepository,
   userData: postgresUserDataRepository,
@@ -63,8 +58,6 @@ export const repositories = {
   reminderLog: postgresReminderLogRepository,
   supplementary: postgresSupplementaryRepository,
   qa: postgresQaRepository,
-  classes: postgresClassRepository,
-  teacherVerifications: postgresTeacherVerificationRepository,
 };
 
 export type Repositories = typeof repositories;
@@ -76,11 +69,9 @@ export type {
   MajorRepository,
   ProgramAdminRepository,
   ProgramRepository,
-  QuizRepository,
   SchoolRepository,
   ShareRepository,
   TimelineRepository,
   UserDataRepository,
   UserRepository,
-  TeacherVerificationRepository,
 } from "./types";

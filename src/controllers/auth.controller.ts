@@ -7,6 +7,7 @@ import { authService } from "../services";
 import { attachSession, clearSession, getCurrentUser } from "../lib/auth";
 import { clientIp, jsonBody, tooMany } from "../lib/http";
 import { rateLimit } from "../lib/rate-limit";
+import { emailError } from "../lib/email-validation";
 
 export class AuthController {
   /**
@@ -15,7 +16,7 @@ export class AuthController {
   static async login(req: Request): Promise<Response> {
     const { body, error } = await jsonBody<{ email?: unknown; password?: unknown }>(req, 8 * 1024);
     if (error) return error;
-    const email = String(body?.email ?? "").slice(0, 200);
+    const email = String(body?.email ?? "").trim().toLowerCase();
     const password = String(body?.password ?? "").slice(0, 200);
 
     const wait = Math.max(
@@ -23,6 +24,9 @@ export class AuthController {
       rateLimit(`login:email:${email.toLowerCase()}`, 10, 600),
     );
     if (wait) return tooMany(wait);
+
+    const invalidEmail = emailError(email);
+    if (invalidEmail) return NextResponse.json({ ok: false, field: "email", message: invalidEmail }, { status: 400 });
 
     const result = await authService.login(email, password);
     if (!result.ok) {

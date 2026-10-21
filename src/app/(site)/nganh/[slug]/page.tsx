@@ -2,13 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { RIASEC_INFO } from "@/domain/riasec";
 import { catalogService, programService } from "@/services";
 import { formatScore, formatTuition } from "@/lib/format";
 import { buttonClass } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/misc";
-import { RiasecPill } from "@/components/riasec/riasec-pill";
-import { MajorStyleCard } from "@/components/work-style/style-bits";
 import { SaveButton } from "@/components/program/program-actions";
 import { SchoolCode } from "@/components/program/program-card";
 
@@ -68,29 +65,6 @@ export default async function MajorPage({ params }: Props) {
         </div>
       </section>
 
-      <div className="container-page grid gap-6 py-12 lg:grid-cols-2">
-        <section className="border-2 border-slate-900 bg-white p-5">
-          <p className="text-xs font-bold tracking-wider text-accent-700 uppercase">Sở thích nghề nghiệp</p>
-          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900">Mã RIASEC</h2>
-          <p className="mt-1 text-[13px] text-slate-600 break-words">Ngành {major.name} phù hợp với người có xu hướng:</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {major.riasec.map((t) => (
-              <RiasecPill key={t} type={t} />
-            ))}
-          </div>
-          <ul className="mt-4 space-y-3">
-            {major.riasec.map((t) => (
-              <li key={t} className="text-[13px] break-words">
-                <strong className="text-slate-900">
-                  {t} – {RIASEC_INFO[t].label}:
-                </strong>{" "}
-                <span className="text-slate-600">{RIASEC_INFO[t].desc}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <MajorStyleCard major={{ slug: major.slug, groupId: major.groupId, name: major.name }} />
-      </div>
 
       <section className="container-page pb-16">
         <p className="text-xs font-bold tracking-wider text-accent-700 uppercase">Danh sách khuyến dùng</p>

@@ -10,6 +10,5 @@ export * from "./program.controller";
 export * from "./wishlist.controller";
 export * from "./auth.controller";
 export * from "./catalog.controller";
-export * from "./decision.controller";
 export * from "./community.controller";
 export * from "./account.controller";

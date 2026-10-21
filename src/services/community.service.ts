@@ -4,7 +4,8 @@
 import { randomUUID } from "node:crypto";
 import type { PublicUser, QaQuestion } from "../domain/types";
 import { repositories } from "@database/repositories";
-import { isSchoolEmail, privateDisplayName, screenCommunityContent } from "./community-utils";
+import { privateDisplayName, screenCommunityContent } from "./community-utils";
+import { canContribute } from "@/domain/access";
 import { notificationService } from "./notification.service";
 
 type Fail = { ok: false; status: number; field?: string; message: string };
@@ -78,7 +79,7 @@ export const qaService = {
       }));
   },
 
-  /** Tài khoản có được trả lời câu hỏi của chương trình này không (email thuộc tên miền trường, đã xác thực). */
+  /** User đã xác thực được trả lời; không có vai trò sinh viên/giáo viên riêng. */
   async canAnswer(user: PublicUser | null, programId: string): Promise<{ ok: boolean; domain: string | null }> {
     const ctx = await schoolOfProgram(programId);
     if (!ctx) return { ok: false, domain: null };
@@ -90,7 +91,7 @@ export const qaService = {
     } catch {
       domain = null;
     }
-    return { ok: !!user && user.verified && !user.locked && isSchoolEmail(user.email, ctx.school.website), domain };
+    return { ok: canContribute(user), domain };
   },
 
   async ask(user: PublicUser | null, programId: string, input: Record<string, unknown>): Promise<{ ok: true; id: string } | Fail> {
@@ -107,7 +108,7 @@ export const qaService = {
     const q = await repositories.qa.findById(questionId);
     if (!q || q.status !== "approved") return { ok: false, status: 404, message: "Không tìm thấy câu hỏi." };
     const perm = await this.canAnswer(user, q.programId);
-    if (!perm.ok) return { ok: false, status: 403, message: `Chỉ sinh viên dùng email trường (${perm.domain ?? "tên miền của trường"}) mới trả lời được.` };
+    if (!perm.ok) return { ok: false, status: 403, message: "Bạn cần tài khoản đã xác thực và đang hoạt động để trả lời." };
     if (q.answers.some((a) => a.userId === user.id && a.status !== "rejected")) return { ok: false, status: 409, message: "Bạn đã trả lời câu hỏi này." };
     const text = clean(input.text, ANSWER_MAX + 1);
     if (text.length < 20) return { ok: false, status: 400, field: "text", message: "Câu trả lời cần ít nhất 20 ký tự." };
@@ -133,6 +134,7 @@ export const qaService = {
 
   /** "Hữu ích" (bật/tắt) hoặc "Báo cáo" một câu trả lời đã duyệt. Người viết không tự bấm cho mình. */
   async voteAnswer(user: PublicUser, questionId: string, answerId: string, action: unknown): Promise<{ ok: true; helpful: number; votedHelpful: boolean; hidden: boolean } | Fail> {
+    if (!canContribute(user)) return { ok: false, status: 403, message: "Bạn cần tài khoản đã xác thực và đang hoạt động để đánh giá." };
     if (action !== "helpful" && action !== "report") return { ok: false, status: 400, message: "Thao tác không hợp lệ." };
     const q = await repositories.qa.findById(questionId);
     const a = q?.answers.find((x) => x.id === answerId && x.status === "approved");

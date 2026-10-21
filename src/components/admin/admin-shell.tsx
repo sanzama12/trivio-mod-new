@@ -32,7 +32,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/cn";
 import type { AdminSection } from "./admin-nav";
 
-type Item = { key: AdminSection; href: string; label: string; Icon: ComponentType<{ className?: string }>; staff?: boolean };
+type Item = { key: AdminSection; href: string; label: string; Icon: ComponentType<{ className?: string }> };
 
 const DATA_ITEMS: Item[] = [
   { key: "overview", href: "/quan-tri", label: "Tổng quan dữ liệu", Icon: LuLayoutGrid },
@@ -47,7 +47,7 @@ const DATA_ITEMS: Item[] = [
 const OPS_ITEMS: Item[] = [
   { key: "materials", href: "/quan-tri/tai-lieu", label: "Tài liệu học tập", Icon: LuBookOpen },
   { key: "news", href: "/quan-tri/tin-tuc", label: "Tin tức & Video", Icon: LuNewspaper },
-  { key: "qa", href: "/quan-tri/hoi-dap", label: "Hỏi đáp sinh viên", Icon: LuMessageCircleQuestion, staff: true },
+  { key: "qa", href: "/quan-tri/hoi-dap", label: "Hỏi đáp sinh viên", Icon: LuMessageCircleQuestion },
   { key: "emails", href: "/quan-tri/email-khach-hang", label: "Email khách hàng", Icon: LuMail },
   { key: "timeline", href: "/quan-tri/moc-tuyen-sinh", label: "Mốc tuyển sinh", Icon: LuCalendarClock },
   { key: "chatbot", href: "/quan-tri/chatbot", label: "Chatbot", Icon: LuBot },
@@ -120,7 +120,7 @@ export function AdminShell({
 
   const nav = (
     <div className="flex h-full flex-col">
-      <Link href={user.admin ? "/quan-tri" : "/quan-tri/hoi-dap"} className="flex items-center gap-2.5 px-5 pt-6 pb-4" aria-label="Trovio Admin – về trang tổng quan quản trị">
+      <Link href="/quan-tri" className="flex items-center gap-2.5 px-5 pt-6 pb-4" aria-label="Trovio Admin – về trang tổng quan quản trị">
         <LogoMark tone="white" className="size-9" />
         <span className="flex flex-col leading-none">
           <span className="text-lg font-extrabold tracking-tight text-white">Trovio</span>
@@ -137,14 +137,14 @@ export function AdminShell({
       </div>
       <nav aria-label="Mục quản trị" className="flex-1 overflow-y-auto px-2 pb-4">
         {user.admin && <ul className="space-y-0.5">{DATA_ITEMS.map(link)}</ul>}
-        <p className="mt-5 mb-1.5 px-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{user.admin ? "Cộng đồng & vận hành" : "Kiểm duyệt"}</p>
-        <ul className="space-y-0.5">{OPS_ITEMS.filter((i) => user.admin || i.staff).map(link)}</ul>
+        <p className="mt-5 mb-1.5 px-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Cộng đồng & vận hành</p>
+        <ul className="space-y-0.5">{OPS_ITEMS.map(link)}</ul>
       </nav>
       <div className="flex items-center gap-3 border-t border-white/10 px-5 py-4">
         <Avatar name={user.name} src={user.avatarUrl} className="size-10 text-sm" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-          <p className="truncate text-xs text-slate-400">{user.admin ? "Quản trị viên" : "Kiểm duyệt viên"}</p>
+          <p className="truncate text-xs text-slate-400">Admin</p>
         </div>
         <button type="button" onClick={logout} className="rounded-md p-1.5 text-danger-500 hover:bg-white/10" aria-label="Đăng xuất" title="Đăng xuất">
           <LuLogOut className="size-4" aria-hidden />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { GoalSummary, Recommendation } from "@/services/recommendation.service";
-import { combos as defaultCombos } from "@database/seeds/combos";
+import { combos as defaultCombos } from "@/domain/admission-reference";
 import { computeAdmissionScore, methodScoresFromProfile, profileScore, rankCombos } from "@/services/scoring.service";
 import { useTrovio } from "@/stores/trovio-store";
 
@@ -19,10 +19,10 @@ export interface RecState {
 
 /** Gọi /api/recommendations bằng dữ liệu trên máy (kết quả trắc nghiệm, hồ sơ điểm, mục tiêu). */
 export function useRecommendations(limit = 6): RecState & { hasInput: boolean } {
-  const { quiz, profile, goal, hydrated, user } = useTrovio();
+  const { profile, goal, hydrated, user } = useTrovio();
   const [state, setState] = useState<RecState>({ items: null, goal: null, missing: [], province: null, userScore: null, budgetMax: null, error: false });
-  const hasInput = !!(quiz || profile || goal?.majorId);
-  const key = JSON.stringify([quiz?.result.completedAt, profile?.updatedAt, goal?.updatedAt, user?.id, limit]);
+  const hasInput = !!(profile || goal?.majorId);
+  const key = JSON.stringify([profile?.updatedAt, goal?.updatedAt, user?.id, limit]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -44,7 +44,6 @@ export function useRecommendations(limit = 6): RecState & { hasInput: boolean } 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        riasec: quiz ? { percents: quiz.result.percents, code: quiz.result.code } : null,
         score: score && profile ? { method: score.method, total: score.total, combo: profile.combo } : null,
         methodScores,
         comboScores,

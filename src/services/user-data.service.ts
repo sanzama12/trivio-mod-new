@@ -2,10 +2,9 @@
  * SERVICE LAYER — dữ liệu cá nhân đồng bộ theo tài khoản (đã lưu, nguyện vọng, hồ sơ điểm, kết quả RIASEC).
  * Khách dùng localStorage; khi đăng nhập, dữ liệu trên máy được GỘP vào tài khoản (không ghi đè).
  */
-import type { AdmissionMethodKey, Goal, Region, StoredProfile, StoredQuiz, UserData, WishlistItem } from "../domain/types";
+import type { AdmissionMethodKey, Goal, Region, StoredProfile, UserData, WishlistItem } from "../domain/types";
 import { repositories } from "@database/repositories";
 import { ADMISSION_METHODS, isMethodKey, isValidSubjectScore } from "./scoring.service";
-import { sanitizeMbti, sanitizeWorkStyle } from "../domain/work-style";
 
 export const MAX_SAVED = 200;
 /** Giới hạn tối đa 15 nguyện vọng theo Thông tư 06/2026/TT-BGDĐT */
@@ -17,7 +16,7 @@ export type UserDataInput = Omit<UserData, "updatedAt">;
 
 export const MAX_REMINDERS = 50;
 
-export const emptyUserData = (): UserData => ({ saved: [], wishlist: [], profile: null, quiz: null, reminders: [], goal: null, workStyle: null, mbti: null, updatedAt: new Date(0).toISOString() });
+export const emptyUserData = (): UserData => ({ saved: [], wishlist: [], profile: null, reminders: [], goal: null, updatedAt: new Date(0).toISOString() });
 
 const REGIONS: Region[] = ["bac", "trung", "nam"];
 const COMBO_RE = /^[A-Z]\d{2}$/;
@@ -92,12 +91,11 @@ export function sanitizeUserData(input: unknown): UserDataInput {
     (w) => w.id,
   ).slice(0, MAX_WISHLIST);
   const profile = sanitizeProfile(src.profile);
-  const quiz: StoredQuiz | null = null;
   const reminders = uniq(
     (Array.isArray(src.reminders) ? src.reminders : []).filter((x): x is string => typeof x === "string" && ID_RE.test(x)),
     (x) => x,
   ).slice(0, MAX_REMINDERS);
-  return { saved, wishlist, profile, quiz, reminders, goal: sanitizeGoal(src.goal), workStyle: sanitizeWorkStyle(src.workStyle), mbti: sanitizeMbti(src.mbti) };
+  return { saved, wishlist, profile, reminders, goal: sanitizeGoal(src.goal) };
 }
 
 const newer = <T>(a: T | null, b: T | null, at: (x: T) => string): T | null => {
@@ -120,17 +118,11 @@ export function mergeUserData(server: UserDataInput, local: UserDataInput): User
     (w) => w.id,
   ).slice(0, MAX_WISHLIST);
   const profile = newer(server.profile, local.profile, (x) => x.updatedAt);
-  let quiz = newer(server.quiz, local.quiz, (x) => x.result.completedAt);
-  if (quiz && server.quiz && local.quiz && server.quiz.result.completedAt === local.quiz.result.completedAt) {
-    quiz = { ...quiz, savedToProfile: server.quiz.savedToProfile || local.quiz.savedToProfile };
-  }
   // Mục trong nguyện vọng luôn nằm trong danh sách đã lưu.
   for (const w of wishlist) if (!saved.includes(w.id)) saved.push(w.id);
   const reminders = uniq([...server.reminders, ...local.reminders], (x) => x).slice(0, MAX_REMINDERS);
   const goal = newer(server.goal ?? null, local.goal ?? null, (x) => x.updatedAt);
-  const workStyle = newer(server.workStyle ?? null, local.workStyle ?? null, (x) => x.completedAt);
-  const mbti = newer(server.mbti ?? null, local.mbti ?? null, (x) => x.updatedAt);
-  return { saved, wishlist, profile, quiz, reminders, goal, workStyle, mbti };
+  return { saved, wishlist, profile, reminders, goal };
 }
 
 async function onlyExistingPrograms(data: UserDataInput): Promise<UserDataInput> {
@@ -143,7 +135,7 @@ export const userDataService = {
   async get(userId: string): Promise<UserData> {
     const data = await repositories.userData.get(userId);
     // Dữ liệu lưu từ phiên bản cũ chưa có `reminders`.
-    return data ? { ...emptyUserData(), ...data, reminders: data.reminders ?? [], goal: data.goal ?? null, workStyle: data.workStyle ?? null, mbti: data.mbti ?? null } : emptyUserData();
+    return data ? { ...sanitizeUserData(data), updatedAt: data.updatedAt } : emptyUserData();
   },
 
   async replace(userId: string, input: unknown): Promise<UserData> {

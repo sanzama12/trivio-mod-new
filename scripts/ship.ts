@@ -30,12 +30,12 @@ async function main() {
   // Step 1: Validate TypeScript types
   run("npm run typecheck", "Kiểm tra kiểu dữ liệu TypeScript (0 lỗi)");
 
-  // Step 2: Export latest SQL schemas & seeds
-  run("npm run db:export", "Xuất file SQL seed mới nhất (database/seed.sql & seed-prod.sql)");
+  // Step 2: Validate database code; reference seed is maintained in database/seed.sql.
+  run("npm run db:typecheck", "Kiểm tra mã nguồn database");
 
-  // Step 3: Push to Neon PostgreSQL if credentials available
+  // Step 3: Check migration status. Publishing code must not reset live data.
   if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
-    run("npm run push:pg", "Đẩy toàn bộ Schema và Dữ liệu lên Neon PostgreSQL");
+    run("npm run db:status", "Kiểm tra trạng thái migration PostgreSQL");
   }
 
   // Step 4: Git add, commit and push
@@ -52,7 +52,7 @@ async function main() {
   console.log(`\n\x1b[32m🎉 ĐÃ SHIP THÀNH CÔNG!\x1b[0m`);
   console.log(`\x1b[36m- GitHub Actions:\x1b[0m Đang tự động kiểm tra pipeline`);
   console.log(`\x1b[36m- Vercel Deployment:\x1b[0m Đang tự động build và triển khai lên Production`);
-  console.log(`\x1b[36m- Neon PostgreSQL:\x1b[0m Dữ liệu 100% đồng bộ chuẩn xác\n`);
+  console.log(`\x1b[36m- PostgreSQL:\x1b[0m Giữ nguyên dữ liệu; áp dụng migration riêng khi cần\n`);
 }
 
 main().catch((err) => {

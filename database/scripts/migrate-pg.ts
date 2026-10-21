@@ -1,7 +1,8 @@
 import { config } from "dotenv";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "pg";
+import { readMigrations } from "./migration-source";
 
 config({ path: ".env.local", quiet: true });
 const root = join(process.cwd(), "database");
@@ -9,7 +10,7 @@ const statusOnly = process.argv.includes("--status");
 const fresh = process.argv.includes("--fresh");
 const allowDestructive = process.argv.includes("--allow-destructive");
 const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
-const source = (path: string) => readFileSync(path, "utf8").replace(/^BEGIN;\s*$/m, "").replace(/^COMMIT;\s*$/m, "");
+const source = (sql: string) => sql.replace(/^BEGIN;\s*$/m, "").replace(/^COMMIT;\s*$/m, "");
 const ident = (value: string) => '"' + value.replaceAll('"', '""') + '"';
 
 async function main() {
@@ -21,7 +22,8 @@ async function main() {
       WHERE table_schema='trovio' AND table_type='BASE TABLE' ORDER BY table_name`)).rows.map(r=>r.table_name);
     const applied = tables.includes('schema_migrations')
       ? new Set((await client.query<{name:string}>("SELECT name FROM trovio.schema_migrations")).rows.map(r=>r.name)) : new Set<string>();
-    const names=readdirSync(join(root,'migrations')).filter(n=>n.endsWith('.sql')).sort();
+    const migrations=readMigrations();
+    const names=[...migrations.keys()];
     const pending=names.filter(n=>fresh || !applied.has(n));
     if(statusOnly) {
       console.log(`Schema trovio: ${tables.length} bảng. Đã áp dụng: ${applied.size}. Còn thiếu: ${pending.length}.`);
@@ -30,7 +32,7 @@ async function main() {
     }
     if(!pending.length && !fresh) { console.log('Không có migration mới.'); return; }
     for(const name of pending) {
-      const sql=source(join(root,'migrations',name));
+      const sql=source(migrations.get(name)!);
       if(/\b(?:DROP\s+(?:TABLE|SCHEMA|COLUMN)|TRUNCATE|DELETE\s+FROM)\b/i.test(sql) && !allowDestructive)
         throw new Error(`Migration ${name} có thay đổi/xoá dữ liệu; cần --allow-destructive sau khi đọc migration và chạy db:verify.`);
     }
@@ -38,6 +40,9 @@ async function main() {
     try {
       await client.query("SET LOCAL lock_timeout='10s'");
       await client.query("SELECT pg_advisory_xact_lock(70862020)");
+      // Preserve the existing verified-email admin policy during role consolidation.
+      // Transaction-local; never log configuration values or expose them to clients.
+      await client.query("SELECT set_config('trovio.legacy_admin_emails', $1, true)", [process.env.ADMIN_EMAILS ?? ""]);
       if (tables.length) {
         // Snapshot is consistent with the transaction and written before any schema/data change.
         await client.query(`LOCK TABLE ${tables.map(t=>'trovio.'+ident(t)).join(',')} IN SHARE ROW EXCLUSIVE MODE`);
@@ -54,11 +59,11 @@ async function main() {
         console.log(`Đã lưu snapshot đầy đủ ${tables.length} bảng: ${file}`);
       }
       if(fresh) await client.query('DROP SCHEMA IF EXISTS trovio CASCADE');
-      if(fresh || !tables.length) await client.query(source(join(root,'schema.sql')));
+      if(fresh || !tables.length) await client.query(source(readFileSync(join(root,'schema.sql'), 'utf8')));
       else for(const table of ['schools','majors','programs','users']) if(!tables.includes(table)) throw new Error(`Thiếu bảng nền ${table}`);
       await client.query('CREATE TABLE IF NOT EXISTS trovio.schema_migrations(name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
       for(const name of pending) {
-        await client.query(source(join(root,'migrations',name)));
+        await client.query(source(migrations.get(name)!));
         await client.query('INSERT INTO trovio.schema_migrations(name) VALUES ($1)',[name]);
         console.log(`Applied ${name}`);
       }

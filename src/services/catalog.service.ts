@@ -58,29 +58,6 @@ export const catalogService = {
     return repositories.catalog.findCombos();
   },
 
-  async getFinancialAid() {
-    return repositories.catalog.findFinancialAid();
-  },
-
-  /** Dữ liệu nhẹ dùng chung cho các luồng định hướng; View không cần biết repository. */
-  async getGoalOptions() {
-    const [majors, combos] = await Promise.all([repositories.majors.findAll(), this.getCombos()]);
-    return { majors, combos };
-  },
-
-  async getGoalPrograms(majorId: string) {
-    return repositories.catalog.findGuidancePrograms(majorId);
-  },
-
-  async getPlanningOptions() {
-    const [programs, majors, combos] = await Promise.all([
-      repositories.catalog.findPlanningPrograms(),
-      repositories.majors.findAll(),
-      this.getCombos(),
-    ]);
-    return { programs, majors, combos };
-  },
-
   async getSubjects() {
     return repositories.catalog.findSubjects();
   },

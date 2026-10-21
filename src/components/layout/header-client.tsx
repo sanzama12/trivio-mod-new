@@ -19,7 +19,6 @@ import { useTrovio } from "@/stores/trovio-store";
 import { buttonClass } from "@/components/ui/button";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Logo } from "./logo";
-import { TOOL_LINKS } from "./tool-links";
 
 const NAV = [
   { href: "/chuong-trinh", label: "Tìm chương trình", match: ["/chuong-trinh", "/truong", "/diem-cua-toi"] },
@@ -36,7 +35,7 @@ const NEXT: Record<string, Mode> = { 0: 1, 1: 2, 2: 3, 3: 4, 4: "mobile" };
 const DESKTOP_MIN = 1024; // dưới mức này luôn dùng giao diện di động
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-type HeaderUser = { name: string; email: string; avatarUrl: string | null; admin: boolean; teacher?: boolean; moderator?: boolean; schoolStaff?: boolean } | null;
+type HeaderUser = { name: string; email: string; avatarUrl: string | null; admin: boolean; } | null;
 
 export function HeaderClient({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
@@ -44,12 +43,9 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   const { wishlist, saved, hydrated } = useTrovio();
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
   /** null = chưa đo (trước khi JS chạy) → dùng breakpoint CSS. */
   const [mode, setMode] = useState<Mode | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const toolsRef = useRef<HTMLDivElement>(null);
-  const mobileToolsRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
@@ -59,22 +55,15 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   useEffect(() => {
     setOpen(false);
     setMenu(false);
-    setToolsOpen(false);
   }, [pathname]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(false);
-      if (
-        toolsRef.current &&
-        !toolsRef.current.contains(e.target as Node) &&
-        !mobileToolsRef.current?.contains(e.target as Node)
-      ) setToolsOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setMenu(false);
-        setToolsOpen(false);
       }
     };
     document.addEventListener("click", onClick);
@@ -122,7 +111,6 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   }, [remeasure]);
 
   const isActive = (m: string[]) => m.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const toolsActive = TOOL_LINKS.some((tool) => isActive([...tool.match]));
   const onSavedPage = pathname.startsWith("/da-luu");
   const mobile = mode === "mobile";
   // Chưa đo (HTML từ server, trước khi JS chạy): dùng mức gọn (2) để không tràn ngang trên điện thoại lẫn màn 1280px.
@@ -173,46 +161,6 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                   {isActive(n.match) && <span aria-hidden className="absolute inset-x-0 -bottom-[22px] h-0.5 rounded-full bg-primary-600" />}
                 </Link>
               ))}
-              <div ref={toolsRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setToolsOpen((value) => !value)}
-                  aria-expanded={toolsOpen}
-                  aria-haspopup="menu"
-                  aria-controls="menu-cong-cu"
-                  className={cn(
-                    "relative flex items-center gap-1 py-2 transition-colors",
-                    toolsActive ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
-                  )}
-                >
-                  Công cụ
-                  <LuChevronDown className={cn("size-4 transition-transform", toolsOpen && "rotate-180")} aria-hidden />
-                  {toolsActive && <span aria-hidden className="absolute inset-x-0 -bottom-[22px] h-0.5 rounded-full bg-primary-600" />}
-                </button>
-                {toolsOpen && (
-                  <div
-                    id="menu-cong-cu"
-                    role="menu"
-                    className="absolute left-1/2 top-full z-50 mt-3 grid w-[390px] -translate-x-1/2 grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-elevated"
-                  >
-                    {TOOL_LINKS.map((tool) => (
-                      <Link
-                        key={tool.href}
-                        role="menuitem"
-                        href={tool.href}
-                        className={cn(
-                          "rounded-xl px-3 py-2.5 text-sm whitespace-normal transition-colors",
-                          isActive([...tool.match])
-                            ? "bg-primary-50 font-semibold text-primary-700"
-                            : "font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-700",
-                        )}
-                      >
-                        {tool.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
               {NAV.slice(3).map((n) => (
                 <Link
                   key={n.href}
@@ -282,23 +230,11 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                     <Link role="menuitem" href="/moc-tuyen-sinh" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                       <LuCalendarDays className="size-4" aria-hidden /> Mốc tuyển sinh
                     </Link>
-                    <Link role="menuitem" href="/lop-hoc" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                      <LuSchool className="size-4" aria-hidden /> {user.teacher ? "Lớp chủ nhiệm" : "Lớp học (mã lớp)"}
-                    </Link>
                     {user.admin ? (
                       <Link role="menuitem" href="/quan-tri" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                         <LuDatabase className="size-4" aria-hidden /> Quản trị dữ liệu
                       </Link>
-                    ) : user.moderator ? (
-                      <Link role="menuitem" href="/quan-tri/hoi-dap" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                        <LuDatabase className="size-4" aria-hidden /> Kiểm duyệt nội dung
-                      </Link>
                     ) : null}
-                    {user.schoolStaff && (
-                      <Link role="menuitem" href="/cong-truong" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                        <LuSchool className="size-4" aria-hidden /> Cổng trường
-                      </Link>
-                    )}
                     <button
                       role="menuitem"
                       type="button"
@@ -342,37 +278,6 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                   {n.label}
                 </Link>
               ))}
-              <div ref={mobileToolsRef} className="sm:col-span-2">
-                <button
-                  type="button"
-                  onClick={() => setToolsOpen((value) => !value)}
-                  aria-expanded={toolsOpen}
-                  aria-controls="menu-cong-cu-di-dong"
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-[15px]",
-                    toolsActive ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50",
-                  )}
-                >
-                  Công cụ
-                  <LuChevronDown className={cn("size-4 transition-transform", toolsOpen && "rotate-180")} aria-hidden />
-                </button>
-                {toolsOpen && (
-                  <div id="menu-cong-cu-di-dong" className="mt-1 grid gap-1 rounded-xl bg-slate-50 p-2 sm:grid-cols-2">
-                    {TOOL_LINKS.map((tool) => (
-                      <Link
-                        key={tool.href}
-                        href={tool.href}
-                        className={cn(
-                          "rounded-lg px-3 py-2.5 text-sm",
-                          isActive([...tool.match]) ? "bg-white font-semibold text-primary-700 shadow-sm" : "text-slate-700 hover:bg-white",
-                        )}
-                      >
-                        {tool.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
               {[...NAV.slice(3), { href: "/da-luu", label: `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
                 <Link
                   key={n.href}

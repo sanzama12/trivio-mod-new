@@ -1,3 +1,4 @@
+import { readMigration } from "./migration-source";
 import {config} from 'dotenv';
 import {Client,type Pool} from 'pg';
 import {readFileSync} from 'node:fs';
@@ -16,7 +17,7 @@ async function main(){
  try{await withTransaction(async()=>{
   await query(`CREATE SCHEMA ${schema}`);await query(`CREATE TABLE ${schema}.users(id TEXT PRIMARY KEY,name TEXT)`);await query(`CREATE TABLE ${schema}.subjects(id TEXT PRIMARY KEY,name TEXT)`);
   await query(`INSERT INTO ${schema}.users VALUES ('editor','Editor')`);await query(`INSERT INTO ${schema}.subjects VALUES ('toan','Toán'),('van','Ngữ văn')`);
-  await query(readFileSync('database/migrations/20261020_learning_materials.sql','utf8').replace(/^BEGIN;\s*$/m,'').replace(/^COMMIT;\s*$/m,'').replace(/\btrovio\b/g,schema));
+  await query(readMigration('20261020_learning_materials.sql').replace(/^BEGIN;\s*$/m,'').replace(/^COMMIT;\s*$/m,'').replace(/\btrovio\b/g,schema));
   const data:MaterialInput={title:'Tài liệu môn Toán thử nghiệm',slug:'toan-thu-nghiem',description:'Bài ôn tập theo môn.',subjectId:'toan',kind:'pdf',mediaUrl:null,status:'draft'};
   const actor={id:'editor',admin:true};const bytes=new TextEncoder().encode('%PDF-1.7\nTest fixture\n%%EOF\n');
   const draft=await materialsService.save(actor,{data},{bytes,name:'Đề Toán.pdf'});

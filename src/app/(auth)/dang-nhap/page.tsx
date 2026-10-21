@@ -1,18 +1,15 @@
 import type { Metadata } from "next";
 import { safeNext } from "@/lib/auth";
 import { isDemoMode } from "@/lib/env";
-import { AuthShell } from "@/components/auth/auth-shell";
-import { LoginForm } from "@/components/auth/login-form";
+import { AuthExperience } from "@/components/auth/auth-experience";
 
-export const metadata: Metadata = { title: "Đăng nhập" };
+export const metadata: Metadata = { title: "Đăng nhập / Đăng ký" };
 
-type Props = { searchParams: Promise<{ next?: string; error?: string }> };
+type Props = { searchParams: Promise<{ next?: string; error?: string; mode?: string }> };
 
 export default async function LoginPage({ searchParams }: Props) {
-  const { next, error } = await searchParams;
+  const { next, error, mode } = await searchParams;
   return (
-    <AuthShell>
-      <LoginForm next={safeNext(next, "/")} error={error} demo={isDemoMode()} />
-    </AuthShell>
+    <AuthExperience key={mode === "register" ? "register" : "login"} next={safeNext(next, "/")} error={error} demo={isDemoMode()} initialMode={mode === "register" ? "register" : "login"} />
   );
 }

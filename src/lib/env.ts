@@ -8,11 +8,3 @@ export function isDemoMode(): boolean {
   if (process.env.TROVIO_DEMO === "true") return true;
   return false;
 }
-
-/** Email được cấp quyền quản trị (phân tách bằng dấu phẩy), VD: ADMIN_EMAILS=ban@gmail.com */
-export function adminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}

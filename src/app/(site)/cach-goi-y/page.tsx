@@ -129,10 +129,6 @@ export default function HowItWorksPage() {
             ))}
           </div>
           <p className="mt-3 text-sm text-slate-500">Chương trình vượt ngân sách, ngoài khu vực bạn chọn, hoặc không xét tổ hợp/phương thức của bạn sẽ bị loại trước khi xếp hạng.</p>
-          <p className="mt-2 text-sm text-slate-500">
-            Kết quả <Link href="/trac-nghiem/phong-cach" className="font-semibold text-primary-600 hover:underline">mini-test phong cách làm việc</Link> và mã MBTI bạn tự nhập chỉ dùng để
-            giải thích thêm (dòng “Phong cách” trên thẻ gợi ý), <strong>không</strong> cộng hay trừ vào điểm tổng hợp.
-          </p>
         </section>
 
         <section id="kiem-tra-nguyen-vong">

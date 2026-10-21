@@ -1,7 +1,7 @@
+import { readMigration } from "./migration-source";
 /** Isolated schema + repository integration. No public posts are created; always rolls back. */
 import { config } from 'dotenv';
 import { Client,type Pool } from 'pg';
-import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { query,withTransaction } from '../client';
 import { postgresNewsRepository as news } from '../repositories/postgres-news';
@@ -23,9 +23,9 @@ async function main(){
       await query(`CREATE SCHEMA ${schema}`);
       await query(`CREATE TABLE ${schema}.users(id TEXT PRIMARY KEY,name TEXT)`);
       await query(`INSERT INTO ${schema}.users VALUES ('test-editor','Test editor')`);
-      const migration=readFileSync('database/migrations/20261020_news_content.sql','utf8').replace(/^BEGIN;\s*$/m,'').replace(/^COMMIT;\s*$/m,'').replace(/\btrovio\b/g,schema);
+      const migration=readMigration('20261020_news_content.sql').replace(/^BEGIN;\s*$/m,'').replace(/^COMMIT;\s*$/m,'').replace(/\btrovio\b/g,schema);
       await query(migration);
-      await query(readFileSync('database/migrations/20261020_news_rich_text.sql','utf8').replace(/^BEGIN;\s*$/m,'').replace(/^COMMIT;\s*$/m,'').replace(/\btrovio\b/g,schema));
+      await query(readMigration('20261020_news_rich_text.sql').replace(/^BEGIN;\s*$/m,'').replace(/^COMMIT;\s*$/m,'').replace(/\btrovio\b/g,schema));
       const data:NewsInput={title:'Bài thử hướng dẫn tuyển sinh',slug:'bai-thu-tuyen-sinh',summary:'Hướng dẫn chuẩn bị các bước lập nguyện vọng.',body:'Đọc nguồn chính thức của chương trình để chuẩn bị hồ sơ.',categoryCode:'tuyen-sinh',contentType:'article',videoUrl:null,coverUrl:null,sourceUrl:null,season:2027,status:'draft'};
       const draft=await news.save(data,'test-editor');
       assert.match(draft.id,/^news-/);

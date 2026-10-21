@@ -32,13 +32,12 @@ export function dataStatus(p: Program, at: Date = new Date()): DataStatus {
   return "pending";
 }
 
-export type IssueKind = "missing-source" | "cutoff-jump" | "missing-latest" | "duplicate-code" | "school-submission";
+export type IssueKind = "missing-source" | "cutoff-jump" | "missing-latest" | "duplicate-code";
 export const ISSUE_LABELS: Record<IssueKind, string> = {
   "missing-source": "Thiếu nguồn chính thức",
   "cutoff-jump": "Điểm chuẩn biến động bất thường",
   "missing-latest": `Chưa có điểm chuẩn ${LATEST_YEAR}`,
   "duplicate-code": "Trùng mã xét tuyển",
-  "school-submission": "Trường gửi bản sửa",
 };
 
 export interface DataIssue {
@@ -128,9 +127,8 @@ async function setPatch(actor: PublicUser, p: Program, patch: Parameters<typeof 
 export const dataOpsService = {
   /** A01 — tổng quan chất lượng dữ liệu. */
   async overview() {
-    const [catalog, submissions, audit, batches] = await Promise.all([
+    const [catalog, audit, batches] = await Promise.all([
       repositories.adminDashboard.overviewCatalog(),
-      repositories.adminDashboard.pendingSubmissions(),
       repositories.programAdmin.listAudit(12),
       repositories.importBatches.list(5),
     ]);
@@ -160,11 +158,6 @@ export const dataOpsService = {
     for (const list of codes.values()) {
       if (list.length > 1) issues.push({ id: `dup-${list[0].id}`, kind: "duplicate-code", severity: "high", dataType: "Mã xét tuyển", target: names.get(list[0].schoolId) ?? list[0].schoolId, problem: `Mã ${list[0].admissionCode} trùng ở ${list.length} chương trình`, detail: list.map((p) => p.name).join(", "), href: `/quan-tri/chuong-trinh?q=${encodeURIComponent(list[0].admissionCode)}`, viewHref: null, at: null });
     }
-    const FIELD: Record<string, string> = { cutoff: "Điểm chuẩn", tuition: "Học phí", quota: "Chỉ tiêu", combos: "Tổ hợp" };
-    for (const s of submissions) {
-      const p = programs.find((x) => x.id === s.programId);
-      issues.push({ id: `sub-${s.id}`, kind: "school-submission", severity: "high", dataType: FIELD[s.field] ?? s.field, target: p ? target(p) : s.programId, problem: `Trường đề nghị sửa: ${s.current} → ${s.proposed}`, detail: p ? label(p) : s.programId, href: `/quan-tri?tab=de-xuat#de-xuat`, viewHref: s.evidenceUrl, at: s.createdAt });
-    }
     const rank = { high: 0, medium: 1, low: 2 } as const;
     issues.sort((x, y) => rank[x.severity] - rank[y.severity] || (y.at ?? "").localeCompare(x.at ?? ""));
 
@@ -188,7 +181,6 @@ export const dataOpsService = {
       issueCounts: Object.fromEntries((Object.keys(ISSUE_LABELS) as IssueKind[]).map((k) => [k, issues.filter((i) => i.kind === k).length])) as Record<IssueKind, number>,
       progress,
       activity,
-      submissions,
     };
   },
 

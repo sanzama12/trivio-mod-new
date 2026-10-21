@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { LuBadgeCheck, LuFileText, LuShieldCheck } from "react-icons/lu";
 import type { AdmissionMethodKey, Program, VerifyField } from "@/domain/types";
 import { ADMISSION_METHODS, cutoffFor, formatMethodScore, programService, SCHOOL_TYPE_LABELS } from "@/services";
-import { CostCalculator } from "@/components/program/cost-calculator";
 import { formatMonthVi, formatScore, formatTuition, hasTuitionData } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -185,16 +184,6 @@ export default async function ProgramDetailPage({ params }: Props) {
               <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Trovio chưa có dữ liệu học phí cho chương trình này; giá trị trống không được hiểu là miễn học phí.</p>
             )}
             <FinanceBlock school={school} />
-            {tuitionKnown && (
-              <details className="group mt-5 rounded-xl border border-slate-200">
-                <summary className="cursor-pointer list-none rounded-xl px-4 py-3 text-sm font-semibold text-primary-700 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                  Tính tổng chi phí cả khoá (học phí + sinh hoạt phí) <span aria-hidden className="inline-block transition group-open:rotate-90">›</span>
-                </summary>
-                <div className="border-t border-slate-200 p-4">
-                  <CostCalculator tuitionMin={program.tuitionMin} tuitionMax={program.tuitionMax} durationYears={program.durationYears} />
-                </div>
-              </details>
-            )}
           </Card>
 
 

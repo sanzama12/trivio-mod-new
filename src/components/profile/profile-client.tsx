@@ -22,7 +22,6 @@ import {
   LuSparkles,
   LuUserRound,
 } from "react-icons/lu";
-import { StylePills } from "@/components/work-style/style-bits";
 import { REGION_LABELS, TUITION_RANGES } from "@/services/program.filters";
 import { ADMISSION_METHODS, formatMethodScore, PRIORITY_REGION_LABELS, profileMethod, profileScore } from "@/services/scoring.service";
 import { formatDateVi } from "@/lib/format";
@@ -41,7 +40,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 const NAV = [
   { href: "#tong-quan", label: "Tổng quan", icon: LuUserRound },
   { href: "#dieu-kien", label: "Hồ sơ học tập & xét tuyển", icon: LuSlidersHorizontal },
-  { href: "#phong-cach", label: "Phong cách làm việc", icon: LuSparkles },
   { href: "#hoat-dong", label: "Hoạt động", icon: LuHistory },
   { href: "#dang-nhap", label: "Phương thức đăng nhập", icon: LuKeyRound },
   { href: "#cai-dat", label: "Cài đặt tài khoản", icon: LuSettings },
@@ -55,7 +53,6 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name);
   const [fields, setFields] = useState<ProfileFormValue>({
-    role: user.role,
     gradYear: user.gradYear,
     province: user.province,
     under16: user.under16,
@@ -66,7 +63,7 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [askDiscard, setAskDiscard] = useState(false);
-  const initialFields = { role: user.role, gradYear: user.gradYear, province: user.province, under16: user.under16, parentConsent: user.parentConsent };
+  const initialFields = { gradYear: user.gradYear, province: user.province, under16: user.under16, parentConsent: user.parentConsent };
   const dirty = name.trim() !== user.name || JSON.stringify(fields) !== JSON.stringify(initialFields);
   const discard = () => {
     setName(user.name);
@@ -80,7 +77,7 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
   useEffect(() => {
     if (editing) return;
     setName(user.name);
-    setFields({ role: user.role, gradYear: user.gradYear, province: user.province, under16: user.under16, parentConsent: user.parentConsent });
+    setFields({ gradYear: user.gradYear, province: user.province, under16: user.under16, parentConsent: user.parentConsent });
   }, [editing, user]);
 
   useEffect(() => {
@@ -143,8 +140,7 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
     max == null ? "Không giới hạn" : (Object.values(TUITION_RANGES).find((r) => r.max === max)?.label ?? `${max} triệu`);
 
   const missing = [
-    !user.role && "vai trò",
-    user.gradYear == null && (user.role === "parent" ? "năm con tốt nghiệp" : "năm tốt nghiệp THPT"),
+    user.gradYear == null && "năm tốt nghiệp THPT",
     !user.province && "tỉnh/thành",
   ].filter((item): item is string => Boolean(item));
 
@@ -152,14 +148,14 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
     ["Email", user.email],
     ...(user.role ? [["Vai trò", ROLE_LABELS[user.role]] as [string, string]] : []),
     ...(user.gradYear != null
-      ? [[user.role === "parent" ? "Con tốt nghiệp THPT" : "Năm tốt nghiệp THPT", String(user.gradYear)] as [string, string]]
+      ? [["Năm tốt nghiệp THPT", String(user.gradYear)] as [string, string]]
       : []),
     ...(user.province ? [["Tỉnh/thành", user.province] as [string, string]] : []),
     ["Ngày tạo", formatDateVi(user.createdAt)],
     ...(user.lastLoginAt ? [["Đăng nhập gần nhất", formatDateVi(user.lastLoginAt)] as [string, string]] : []),
   ];
 
-  const profileCompletion = Math.round(((3 - missing.length) / 3) * 100);
+  const profileCompletion = Math.round(((2 - missing.length) / 2) * 100);
   const activity = [
     { n: store.saved.length, label: "Đã lưu", detail: "Chương trình", href: "/da-luu", icon: LuHeart },
     { n: store.wishlist.length, label: "Nguyện vọng", detail: "Dự kiến", href: "/da-luu", icon: LuBookOpen },
@@ -233,18 +229,11 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
             </p>
           </div>
 
-          {(user.admin || user.moderator || user.schoolStaff?.status === "approved") && (
+          {user.admin && (
             <div className="rounded-2xl border border-primary-100 bg-primary-50 p-3">
-              {(user.admin || user.moderator) && (
-                <Link href={user.admin ? "/quan-tri" : "/quan-tri/hoi-dap"} className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-bold text-primary-700 hover:bg-white">
-                  <LuDatabase className="size-4" aria-hidden /> {user.admin ? "Mở trang quản trị" : "Mở trang kiểm duyệt"}
-                </Link>
-              )}
-              {user.schoolStaff?.status === "approved" && (
-                <Link href="/cong-truong" className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-bold text-primary-700 hover:bg-white">
-                  <LuDatabase className="size-4" aria-hidden /> Mở cổng trường
-                </Link>
-              )}
+              <Link href="/quan-tri" className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-bold text-primary-700 hover:bg-white">
+                <LuDatabase className="size-4" aria-hidden /> Mở trang quản trị
+              </Link>
             </div>
           )}
         </aside>
@@ -362,23 +351,7 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
             </div>
           </Card>
 
-          <Card id="phong-cach" className="scroll-mt-24 border-slate-300 p-5 shadow-none sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-black tracking-[0.14em] text-primary-700 uppercase">03 · Hiểu bản thân</p>
-                <h2 className="mt-1 text-xl font-black tracking-tight">Phong cách làm việc & MBTI</h2>
-              </div>
-              <span className="rounded-full bg-accent-50 px-3 py-1 text-[11px] font-bold text-accent-700">Tham khảo · không tính điểm</span>
-            </div>
-            {store.hydrated && store.workStyle ? <StylePills scores={store.workStyle.scores} className="mt-5" /> : <p className="mt-4 text-sm text-slate-500">Chưa làm mini-test phong cách gồm 12 tình huống, khoảng 2 phút.</p>}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-sm">
-              <span className="text-slate-500">MBTI: {store.mbti ? <strong className="text-slate-900">{store.mbti.code}</strong> : "chưa nhập"}</span>
-              <div className="flex flex-wrap gap-4">
-                <Link href="/trac-nghiem/phong-cach" className="font-bold text-primary-700 hover:underline">{store.workStyle ? "Xem chi tiết" : "Làm mini-test"}</Link>
-                {!store.mbti && <Link href="/trac-nghiem/phong-cach#mbti" className="font-bold text-slate-600 hover:underline">Nhập mã MBTI</Link>}
-              </div>
-            </div>
-          </Card>
+
 
           <section id="hoat-dong" className="scroll-mt-24">
             <div className="mb-4 flex items-end justify-between gap-3">

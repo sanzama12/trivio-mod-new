@@ -175,7 +175,7 @@ export function ScoreWizard({
       updatedAt: new Date().toISOString(),
     });
     track("score_saved");
-    router.push("/goi-y");
+    router.push("/chuong-trinh");
   };
 
   return (

@@ -338,7 +338,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
       "Chọn ngành nên dựa trên điểm thi hoặc học bạ, tổ hợp môn và điều kiện tài chính. Nhập điểm để Trovio gợi ý chương trình phù hợp kèm lý do.",
       {
         context: ctx,
-        sources: [{ label: "Nhập điểm", href: "/diem-cua-toi" }, { label: "Xem gợi ý", href: "/goi-y" }],
+        sources: [{ label: "Nhập điểm", href: "/diem-cua-toi" }, { label: "Xem gợi ý", href: "/chuong-trinh" }],
         suggestions: ["Trường nào đào tạo Công nghệ thông tin?", "Điểm chuẩn ngành Marketing"],
       },
     );

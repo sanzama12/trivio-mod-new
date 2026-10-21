@@ -3,6 +3,7 @@ import { config } from "dotenv";
 import { Client } from "pg";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import assert from "node:assert/strict";
+import { readMigration, readMigrations } from "./migration-source";
 
 config({ path: ".env.local", quiet: true });
 const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
@@ -11,8 +12,9 @@ const backupName = existsSync('database/backups') ? readdirSync('database/backup
   .filter(n=>n.startsWith('before-migration-') && n.endsWith('.json')).sort().reverse()
   .find(n=>!JSON.parse(readFileSync(`database/backups/${n}`,'utf8')).applied?.includes('20261020_identity_integrity.sql')) : undefined;
 const backup = backupName ? JSON.parse(readFileSync(`database/backups/${backupName}`,'utf8')).tables as Record<string, unknown[]> : undefined;
-const sqlFile = (name: string) => readFileSync(`database/${name}`, "utf8")
+const sqlFile = (name: string) => (name.startsWith('migrations/') ? readMigration(name.slice('migrations/'.length)) : readFileSync(`database/${name}`, "utf8"))
   .replace(/^\s*BEGIN;\s*/i, "").replace(/\s*COMMIT;\s*$/i, "")
+  .replace(/\btrovio_archive\b/g, `${schema}_archive`)
   .replace(/\btrovio\b/g, schema);
 
 async function main() {
@@ -23,12 +25,12 @@ async function main() {
     await client.query("SET LOCAL lock_timeout='5s'");
     // schema.sql contains leading comments, so remove transaction statements by line.
     await client.query(sqlFile("schema.sql").replace(/^BEGIN;\s*$/m, ""));
-    const old = readdirSync("database/migrations").filter(n => n.endsWith(".sql") && n < "20261020").sort();
+    const old = [...readMigrations().keys()].filter(n => n < "20261020");
     for (const name of old) await client.query(sqlFile(`migrations/${name}`));
     // Match the actual pre-migration state: legacy DB does not enforce code uniqueness.
     await client.query(`DROP INDEX IF EXISTS ${schema}.majors_code_uq`);
     await client.query(`ALTER TABLE ${schema}.majors ALTER COLUMN code DROP NOT NULL`);
-    const tables = ["regions","priority_regions","priority_groups","admission_methods","subjects","combos","combo_subjects","riasec_types","major_groups","schools","school_campuses","majors","major_riasec","programs","program_combos","program_admission_methods","program_cutoffs","program_verified_fields"];
+    const tables = ["regions","priority_regions","priority_groups","admission_methods","subjects","combos","combo_subjects","major_groups","schools","school_campuses","majors","programs","program_combos","program_admission_methods","program_cutoffs","program_verified_fields"];
     for (const table of tables) {
       const columns = await client.query<{ column_name: string }>(`SELECT a.column_name FROM information_schema.columns a JOIN information_schema.columns b USING(table_name,column_name)
         WHERE a.table_schema=$1 AND b.table_schema='trovio' AND a.table_name=$2 ORDER BY a.ordinal_position`,[schema,table]);
@@ -49,7 +51,7 @@ async function main() {
     else await client.query(`INSERT INTO ${schema}.app_documents SELECT * FROM trovio.app_documents WHERE collection='program-patch'`);
     const before = (await client.query(`SELECT count(*)::int AS count FROM ${schema}.programs`)).rows[0].count;
     const patches = (await client.query(`SELECT id,payload FROM ${schema}.app_documents WHERE collection='program-patch' ORDER BY id`)).rows;
-    for (const name of readdirSync("database/migrations").filter(n=>n.startsWith('20261020') && n.endsWith('.sql')).sort()) {
+    for (const name of [...readMigrations().keys()].filter(n=>n >= '20261020')) {
       await client.query(sqlFile(`migrations/${name}`));
       console.log(`PASS migration ${name}`);
     }

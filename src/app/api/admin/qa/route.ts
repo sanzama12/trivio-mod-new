@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { requireStaff } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { jsonBody } from "@/lib/http";
 import { qaService } from "@/services/community.service";
 
 /** GET /api/admin/qa — câu hỏi / câu trả lời chờ duyệt. POST — duyệt hoặc từ chối. */
 export async function GET() {
-  const { error } = await requireStaff();
+  const { error } = await requireAdmin();
   if (error) return error;
   return NextResponse.json({ ok: true, items: await qaService.pending() });
 }
 
 export async function POST(req: Request) {
-  const { user, error } = await requireStaff();
+  const { user, error } = await requireAdmin();
   if (error) return error;
   const { body, error: tooBig } = await jsonBody(req, 2 * 1024);
   if (tooBig) return tooBig;

@@ -2,9 +2,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "./auth";
 
-export async function adminPage(next: string, opts: { staff?: boolean } = {}) {
+export async function adminPage(next: string) {
   const user = await getCurrentUser();
   if (!user) redirect(`/dang-nhap?next=${encodeURIComponent(next)}`);
-  if (!user.admin && !(opts.staff && user.moderator)) notFound();
+  if (!user.admin) notFound();
   return user;
 }

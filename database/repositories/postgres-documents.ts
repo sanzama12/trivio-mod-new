@@ -11,18 +11,15 @@ import type {
   AuditRepository,
   ChatAliasRepository,
   ChatLogRepository,
-  ClassRepository,
   CommentRepository,
   ImportBatchRepository,
   NotificationRepository,
   QaRepository,
   RecommendConfigRepository,
   ReminderLogRepository,
-  SchoolSubmissionRepository,
   ShareRepository,
   SurveyRepository,
   SupplementaryRepository,
-  TeacherVerificationRepository,
   TimelineConfigRepository,
   UserDataRepository,
 } from "./types";
@@ -35,13 +32,10 @@ import type {
   ImportBatch,
   QaQuestion,
   RecommendConfig,
-  SchoolSubmission,
   Share,
   ShareComment,
   SusResponse,
   SupplementaryRound,
-  TeacherClass,
-  TeacherVerification,
   TimelineConfig,
   UserData,
 } from "@/domain/types";
@@ -276,33 +270,6 @@ export const postgresQaRepository: QaRepository = {
   list: () => listDocuments<QaQuestion>("qa-question"),
 };
 
-export const postgresClassRepository: ClassRepository = {
-  create: (item) => putDocument("teacher-class", item.id, item, { ownerId: item.teacherId, status: item.code }),
-  update: (id, patch) => updateDocument<TeacherClass>("teacher-class", id, patch, (value) => ({ ownerId: value.teacherId, status: value.code })),
-  findById: (id) => getDocument<TeacherClass>("teacher-class", id),
-  async findByCode(code) {
-    return (await listDocuments<TeacherClass>("teacher-class", { status: code }, 1))[0] ?? null;
-  },
-  listByTeacher: (teacherId) => listDocuments<TeacherClass>("teacher-class", { ownerId: teacherId }),
-  async listByMember(userId) {
-    return (await listDocuments<TeacherClass>("teacher-class")).filter((item) => item.memberIds.includes(userId));
-  },
-  async delete(id, teacherId) {
-    const current = await getDocument<TeacherClass>("teacher-class", id);
-    return current?.teacherId === teacherId ? deleteDocument("teacher-class", id) : false;
-  },
-};
-
-export const postgresTeacherVerificationRepository: TeacherVerificationRepository = {
-  create: (item) => putDocument("teacher-verification", item.id, item, { ownerId: item.userId, status: item.status }),
-  findById: (id) => getDocument<TeacherVerification>("teacher-verification", id),
-  async findByUserId(userId) {
-    return (await listDocuments<TeacherVerification>("teacher-verification", { ownerId: userId }, 1))[0] ?? null;
-  },
-  list: (filter) => listDocuments<TeacherVerification>("teacher-verification", { status: filter?.status }),
-  update: (id, patch) => updateDocument<TeacherVerification>("teacher-verification", id, patch, (value) => ({ ownerId: value.userId, status: value.status })),
-};
-
 export const postgresRecommendConfigRepository: RecommendConfigRepository = {
   get: () => getDocument<RecommendConfig>("recommend-config", "active"),
   save: (config) => putDocument("recommend-config", "active", config).then(() => undefined),
@@ -311,16 +278,6 @@ export const postgresRecommendConfigRepository: RecommendConfigRepository = {
 export const postgresImportBatchRepository: ImportBatchRepository = {
   add: (item) => putDocument("import-batch", item.id, item, { ownerId: item.byId }).then(() => undefined),
   list: (limit = 20) => listDocuments<ImportBatch>("import-batch", undefined, limit),
-};
-
-export const postgresSchoolSubmissionRepository: SchoolSubmissionRepository = {
-  add: (item) => putDocument("school-submission", item.id, item, { ownerId: item.userId, parentId: item.schoolId, status: item.status }).then(() => undefined),
-  async list(filter) {
-    const rows = await listDocuments<SchoolSubmission>("school-submission", { parentId: filter?.schoolId, status: filter?.status });
-    return rows;
-  },
-  findById: (id) => getDocument<SchoolSubmission>("school-submission", id),
-  update: (id, patch) => updateDocument<SchoolSubmission>("school-submission", id, patch, (value) => ({ ownerId: value.userId, parentId: value.schoolId, status: value.status })),
 };
 
 export function newDocumentId(prefix: string): string {

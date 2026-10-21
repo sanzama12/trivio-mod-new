@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authService } from "@/services";
 import { clientIp, jsonBody, tooMany } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
+import { attachSession } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const { body, error } = await jsonBody(req, 8 * 1024);
@@ -11,10 +12,11 @@ export async function POST(req: Request) {
   const b = body ?? {};
   const result = await authService.register({
     name: String(b.name ?? "").slice(0, 100),
-    email: String(b.email ?? "").slice(0, 200),
+    email: String(b.email ?? ""),
     password: String(b.password ?? "").slice(0, 200),
     confirm: String(b.confirm ?? "").slice(0, 200),
     terms: b.terms === true,
   });
-  return NextResponse.json(result, { status: result.ok ? 201 : 400 });
+  if (!result.ok) return NextResponse.json(result, { status: 400 });
+  return attachSession(NextResponse.json(result, { status: 201 }), result.user.id);
 }

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { reminderService } from "@/services/reminder.service";
-import { supplementaryService } from "@/services/supplementary.service";
 
 /**
  * GET|POST /api/cron/reminders — gửi email nhắc hạn đến hạn hôm nay + thông báo xét tuyển bổ sung phù hợp.
@@ -15,9 +14,7 @@ async function run(req: Request) {
   const want = Buffer.from(`Bearer ${secret}`);
   if (got.length !== want.length || !timingSafeEqual(got, want)) return NextResponse.json({ ok: false }, { status: 401 });
   const result = await reminderService.sendDue();
-  // Thông báo đợt xét tuyển bổ sung đang mở, phù hợp điểm & nguyện vọng (mỗi đợt 1 lần / người).
-  const supplementary = await supplementaryService.notifyAll();
-  return NextResponse.json({ ok: true, ...result, supplementary });
+  return NextResponse.json({ ok: true, ...result });
 }
 
 export const GET = run;

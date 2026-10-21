@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { LuCalculator } from "react-icons/lu";
 import type { Program } from "@/domain/types";
-import { combos } from "@database/seeds/combos";
+import { combos } from "@/domain/admission-reference";
 import {
   ADMISSION_METHODS,
   computeFit,

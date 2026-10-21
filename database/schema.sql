@@ -1,6 +1,6 @@
 -- =====================================================================================================
 -- TROVIO — Lược đồ cơ sở dữ liệu quan hệ (PostgreSQL 14+)
--- Chuẩn hoá theo mã nguồn hiện tại: src/domain/types.ts, src/domain/work-style.ts, src/services/*,
+-- Chuẩn hoá theo mã nguồn hiện tại: src/domain/types.ts, src/services/*,
 -- database/repositories/json-file.ts (DB_VERSION = 8). Mỗi bảng ghi rõ kiểu dữ liệu TypeScript tương ứng.
 --
 -- Nguyên tắc:
@@ -9,11 +9,11 @@
 --   • Dạng chuẩn 3 (3NF): mảng/đối tượng lồng trong JSON được tách thành bảng con
 --     (VD Program.combos → program_combos, Program.cutoffs + altCutoffs → program_cutoffs).
 --   • Ràng buộc nghiệp vụ đặt ngay trong CSDL (CHECK, trigger) khớp với kiểm tra ở service:
---     điểm môn 0–10, thang điểm theo phương thức, tối đa 3 nhóm Holland/ngành, MBTI 16 mã…
+--     điểm môn 0–10, thang điểm theo phương thức, tối đa 3 nhóm Holland/ngành…
 --   • "Xoá" trường/ngành/chương trình ở trang quản trị là TẠM ẨN (cột hidden), không xoá dòng.
---   • Dữ liệu chỉ để giải thích (mini-test phong cách, MBTI) nằm ở bảng riêng, KHÔNG được công thức gợi ý đọc.
 --
--- Chạy:  psql -d trovio -f schema.sql  →  psql -d trovio -f seed.sql
+-- Khởi tạo/cập nhật: npm run db:migrate (schema nền + toàn bộ migration).
+-- Database mới: sau migration, có thể nạp database/seed.sql (chỉ dữ liệu tham chiếu).
 -- Migration tăng dần nằm trong database/migrations/ và được database/scripts/migrate-pg.ts áp dụng.
 -- =====================================================================================================
 
@@ -82,23 +82,6 @@ CREATE TABLE combo_subjects (
   subject_id  TEXT NOT NULL REFERENCES subjects (id),
   PRIMARY KEY (combo_code, position),
   UNIQUE (combo_code, subject_id)
-);
-
--- RiasecType + RIASEC_INFO
-CREATE TABLE riasec_types (
-  code        CHAR(1) PRIMARY KEY CHECK (code IN ('R', 'I', 'A', 'S', 'E', 'C')),
-  name_en     TEXT NOT NULL,                                      -- Realistic…
-  label       TEXT NOT NULL,                                      -- Thực tế…
-  description TEXT NOT NULL,
-  position    SMALLINT NOT NULL UNIQUE
-);
-
--- WorkAxis — 4 trục mini-test "Phong cách làm việc" (domain/work-style.ts · AXIS_INFO)
-CREATE TABLE work_axes (
-  code        TEXT PRIMARY KEY CHECK (code IN ('social', 'stability', 'hands', 'detail')),
-  left_label  TEXT NOT NULL,                                      -- cực +1: 'Làm cùng mọi người'…
-  right_label TEXT NOT NULL,                                      -- cực −1: 'Làm độc lập'…
-  position    SMALLINT NOT NULL UNIQUE
 );
 
 -- Vai trò hệ thống (code: User.admin, User.moderator, User.schoolStaff.status = 'approved')
@@ -181,15 +164,6 @@ CREATE TABLE majors (
 CREATE INDEX majors_group_idx ON majors (group_id);
 CREATE UNIQUE INDEX majors_code_uq ON majors (code);
 CREATE TRIGGER majors_touch BEFORE UPDATE ON majors FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
-
--- Major.riasec = [3 nhóm Holland] — RIASEC gắn THEO NGÀNH (không theo nhóm ngành)
-CREATE TABLE major_riasec (
-  major_id    TEXT NOT NULL REFERENCES majors (id) ON DELETE CASCADE,
-  rank        SMALLINT NOT NULL CHECK (rank BETWEEN 1 AND 3),
-  riasec_code CHAR(1) NOT NULL REFERENCES riasec_types (code),
-  PRIMARY KEY (major_id, rank),
-  UNIQUE (major_id, riasec_code)
-);
 
 -- Program (chương trình đào tạo = ngành × trường; ERD cũ gọi là truong_nganh)
 CREATE TABLE programs (
@@ -413,28 +387,6 @@ CREATE TABLE wishlist_items (
   FOREIGN KEY (user_id, program_id) REFERENCES saved_programs (user_id, program_id) ON DELETE CASCADE
 );
 
--- StoredQuiz (RiasecResult) — kết quả RIASEC mới nhất của tài khoản
-CREATE TABLE quiz_results (
-  user_id           TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-  code_1            CHAR(1) NOT NULL REFERENCES riasec_types (code),
-  code_2            CHAR(1) NOT NULL REFERENCES riasec_types (code),
-  code_3            CHAR(1) NOT NULL REFERENCES riasec_types (code),
-  answered          SMALLINT NOT NULL CHECK (answered BETWEEN 1 AND 200),
-  completed_at      TIMESTAMPTZ NOT NULL,
-  saved_to_profile  BOOLEAN NOT NULL DEFAULT false,
-  CHECK (code_1 <> code_2 AND code_1 <> code_3 AND code_2 <> code_3)
-);
-
--- RiasecResult.percents + ranking — % từng nhóm và thứ hạng 1–6
-CREATE TABLE quiz_result_scores (
-  user_id     TEXT NOT NULL REFERENCES quiz_results (user_id) ON DELETE CASCADE,
-  riasec_code CHAR(1) NOT NULL REFERENCES riasec_types (code),
-  percent     SMALLINT NOT NULL CHECK (percent BETWEEN 0 AND 100),
-  rank        SMALLINT NOT NULL CHECK (rank BETWEEN 1 AND 6),
-  PRIMARY KEY (user_id, riasec_code),
-  UNIQUE (user_id, rank)
-);
-
 -- Goal — mục tiêu đặt qua hội thoại (/muc-tieu)
 CREATE TABLE goals (
   user_id        TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
@@ -453,75 +405,8 @@ CREATE TABLE goal_regions (
   PRIMARY KEY (user_id, region_code)
 );
 
--- StoredWorkStyle — mini-test phong cách làm việc (CHỈ để giải thích, không tính điểm gợi ý)
-CREATE TABLE work_styles (
-  user_id       TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-  social        SMALLINT NOT NULL CHECK (social IN (-3, -1, 1, 3)),
-  stability     SMALLINT NOT NULL CHECK (stability IN (-3, -1, 1, 3)),
-  hands         SMALLINT NOT NULL CHECK (hands IN (-3, -1, 1, 3)),
-  detail        SMALLINT NOT NULL CHECK (detail IN (-3, -1, 1, 3)),
-  completed_at  TIMESTAMPTZ NOT NULL
-);
-
--- StoredMbti — mã MBTI học sinh tự nhập (góc nhìn tham khảo, không tính điểm)
-CREATE TABLE mbti_codes (
-  user_id     TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-  code        CHAR(4) NOT NULL CHECK (code ~ '^[EI][SN][TF][JP]$'),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 -- =====================================================================================================
--- 5. TRẮC NGHIỆM RIASEC & MINI-TEST (ngân hàng câu hỏi + cấu hình quản trị A06)
--- =====================================================================================================
-
--- RiasecQuestion (60 câu gốc + câu quản trị viên thêm; QuizConfig.overrides gộp thẳng vào dòng)
-CREATE TABLE riasec_questions (
-  id          INTEGER PRIMARY KEY,                                -- id gốc 1–60 giữ nguyên để bài làm dở không hỏng
-  riasec_code CHAR(1) NOT NULL REFERENCES riasec_types (code),
-  text        TEXT NOT NULL CHECK (length(text) BETWEEN 5 AND 200),
-  position    SMALLINT NOT NULL,
-  hidden      BOOLEAN NOT NULL DEFAULT false,
-  is_custom   BOOLEAN NOT NULL DEFAULT false,
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (riasec_code, position)
-);
-CREATE TRIGGER riasec_questions_touch BEFORE UPDATE ON riasec_questions FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
-
--- QuizConfig.typeWeights — trọng số nhóm 0,5–2,0 dùng trong gợi ý
-CREATE TABLE riasec_type_weights (
-  riasec_code CHAR(1) PRIMARY KEY REFERENCES riasec_types (code),
-  weight      NUMERIC(3, 1) NOT NULL DEFAULT 1.0 CHECK (weight BETWEEN 0.5 AND 2.0),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- WORK_STYLE_QUESTIONS — 12 tình huống chọn 1 trong 2 (A = cực trái +1, B = cực phải −1)
-CREATE TABLE work_style_questions (
-  id          TEXT PRIMARY KEY,                                   -- 'so1', 'st1'…
-  axis_code   TEXT NOT NULL REFERENCES work_axes (code),
-  prompt      TEXT NOT NULL,
-  option_a    TEXT NOT NULL,
-  option_b    TEXT NOT NULL,
-  flip        BOOLEAN NOT NULL DEFAULT false,                     -- hiển thị B trước A
-  position    SMALLINT NOT NULL UNIQUE
-);
-
--- GROUP_STYLE / MAJOR_STYLE — xu hướng phong cách của nhóm ngành / ngành (1–3 trục rõ ràng)
-CREATE TABLE major_group_work_styles (
-  group_id    TEXT NOT NULL REFERENCES major_groups (id) ON DELETE CASCADE,
-  axis_code   TEXT NOT NULL REFERENCES work_axes (code),
-  pole        SMALLINT NOT NULL CHECK (pole IN (-1, 1)),
-  PRIMARY KEY (group_id, axis_code)
-);
-
-CREATE TABLE major_work_styles (
-  major_id    TEXT NOT NULL REFERENCES majors (id) ON DELETE CASCADE,
-  axis_code   TEXT NOT NULL REFERENCES work_axes (code),
-  pole        SMALLINT NOT NULL CHECK (pole IN (-1, 1)),
-  PRIMARY KEY (major_id, axis_code)
-);
-
--- =====================================================================================================
--- 6. CẤU HÌNH GỢI Ý (A09 Quy tắc gợi ý)
+-- 5. CẤU HÌNH GỢI Ý (A09 Quy tắc gợi ý)
 -- =====================================================================================================
 
 -- RecommendConfig.weights — 4 tiêu chí, tổng = 1 (mặc định 0,45 / 0,35 / 0,10 / 0,10)
@@ -539,7 +424,7 @@ CREATE TABLE recommend_weights (
 -- RecRule
 CREATE TABLE recommend_rules (
   id          TEXT PRIMARY KEY,
-  kind        TEXT NOT NULL CHECK (kind IN ('riasec-match', 'budget', 'diversity', 'goal-priority', 'min-years', 'boost-cutoff', 'boost-school-type')),
+  kind        TEXT NOT NULL CHECK (kind IN ('budget', 'diversity', 'goal-priority', 'min-years', 'boost-cutoff', 'boost-school-type')),
   name        TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   version     TEXT NOT NULL DEFAULT '1.0',
@@ -668,26 +553,6 @@ CREATE TABLE share_comments (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- TeacherClass — C1 kênh giáo viên
-CREATE TABLE teacher_classes (
-  id             TEXT PRIMARY KEY,
-  teacher_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  name           TEXT NOT NULL,
-  school_name    TEXT NOT NULL,
-  code           TEXT NOT NULL UNIQUE CHECK (code ~ '^[A-Z0-9]{6}$'), -- mã lớp, VD 'DEMO12'
-  last_remind_at TIMESTAMPTZ,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- TeacherClass.memberIds[] + memberRemindAt — học sinh trong lớp
-CREATE TABLE class_members (
-  class_id    TEXT NOT NULL REFERENCES teacher_classes (id) ON DELETE CASCADE,
-  user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  joined_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  reminded_at TIMESTAMPTZ,                                        -- "Gửi nhắc" riêng (1 lần/24 giờ)
-  PRIMARY KEY (class_id, user_id)
-);
-
 -- =====================================================================================================
 -- 11. VẬN HÀNH & QUẢN TRỊ: thông báo, nhật ký, nhập liệu, cổng trường, chatbot, thống kê
 -- =====================================================================================================
@@ -696,7 +561,7 @@ CREATE TABLE class_members (
 CREATE TABLE notifications (
   id          TEXT PRIMARY KEY,
   user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  kind        TEXT NOT NULL CHECK (kind IN ('reminder', 'supplementary', 'class-reminder', 'qa-answer', 'school-submission')),
+  kind        TEXT NOT NULL CHECK (kind IN ('reminder', 'supplementary', 'qa-answer', 'school-submission')),
   title       TEXT NOT NULL,
   body        TEXT NOT NULL,
   href        TEXT CHECK (href IS NULL OR href ~ '^/'),           -- chỉ đường dẫn nội bộ
@@ -711,7 +576,7 @@ CREATE TABLE audit_logs (
   at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   actor_id    TEXT REFERENCES users (id) ON DELETE SET NULL,
   actor_email TEXT NOT NULL,                                      -- giữ lại kể cả khi tài khoản bị xoá
-  target_type TEXT NOT NULL DEFAULT 'program' CHECK (target_type IN ('program', 'qa', 'timeline', 'chat-alias', 'school', 'major', 'quiz', 'rules', 'import', 'user', 'school-submission')),
+  target_type TEXT NOT NULL DEFAULT 'program' CHECK (target_type IN ('program', 'qa', 'timeline', 'chat-alias', 'school', 'major', 'rules', 'import', 'user', 'school-submission')),
   target_id   TEXT NOT NULL,                                      -- AuditEntry.programId (id đối tượng)
   action      TEXT NOT NULL CHECK (action IN ('update', 'verify', 'reset', 'approve', 'reject', 'delete', 'create'))
 );
@@ -799,7 +664,7 @@ CREATE INDEX chat_logs_at_idx ON chat_logs (at DESC);
 -- analytics — phễu hành vi ẩn danh: mỗi mã trình duyệt tính 1 lần/sự kiện/ngày, tự xoá sau 180 ngày
 CREATE TABLE analytics_events (
   day         DATE NOT NULL,
-  event       TEXT NOT NULL CHECK (event IN ('visit', 'quiz_done', 'score_saved', 'program_saved', 'wishlist_added', 'share_created', 'chat_asked', 'quiz_started', 'style_done', 'mbti_added')),
+  event       TEXT NOT NULL CHECK (event IN ('visit', 'score_saved', 'program_saved', 'wishlist_added', 'share_created', 'chat_asked')),
   anon_id     TEXT NOT NULL CHECK (length(anon_id) BETWEEN 16 AND 64),
   PRIMARY KEY (day, event, anon_id)
 );
@@ -901,15 +766,12 @@ JOIN v_public_programs vp ON vp.id = w.program_id;
 -- 13. CHÚ THÍCH BẢNG (hiện trong pgAdmin / DBeaver, dùng khi viết báo cáo)
 -- =====================================================================================================
 COMMENT ON TABLE schools IS 'Trường đại học (A02). Xoá = tạm ẩn (hidden).';
-COMMENT ON TABLE majors IS 'Ngành đào tạo (A03), mã ngành 7 số, 3 nhóm Holland ở major_riasec.';
+COMMENT ON TABLE majors IS 'Ngành đào tạo (A03), mã ngành 7 số và nhóm ngành.';
 COMMENT ON TABLE programs IS 'Chương trình đào tạo = ngành tại một trường (ERD cũ: truong_nganh).';
 COMMENT ON TABLE program_cutoffs IS 'Điểm chuẩn theo chương trình × phương thức × năm (ERD cũ: diem_chuan).';
 COMMENT ON TABLE score_profiles IS 'Hồ sơ điểm của học sinh (S07) + kết quả tính điểm xét tuyển.';
 COMMENT ON TABLE wishlist_items IS 'Nguyện vọng dự kiến, thứ tự = position + 1 (ERD cũ: nguyen_vong).';
-COMMENT ON TABLE quiz_results IS 'Kết quả trắc nghiệm RIASEC mới nhất (ERD cũ: ket_qua_riasec).';
-COMMENT ON TABLE work_styles IS 'Mini-test phong cách làm việc – CHỈ để giải thích, không tham gia điểm gợi ý.';
-COMMENT ON TABLE mbti_codes IS 'Mã MBTI học sinh tự nhập – góc nhìn tham khảo, không tính điểm.';
-COMMENT ON TABLE recommend_weights IS 'Trọng số 4 tiêu chí gợi ý: sở thích, khả năng trúng tuyển, vị trí, nhóm ngành.';
+COMMENT ON TABLE recommend_weights IS 'Trọng số các tiêu chí gợi ý chương trình.';
 COMMENT ON TABLE audit_logs IS 'Nhật ký mọi thay đổi dữ liệu của quản trị viên / kiểm duyệt viên / cổng trường.';
 COMMENT ON TABLE analytics_events IS 'Phễu hành vi ẩn danh (chỉ gửi sau khi đồng ý cookie), xoá sau 180 ngày.';
 

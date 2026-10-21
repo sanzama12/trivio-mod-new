@@ -4,7 +4,6 @@
 import { useMemo, useState } from "react";
 import { LuEye, LuLock, LuLockOpen, LuPlus, LuSearch, LuTrash2 } from "react-icons/lu";
 import type { AdminUserRow } from "@/services/user-admin.service";
-import { ROLE_LABELS } from "@/domain/provinces";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,9 +23,7 @@ const STATUS: Record<AdminUserRow["status"], { label: string; tone: BadgeTone }>
 
 function roleBadge(r: AdminUserRow): { label: string; tone: BadgeTone } {
   if (r.admin) return { label: "Admin", tone: "danger" };
-  if (r.moderator) return { label: "Kiểm duyệt viên", tone: "accent" };
-  if (r.schoolStaff?.status === "approved") return { label: "Cán bộ tuyển sinh", tone: "teal" };
-  return { label: r.role ? ROLE_LABELS[r.role] : "Chưa chọn", tone: r.role ? "primary" : "slate" };
+  return { label: "User", tone: "primary" };
 }
 
 export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[]; meId: string; initialStatus: string }) {
@@ -43,7 +40,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
   const [delConfirm, setDelConfirm] = useState("");
   const [delErr, setDelErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role: "student", moderator: false });
+  const [form, setForm] = useState({ name: "", email: "" });
   const [formErr, setFormErr] = useState<{ field?: string; message?: string } | null>(null);
   const [now] = useState(() => Date.now());
 
@@ -53,12 +50,8 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
     return rows.filter((r) => {
       if (nq && !normalizeVi(`${r.name} ${r.email}`).includes(nq)) return false;
       if (role === "admin" && !r.admin) return false;
-      if (role === "moderator" && !r.moderator) return false;
-      if (role === "school" && r.schoolStaff?.status !== "approved") return false;
-      if (["student", "parent", "teacher"].includes(role) && r.role !== role) return false;
-      if (role === "none" && r.role) return false;
-      if (status === "staff" && r.schoolStaff?.status !== "pending") return false;
-      if (status && status !== "staff" && r.status !== status) return false;
+      if (role === "user" && r.admin) return false;
+      if (status && r.status !== status) return false;
       if (minDate && Date.parse(r.createdAt) < minDate) return false;
       return true;
     });
@@ -86,20 +79,14 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
         </label>
         <select aria-label="Vai trò" className={selectCls} value={role} onChange={(e) => (setRole(e.target.value), setPage(1))}>
           <option value="">Vai trò: Tất cả</option>
-          <option value="student">Học sinh</option>
-          <option value="parent">Phụ huynh</option>
-          <option value="teacher">Giáo viên</option>
-          <option value="school">Cán bộ tuyển sinh</option>
-          <option value="moderator">Kiểm duyệt viên</option>
+          <option value="user">User</option>
           <option value="admin">Admin</option>
-          <option value="none">Chưa chọn vai trò</option>
         </select>
         <select aria-label="Trạng thái" className={selectCls} value={status} onChange={(e) => (setStatus(e.target.value), setPage(1))}>
           <option value="">Trạng thái: Tất cả</option>
           <option value="active">Hoạt động</option>
           <option value="unverified">Chưa xác thực</option>
           <option value="locked">Bị khóa</option>
-          <option value="staff">Chờ duyệt cán bộ tuyển sinh</option>
         </select>
         <select aria-label="Ngày đăng ký" className={selectCls} value={since} onChange={(e) => (setSince(e.target.value), setPage(1))}>
           <option value="">Ngày đăng ký: Tất cả</option>
@@ -107,7 +94,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
           <option value="30">30 ngày qua</option>
           <option value="month">Tháng này</option>
         </select>
-        <Button onClick={() => (setFormErr(null), setForm({ name: "", email: "", role: "student", moderator: false }), setCreateOpen(true))}>
+        <Button onClick={() => (setFormErr(null), setForm({ name: "", email: "" }), setCreateOpen(true))}>
           <LuPlus className="size-4" aria-hidden /> Thêm người dùng
         </Button>
       </Panel>
@@ -150,11 +137,6 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
                     </td>
                     <td className={td}>
                       <Badge tone={rb.tone}>{rb.label}</Badge>
-                      {r.schoolStaff?.status === "pending" && (
-                        <Badge tone="accent" className="ml-1">
-                          Chờ duyệt cán bộ
-                        </Badge>
-                      )}
                     </td>
                     <td className={`${td} text-slate-500 tabular-nums`}>{fmtDate(r.createdAt)}</td>
                     <td className={`${td} text-slate-500`}>{ago(r.lastLoginAt, now)}</td>
@@ -219,33 +201,6 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
                   {detail.usage.saved} chương trình đã lưu · {detail.usage.wishlist} nguyện vọng · {detail.usage.hasScores ? "đã" : "chưa"} nhập điểm · {detail.usage.reminders} nhắc hạn
                 </p>
               </div>
-            )}
-            {view.schoolStaff && (
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="font-semibold text-slate-900">Cán bộ tuyển sinh · {view.schoolName}</p>
-                <p className="mt-1 text-[13px] text-slate-600">
-                  Trạng thái: {view.schoolStaff.status === "pending" ? "Chờ duyệt" : view.schoolStaff.status === "approved" ? "Đã duyệt" : "Đã từ chối"} · Gửi {fmtDate(view.schoolStaff.requestedAt)}. Email đã xác thực và khớp tên miền website trường; hãy kiểm tra thêm (gọi điện/ công văn) trước khi duyệt.
-                </p>
-                {view.schoolStaff.status === "pending" && (
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" disabled={busy} onClick={async () => (await act(view, { action: "staff-approve" }, "Đã duyệt cán bộ tuyển sinh.")).ok && setView(null)}>
-                      Duyệt
-                    </Button>
-                    <Button size="sm" variant="outline" disabled={busy} onClick={async () => (await act(view, { action: "staff-reject" }, "Đã từ chối yêu cầu.")).ok && setView(null)}>
-                      Từ chối
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-            {!view.admin && (
-              <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
-                <input type="checkbox" className="mt-0.5 size-4 accent-primary-600" checked={view.moderator} disabled={busy} onChange={async (e) => (await act(view, { action: "moderator", value: e.target.checked }, e.target.checked ? "Đã cấp quyền kiểm duyệt viên." : "Đã thu quyền kiểm duyệt viên.")).ok && setView({ ...view, moderator: !view.moderator })} />
-                <span>
-                  <span className="font-semibold text-slate-900">Kiểm duyệt viên</span>
-                  <span className="block text-[13px] text-slate-500">Được quản lý hỏi đáp sinh viên. Không sửa được số liệu tuyển sinh hoặc gửi email khách hàng.</span>
-                </span>
-              </label>
             )}
             <Button variant="outline" size="sm" disabled={busy} onClick={() => act(view, { action: "invite" }, "Đã gửi email đặt lại mật khẩu.")}>
               Gửi link đặt lại mật khẩu
@@ -355,20 +310,6 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
             <input id="u-email" type="email" maxLength={120} className={cn(inputCls, "mt-1.5", formErr?.field === "email" && "!border-danger-500")} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             {formErr?.field === "email" && <p className="mt-1 text-xs text-danger-700">{formErr.message}</p>}
           </div>
-          <div>
-            <label htmlFor="u-role" className="text-sm font-semibold text-slate-800">
-              Vai trò
-            </label>
-            <select id="u-role" className={cn(selectCls, "mt-1.5 w-full")} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-              <option value="student">Học sinh</option>
-              <option value="parent">Phụ huynh</option>
-              <option value="teacher">Giáo viên</option>
-            </select>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" className="size-4 accent-primary-600" checked={form.moderator} onChange={(e) => setForm({ ...form, moderator: e.target.checked })} /> Cấp quyền kiểm duyệt viên
-          </label>
-          <p className="text-[13px] text-slate-500">Cán bộ tuyển sinh tự đăng ký trên Cổng trường bằng email công vụ của trường, sau đó bạn duyệt ở đây.</p>
         </div>
       </Drawer>
     </>

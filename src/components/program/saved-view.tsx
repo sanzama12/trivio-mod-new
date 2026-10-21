@@ -69,9 +69,6 @@ export function SavedView() {
           {store.hydrated && <SyncHint />}
         </div>
         <div className="flex flex-wrap gap-2" data-print-hide>
-          <Link href="/chi-phi" className={buttonClass({ variant: "ghost", size: "sm" })}>
-            <LuWallet className="size-4" aria-hidden /> Tính tổng chi phí
-          </Link>
           <Button variant="outline" size="sm" onClick={exportPdf}>
             <LuPrinter className="size-4" aria-hidden /> Xuất PDF
           </Button>
@@ -111,7 +108,6 @@ export function SavedView() {
           onClose={() => setCardOpen(false)}
           data={{
             name: store.user?.name ? store.user.name.trim().split(/\s+/).pop() ?? null : null,
-            riasec: store.quiz ? { code: [...store.quiz.result.code], percents: store.quiz.result.percents, topMajors: [] } : null,
             wishlist: {
               method: store.profile ? ADMISSION_METHODS[method].short : null,
               score: store.profile ? `${formatMethodScore(store.profile.admission.total, method)} điểm` : null,

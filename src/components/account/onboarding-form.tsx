@@ -12,7 +12,6 @@ import { ProfileFields, type ProfileFormValue } from "./profile-fields";
 export function OnboardingForm({ user }: { user: PublicUser }) {
   const router = useRouter();
   const [value, setValue] = useState<ProfileFormValue>({
-    role: user.role,
     gradYear: user.gradYear,
     province: user.province,
     under16: user.under16,

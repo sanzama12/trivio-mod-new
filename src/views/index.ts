@@ -3,7 +3,6 @@
  * Tập hợp các View Component và thành phần giao diện hiển thị cho người dùng.
  */
 
-export * from "../components/home/for-you";
 export * from "../components/home/journey-steps";
 export * from "../components/score/score-wizard";
 export * from "../components/search/filter-panel";

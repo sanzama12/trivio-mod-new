@@ -11,7 +11,6 @@ import type {
   Major,
   MajorGroup,
   Program,
-  RiasecQuestion,
   User,
   RiasecType,
   VerifyField,
@@ -20,7 +19,6 @@ import type {
   SchoolRepository,
   MajorRepository,
   ProgramRepository,
-  QuizRepository,
   UserRepository,
 } from "./types";
 
@@ -29,7 +27,6 @@ let cachedSchools: School[] = [];
 let cachedMajors: Major[] = [];
 let cachedPrograms: Program[] = [];
 let cachedGroups: MajorGroup[] = [];
-let cachedQuiz: RiasecQuestion[] = [];
 let catalogIndex: CatalogIndex = buildCatalogIndex(cachedSchools, cachedMajors, cachedPrograms);
 let catalogEpoch = 0;
 let coreCatalogLoad: Promise<void> | null = null;
@@ -290,13 +287,7 @@ async function refreshCoreCatalogCache(): Promise<void> {
           m.id, m.slug, COALESCE(m.code, '') AS code, m.name, m.group_id AS "groupId",
           m.summary, m.description, m.hidden,
           m.is_custom AS "custom",
-          COALESCE(
-            (
-              SELECT json_agg(r.riasec_code ORDER BY r.rank)
-              FROM trovio.major_riasec r
-              WHERE r.major_id = m.id
-            ), '[]'::json
-          ) AS riasec
+          '[]'::json AS riasec
         FROM trovio.majors m
         WHERE NOT m.hidden
         ORDER BY m.name
@@ -518,24 +509,6 @@ export const postgresProgramRepository: ProgramRepository = {
 // ============================================================================
 // 4. Quiz Repository (PostgreSQL + RAM Cache)
 // ============================================================================
-export const postgresQuizRepository: QuizRepository = {
-  async findQuestions(): Promise<RiasecQuestion[]> {
-    if (cachedQuiz.length > 0) return cachedQuiz;
-    const rows = await query<any>(`
-        SELECT 
-          q.id, q.text, q.riasec_code AS "type", q.position
-        FROM trovio.riasec_questions q
-        ORDER BY q.position
-      `);
-    cachedQuiz = rows.map((row: any) => ({
-      id: Number(row.id),
-      text: row.text,
-      type: row.type as RiasecType,
-    }));
-    return cachedQuiz;
-  },
-};
-
 // ============================================================================
 // 5. User Repository (PostgreSQL)
 // ============================================================================
@@ -556,9 +529,7 @@ function mapUser(row: any): User {
     sessionVersion: Number(row.sessionVersion ?? 0),
     emailOtpHash: row.emailOtpHash ?? null,
     emailOtpExpires: row.emailOtpExpires ? new Date(row.emailOtpExpires).toISOString() : null,
-    role: row.role ?? null,
-    teacherVerificationStatus: row.teacherVerificationStatus ?? "none",
-    teacherVerificationId: row.teacherVerificationId ?? null,
+    role: row.admin ? "admin" : "user",
     gradYear: row.gradYear == null ? null : Number(row.gradYear),
     province: row.province ?? null,
     under16: Boolean(row.under16),
@@ -566,16 +537,7 @@ function mapUser(row: any): User {
     onboarded: Boolean(row.onboarded),
     emailReminders: Boolean(row.emailReminders),
     lastLoginAt: row.lastLoginAt ? new Date(row.lastLoginAt).toISOString() : null,
-    moderator: Boolean(row.moderator),
     admin: Boolean(row.admin),
-    schoolStaff: row.schoolId
-      ? {
-          schoolId: row.schoolId,
-          status: row.schoolStaffStatus,
-          requestedAt: new Date(row.schoolStaffRequestedAt).toISOString(),
-          reviewedAt: row.schoolStaffReviewedAt ? new Date(row.schoolStaffReviewedAt).toISOString() : null,
-        }
-      : null,
   };
 }
 
@@ -586,42 +548,11 @@ const USER_SELECT = `
          u.lock_until AS "lockUntil", u.disabled,
          u.failed_attempts AS "failedAttempts", u.session_version AS "sessionVersion",
          u.email_otp_hash AS "emailOtpHash", u.email_otp_expires AS "emailOtpExpires",
-         u.user_role AS role,
-         u.teacher_verification_status AS "teacherVerificationStatus",
-         u.teacher_verification_id AS "teacherVerificationId",
          u.grad_year AS "gradYear", u.province, u.under16,
          u.parent_consent AS "parentConsent", u.onboarded,
          u.email_reminders AS "emailReminders", u.last_login_at AS "lastLoginAt",
-         EXISTS (SELECT 1 FROM trovio.user_system_roles r WHERE r.user_id=u.id AND r.role_code='admin') AS admin,
-         EXISTS (SELECT 1 FROM trovio.user_system_roles r WHERE r.user_id=u.id AND r.role_code='moderator') AS moderator,
-         ss.school_id AS "schoolId", ss.status AS "schoolStaffStatus",
-         ss.requested_at AS "schoolStaffRequestedAt", ss.reviewed_at AS "schoolStaffReviewedAt"
-  FROM trovio.users u LEFT JOIN trovio.school_staff ss ON ss.user_id = u.id`;
-
-async function syncUserAccess(user: User): Promise<void> {
-  await withTransaction(async (client) => {
-    await client.query(
-      `DELETE FROM trovio.user_system_roles
-       WHERE user_id = $1 AND role_code IN ('admin', 'moderator')`,
-      [user.id],
-    );
-    for (const role of [user.admin ? "admin" : null, user.moderator ? "moderator" : null].filter(Boolean)) {
-      await client.query(
-        `INSERT INTO trovio.user_system_roles (user_id, role_code) VALUES ($1, $2)`,
-        [user.id, role],
-      );
-    }
-
-    await client.query(`DELETE FROM trovio.school_staff WHERE user_id = $1`, [user.id]);
-    if (user.schoolStaff) {
-      await client.query(
-        `INSERT INTO trovio.school_staff (user_id, school_id, status, requested_at, reviewed_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [user.id, user.schoolStaff.schoolId, user.schoolStaff.status, user.schoolStaff.requestedAt, user.schoolStaff.reviewedAt],
-      );
-    }
-  });
-}
+         (u.access_role = 'admin') AS admin
+  FROM trovio.users u`;
 
 export const postgresUserRepository: UserRepository = {
   async findByEmail(email: string): Promise<User | null> {
@@ -651,22 +582,20 @@ export const postgresUserRepository: UserRepository = {
       INSERT INTO trovio.users (
         id, email, name, avatar_url, password_hash, google_id, verified, locked,
         lock_until, disabled, failed_attempts, session_version,
-        email_otp_hash, email_otp_expires, user_role,
-        teacher_verification_status, teacher_verification_id,
+        email_otp_hash, email_otp_expires, access_role,
         grad_year, province, under16, parent_consent, onboarded,
         email_reminders, last_login_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
       )
     `, [
       id, input.email.toLowerCase(), input.name, input.avatarUrl ?? null, input.passwordHash ?? null,
       input.googleId ?? null, input.verified, input.locked, input.lockUntil ?? null, input.disabled ?? false,
       input.failedAttempts, input.sessionVersion ?? 0, input.emailOtpHash ?? null, input.emailOtpExpires ?? null,
-      input.role, input.teacherVerificationStatus ?? "none", input.teacherVerificationId ?? null,
+      input.admin === true ? "admin" : "user",
       input.gradYear, input.province, input.under16, input.parentConsent, input.onboarded,
       input.emailReminders ?? false, input.lastLoginAt ?? null,
     ]);
-    await syncUserAccess({ ...input, id, createdAt: new Date().toISOString() });
     const created = await this.findById(id);
     if (!created) throw new Error("[PostgreSQL] Không đọc lại được tài khoản vừa tạo.");
     return created;
@@ -682,24 +611,21 @@ export const postgresUserRepository: UserRepository = {
       SET 
         email = $2,
         password_hash = $3,
-        name = $4, avatar_url = $5, user_role = $6, locked = $7,
+        name = $4, avatar_url = $5, access_role = $6, locked = $7,
         lock_until = $8, disabled = $9, google_id = $10,
         verified = $11, failed_attempts = $12, session_version = $13,
         email_otp_hash = $14, email_otp_expires = $15,
-        teacher_verification_status = $16, teacher_verification_id = $17,
-        grad_year = $18, province = $19, under16 = $20,
-        parent_consent = $21, onboarded = $22, email_reminders = $23,
-        last_login_at = $24
+        grad_year = $16, province = $17, under16 = $18,
+        parent_consent = $19, onboarded = $20, email_reminders = $21,
+        last_login_at = $22
       WHERE id = $1
     `, [
-      id, merged.email.toLowerCase(), merged.passwordHash, merged.name, merged.avatarUrl, merged.role,
+      id, merged.email.toLowerCase(), merged.passwordHash, merged.name, merged.avatarUrl, merged.admin === true ? "admin" : "user",
       merged.locked, merged.lockUntil ?? null, merged.disabled ?? false, merged.googleId, merged.verified,
       merged.failedAttempts, merged.sessionVersion ?? 0, merged.emailOtpHash ?? null, merged.emailOtpExpires ?? null,
-      merged.teacherVerificationStatus ?? "none", merged.teacherVerificationId ?? null,
       merged.gradYear, merged.province, merged.under16, merged.parentConsent, merged.onboarded,
       merged.emailReminders ?? false, merged.lastLoginAt ?? null,
     ]);
-    await syncUserAccess(merged);
     return this.findById(id);
   },
 

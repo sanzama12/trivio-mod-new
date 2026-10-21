@@ -13,15 +13,11 @@ export { SUS_QUESTIONS, SUS_ROLES, susGrade, susScore };
 
 export const FUNNEL_LABELS: Record<FunnelEvent, string> = {
   visit: "Vào web",
-  quiz_done: "Làm xong trắc nghiệm",
   score_saved: "Nhập điểm",
   program_saved: "Lưu chương trình",
   wishlist_added: "Lập nguyện vọng",
   share_created: "Chia sẻ phụ huynh",
   chat_asked: "Hỏi trợ lý",
-  quiz_started: "Bắt đầu trắc nghiệm",
-  style_done: "Làm mini-test phong cách",
-  mbti_added: "Nhập mã MBTI",
 };
 
 /** Thứ tự các bước của phễu chính (chat_asked là hành vi phụ, hiển thị riêng). */

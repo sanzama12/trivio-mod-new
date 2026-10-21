@@ -25,7 +25,6 @@ export class ChatbotController {
       const result = await chatbotService.ask(body?.message, {
         majorId: ctx.majorId,
         schoolId: ctx.schoolId,
-        riasec: ctx.riasec,
         page: ctx.page,
       });
       return NextResponse.json(result, { status: result.ok ? 200 : 400 });

@@ -9,12 +9,11 @@
  * - Đăng xuất / hết phiên: xoá bản sao dữ liệu tài khoản khỏi trình duyệt (giữ danh sách so sánh).
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Goal, StoredMbti, StoredProfile, StoredQuiz, StoredWorkStyle, UserData, WishlistItem } from "@/domain/types";
-import { sanitizeMbti, sanitizeWorkStyle } from "@/domain/work-style";
+import type { Goal, StoredProfile, UserData, WishlistItem } from "@/domain/types";
 import { track } from "@/lib/track";
 import { useToast } from "@/components/ui/toast";
 
-export type { Goal, StoredMbti, StoredProfile, StoredQuiz, StoredWorkStyle, WishlistItem } from "@/domain/types";
+export type { Goal, StoredProfile, WishlistItem } from "@/domain/types";
 
 export const MAX_COMPARE = 3;
 const STORAGE_KEY = "trovio:v1";
@@ -29,7 +28,7 @@ export interface SessionUser {
 }
 
 /** Thao tác khách định làm trước khi được mời đăng nhập — tự thực hiện lại sau khi đăng nhập xong. */
-export type PendingIntent = { kind: "wishlist"; id: string } | { kind: "save"; id: string } | { kind: "quiz" };
+export type PendingIntent = { kind: "wishlist"; id: string } | { kind: "save"; id: string };
 
 export type SyncStatus = "guest" | "syncing" | "synced" | "error";
 
@@ -38,21 +37,17 @@ interface State {
   wishlist: WishlistItem[];
   compare: string[];
   profile: StoredProfile | null;
-  quiz: StoredQuiz | null;
-  quizDraft: Record<number, number>;
   /** id các mốc tuyển sinh đã bật "Nhắc tôi". */
   reminders: string[];
   /** Mục tiêu đặt qua hội thoại. */
   goal: Goal | null;
   /** Mini-test phong cách làm việc (tham khảo, không tính điểm). */
-  workStyle: StoredWorkStyle | null;
   /** Mã MBTI tự nhập (tham khảo, không tính điểm). */
-  mbti: StoredMbti | null;
   /** id tài khoản sở hữu dữ liệu đang lưu trên máy (null = dữ liệu của khách). */
   owner: string | null;
 }
 
-const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, quiz: null, quizDraft: {}, reminders: [], goal: null, workStyle: null, mbti: null, owner: null };
+const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, reminders: [], goal: null, owner: null };
 
 interface Store extends Omit<State, "owner"> {
   hydrated: boolean;
@@ -73,11 +68,7 @@ interface Store extends Omit<State, "owner"> {
   toggleCompare: (id: string) => "added" | "removed" | "full";
   clearCompare: () => void;
   setProfile: (profile: StoredProfile | null) => void;
-  setQuiz: (quiz: StoredQuiz | null) => void;
-  setQuizDraft: (draft: Record<number, number>) => void;
   setGoal: (goal: Goal | null) => void;
-  setWorkStyle: (workStyle: StoredWorkStyle | null) => void;
-  setMbti: (mbti: StoredMbti | null) => void;
   resetAll: () => void;
   setPendingIntent: (intent: PendingIntent | null) => void;
 }
@@ -100,24 +91,23 @@ function load(): State {
     const s = { ...initialState, ...parsed };
     // Bảo vệ khi dữ liệu cũ/hỏng trong localStorage.
     return {
-      ...s,
+      ...initialState,
+      profile: s.profile ?? null,
+      owner: s.owner ?? null,
       saved: Array.isArray(s.saved) ? s.saved : [],
       wishlist: Array.isArray(s.wishlist) ? s.wishlist : [],
       compare: Array.isArray(s.compare) ? s.compare : [],
       reminders: Array.isArray(s.reminders) ? s.reminders : [],
       goal: s.goal && typeof s.goal === "object" ? s.goal : null,
-      quizDraft: s.quizDraft && typeof s.quizDraft === "object" ? s.quizDraft : {},
-      workStyle: sanitizeWorkStyle(s.workStyle),
-      mbti: sanitizeMbti(s.mbti),
     };
   } catch {
     return initialState;
   }
 }
 
-const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, quiz: s.quiz, reminders: s.reminders, goal: s.goal, workStyle: s.workStyle, mbti: s.mbti });
+const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, reminders: s.reminders, goal: s.goal });
 const hasGuestData = (s: State) =>
-  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || !!s.quiz || s.reminders.length > 0 || !!s.goal || !!s.workStyle || !!s.mbti;
+  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || s.reminders.length > 0 || !!s.goal;
 
 function takeIntent(): PendingIntent | null {
   try {
@@ -173,9 +163,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         update((s) => (s.saved.includes(intent.id) ? s : { ...s, saved: [intent.id, ...s.saved] }));
         toast("Đã lưu chương trình vào tài khoản", "success");
         track("program_saved");
-      } else if (intent.kind === "quiz") {
-        update((s) => (s.quiz ? { ...s, quiz: { ...s.quiz, savedToProfile: true } } : s));
-        toast("Đã lưu kết quả trắc nghiệm vào hồ sơ", "success");
+
       }
     },
     [toast, update],
@@ -190,7 +178,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       syncedFor.current = null;
       inflight.current = null;
       setSync("guest");
-      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, quiz: null, quizDraft: {}, reminders: [], goal: null, workStyle: null, mbti: null, owner: null }));
+      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, reminders: [], goal: null, owner: null }));
       return;
     }
     if (syncedFor.current === uid || inflight.current === uid) return;
@@ -210,15 +198,12 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         inflight.current = null;
         syncedFor.current = uid;
         update((s) => ({
-          ...s,
+          ...initialState,
           saved: data.saved,
           wishlist: data.wishlist,
           profile: data.profile,
-          quiz: data.quiz,
           reminders: data.reminders ?? [],
           goal: data.goal ?? null,
-          workStyle: data.workStyle ?? null,
-          mbti: data.mbti ?? null,
           owner: uid,
         }));
         setSync("synced");
@@ -244,7 +229,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         .catch(() => setSync("error"));
     }, 600);
     return () => clearTimeout(t);
-  }, [uid, state.saved, state.wishlist, state.profile, state.quiz, state.reminders, state.goal, state.workStyle, state.mbti, state.owner]);
+  }, [uid, state.saved, state.wishlist, state.profile, state.reminders, state.goal, state.owner]);
 
   useEffect(() => {
     const flush = () => {
@@ -262,12 +247,8 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       wishlist: state.wishlist,
       compare: state.compare,
       profile: state.profile,
-      quiz: state.quiz,
-      quizDraft: state.quizDraft,
       reminders: state.reminders,
       goal: state.goal,
-      workStyle: state.workStyle,
-      mbti: state.mbti,
       hydrated,
       user,
       sync,
@@ -323,11 +304,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       },
       clearCompare: () => update((s) => ({ ...s, compare: [] })),
       setProfile: (profile) => update((s) => ({ ...s, profile })),
-      setQuiz: (quiz) => update((s) => ({ ...s, quiz })),
-      setQuizDraft: (quizDraft) => update((s) => ({ ...s, quizDraft })),
       setGoal: (goal) => update((s) => ({ ...s, goal })),
-      setWorkStyle: (workStyle) => update((s) => ({ ...s, workStyle })),
-      setMbti: (mbti) => update((s) => ({ ...s, mbti })),
       resetAll: () => update(() => initialState),
       setPendingIntent: (intent) => {
         try {

@@ -6,12 +6,8 @@
 import type {
   ImportBatch,
   RecommendConfig,
-  SchoolSubmission,
   AppNotification,
   QaQuestion,
-  TeacherClass,
-  TeacherVerification,
-  TeacherVerificationStatus,
   ChatAlias,
   FunnelEvent,
   SusResponse,
@@ -27,7 +23,6 @@ import type {
   Program,
   PlanningProgram,
   ProgramPatch,
-  RiasecQuestion,
   School,
   Share,
   ShareComment,
@@ -88,10 +83,6 @@ export interface CatalogRepository {
   }>;
 }
 
-export interface QuizRepository {
-  findQuestions(): Promise<RiasecQuestion[]>;
-}
-
 export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
@@ -103,7 +94,7 @@ export interface UserRepository {
   delete(id: string): Promise<boolean>;
 }
 
-/** Dữ liệu cá nhân đồng bộ theo tài khoản: đã lưu, nguyện vọng, hồ sơ điểm, kết quả trắc nghiệm. */
+/** Dữ liệu cá nhân đồng bộ theo tài khoản: đã lưu, nguyện vọng và hồ sơ điểm. */
 export interface UserDataRepository {
   get(userId: string): Promise<UserData | null>;
   put(userId: string, data: UserData): Promise<UserData>;
@@ -206,25 +197,9 @@ export interface QaRepository {
 }
 
 /** Lớp của giáo viên chủ nhiệm. */
-export interface ClassRepository {
-  create(c: TeacherClass): Promise<TeacherClass>;
-  update(id: string, patch: Partial<Omit<TeacherClass, "id" | "teacherId">>): Promise<TeacherClass | null>;
-  findById(id: string): Promise<TeacherClass | null>;
-  findByCode(code: string): Promise<TeacherClass | null>;
-  listByTeacher(teacherId: string): Promise<TeacherClass[]>;
-  listByMember(userId: string): Promise<TeacherClass[]>;
-  delete(id: string, teacherId: string): Promise<boolean>;
-}
+
 
 /** Xác minh danh tính giáo viên (quy trình kiểm duyệt). */
-export interface TeacherVerificationRepository {
-  create(v: TeacherVerification): Promise<TeacherVerification>;
-  findById(id: string): Promise<TeacherVerification | null>;
-  findByUserId(userId: string): Promise<TeacherVerification | null>;
-  list(filter?: { status?: TeacherVerificationStatus }): Promise<TeacherVerification[]>;
-  update(id: string, patch: Partial<TeacherVerification>): Promise<TeacherVerification | null>;
-}
-
 /** Quản trị danh mục (A02–A04): đọc cả bản ghi đang ẩn, thêm/sửa trường-ngành-chương trình. */
 export interface CatalogAdminRepository {
   listSchools(): Promise<School[]>;
@@ -248,11 +223,4 @@ export interface RecommendConfigRepository {
 export interface ImportBatchRepository {
   add(b: ImportBatch): Promise<void>;
   list(limit?: number): Promise<ImportBatch[]>;
-}
-
-export interface SchoolSubmissionRepository {
-  add(s: SchoolSubmission): Promise<void>;
-  list(filter?: { schoolId?: string; status?: SchoolSubmission["status"] }): Promise<SchoolSubmission[]>;
-  findById(id: string): Promise<SchoolSubmission | null>;
-  update(id: string, patch: Partial<SchoolSubmission>): Promise<SchoolSubmission | null>;
 }

@@ -12,7 +12,6 @@ import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { FitBadge, FitGapBadge } from "@/components/program/fit-badge";
 import { SchoolCode } from "@/components/program/program-card";
-import { StyleWhyBlock } from "@/components/work-style/style-bits";
 
 const ICONS = { interest: LuPuzzle, fit: LuChartBar, place: LuMapPin, group: LuFolderOpen } as const;
 const TONE: Record<RecCriterion["status"], string> = {
@@ -209,8 +208,6 @@ export function WhyDrawer({
               </div>
             </li>
           </ul>
-
-          <StyleWhyBlock major={v.major} />
 
           <div className="rounded-xl bg-success-50 p-3.5">
             <p className="flex items-center gap-1.5 text-[13px] font-semibold text-success-700">

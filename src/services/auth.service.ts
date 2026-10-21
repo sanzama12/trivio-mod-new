@@ -5,13 +5,14 @@
  */
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import type { PublicUser, User, UserRole } from "../domain/types";
-import { adminEmails } from "../lib/env";
 import { PROVINCES } from "../domain/provinces";
 import { repositories } from "@database/repositories";
 import { checkPassword } from "./password.rules";
 import { hashPassword, verifyPassword } from "./password.hash";
 import { signToken, verifyToken } from "./session.service";
 import { sendMail } from "./mailer";
+import { emailError } from "../lib/email-validation";
+import { accountRole } from "../domain/access";
 
 export { checkPassword, passwordStrength } from "./password.rules";
 
@@ -37,8 +38,7 @@ export type LoginResult =
   | { ok: true; user: PublicUser }
   | { ok: false; reason: "invalid"; attemptsLeft: number }
   | { ok: false; reason: "locked"; lockUntil?: string | null }
-  | { ok: false; reason: "google_only" }
-  | { ok: false; reason: "unverified"; email: string };
+  | { ok: false; reason: "google_only" };
 
 export type RegisterResult =
   | { ok: true; user: PublicUser }
@@ -69,20 +69,19 @@ export interface ProfilePatch {
 
 type Fail<F extends string = string> = { ok: false; field?: F; message: string };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const strong = (pw: string) => checkPassword(pw).every((c) => c.passed);
 /** Dấu vân tay mật khẩu hiện tại: đổi mật khẩu xong thì link đặt lại cũ tự mất hiệu lực. */
 const passwordFingerprint = (u: User) => (u.passwordHash ? u.passwordHash.slice(-12) : "none");
 
 export function toPublicUser(user: User): PublicUser {
   const { passwordHash, googleId, failedAttempts: _f, sessionVersion: _s, emailOtpHash: _o, emailOtpExpires: _e, admin, ...rest } = user;
-  const isAdmin = !!admin || (user.verified && adminEmails().includes(user.email.toLowerCase()));
-  return { ...rest, hasPassword: !!passwordHash, hasGoogle: !!googleId, admin: isAdmin };
+  const isAdmin = admin === true;
+  return { ...rest, role: accountRole(isAdmin), hasPassword: !!passwordHash, hasGoogle: !!googleId, admin: isAdmin };
 }
 
 const blankProfile = {
   avatarUrl: null,
-  role: null,
+  role: "user",
   gradYear: null,
   province: null,
   under16: false,
@@ -142,8 +141,6 @@ export const authService = {
         : { ok: false, reason: "invalid", attemptsLeft: Math.max(0, MAX_LOGIN_ATTEMPTS - failedAttempts) };
     }
 
-    if (!user.verified) return { ok: false, reason: "unverified", email: user.email };
-
     // Đăng nhập thành công -> reset toàn bộ bộ đếm sai và khoá tạm thời
     if (user.failedAttempts || user.locked || user.lockUntil) {
       await repositories.users.update(user.id, { failedAttempts: 0, locked: false, lockUntil: null });
@@ -154,7 +151,8 @@ export const authService = {
   async register(input: { name?: string; email: string; password: string; confirm: string; terms: boolean }): Promise<RegisterResult> {
     const typed = (typeof input.name === "string" ? input.name : "").trim().replace(/\s+/g, " ");
     const email = (typeof input.email === "string" ? input.email : "").trim().toLowerCase();
-    if (!EMAIL_RE.test(email)) return { ok: false, field: "email", message: "Email không hợp lệ." };
+    const invalidEmail = emailError(email);
+    if (invalidEmail) return { ok: false, field: "email", message: invalidEmail };
     // Tên gọi không bắt buộc (thu ít dữ liệu cá nhân): bỏ trống thì dùng phần trước @ của email.
     if (typed.length === 1 || typed.length > 60) return { ok: false, field: "name", message: "Tên gọi cần từ 2 đến 60 ký tự (hoặc để trống)." };
     const name = typed || email.split("@")[0].slice(0, 30);
@@ -172,7 +170,7 @@ export const authService = {
       googleId: null,
       verified: false,
     });
-    await issueEmailOtp(user);
+    // Email ownership is optional at sign-up; do not block account access on mail delivery.
     return { ok: true, user: toPublicUser(user) };
   },
 
@@ -187,7 +185,7 @@ export const authService = {
       Date.parse(user.emailOtpExpires) > Date.now() &&
       safeEqual(otpHash(user.id, clean), user.emailOtpHash);
     if (!realOk) return wrong;
-    const updated = await repositories.users.update(user.id, { verified: true, emailOtpHash: null, emailOtpExpires: null });
+    const updated = await repositories.users.update(user.id, { verified: true, emailOtpHash: null, emailOtpExpires: null, sessionVersion: (user.sessionVersion ?? 0) + 1 });
     return { ok: true, user: toPublicUser(updated!) };
   },
 
@@ -267,7 +265,7 @@ export const authService = {
         locked: false,
         failedAttempts: 0,
         // Tài khoản mật khẩu chưa xác thực email có thể do người khác tạo hộ → huỷ mật khẩu đó.
-        ...(byEmail.verified ? {} : { passwordHash: null }),
+        ...(byEmail.verified ? {} : { passwordHash: null, sessionVersion: (byEmail.sessionVersion ?? 0) + 1 }),
       });
       return { ok: true, user: toPublicUser(updated!), isNew: false };
     }
@@ -320,18 +318,8 @@ export const authService = {
       if (name.length < 2 || name.length > 80) return { ok: false, field: "name", message: "Họ tên cần từ 2 đến 80 ký tự." };
       next.name = name;
     }
-    if (patch.role !== undefined) {
-      if (patch.role !== null && patch.role !== "student" && patch.role !== "parent" && patch.role !== "teacher") {
-        return { ok: false, field: "role", message: "Vai trò không hợp lệ." };
-      }
-      if (patch.role === "teacher" && user.teacherVerificationStatus !== "verified") {
-        return {
-          ok: false,
-          field: "role",
-          message: "Vai trò Giáo viên yêu cầu nộp hồ sơ và được xác minh danh tính chính thức trước khi kích hoạt.",
-        };
-      }
-      next.role = patch.role;
+    if (patch.role !== undefined && patch.role !== toPublicUser(user).role) {
+      return { ok: false, field: "role", message: "Không thể thay đổi quyền tài khoản từ hồ sơ cá nhân." };
     }
     if (patch.gradYear !== undefined) {
       if (patch.gradYear !== null && !(Number.isInteger(patch.gradYear) && patch.gradYear >= 2020 && patch.gradYear <= 2040)) {

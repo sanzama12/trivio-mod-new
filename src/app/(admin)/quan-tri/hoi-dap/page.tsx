@@ -8,7 +8,7 @@ import { QaModeration } from "@/components/admin/qa-moderation";
 export const metadata: Metadata = { title: "Kiểm duyệt hỏi đáp", robots: { index: false, follow: false } };
 
 export default async function QaModerationPage() {
-  await adminPage("/quan-tri/hoi-dap", { staff: true });
+  await adminPage("/quan-tri/hoi-dap");
   const items = await qaService.pending();
   return (
     <>

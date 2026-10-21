@@ -22,7 +22,7 @@ export const PROVINCE_REGION: Record<(typeof PROVINCES)[number], Region> = {
 export const regionOfProvince = (p: string | null | undefined): Region | null =>
   p && p in PROVINCE_REGION ? PROVINCE_REGION[p as keyof typeof PROVINCE_REGION] : null;
 
-export const ROLE_LABELS = { student: "Học sinh", parent: "Phụ huynh", teacher: "Giáo viên", school: "Cán bộ tuyển sinh" } as const;
+export const ROLE_LABELS = { user: "User", admin: "Admin" } as const;
 
 /** Năm tốt nghiệp THPT cho phép chọn (năm hiện tại → +3). */
 export function gradYearOptions(now = new Date()): number[] {

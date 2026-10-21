@@ -50,7 +50,7 @@ function ago(iso: string) {
   return d <= 30 ? `${d} ngày trước` : dateVi(iso);
 }
 
-/** Hỏi sinh viên đang học (bản gọn): hỏi ẩn danh, chỉ email trường được trả lời, mọi nội dung qua kiểm duyệt. */
+/** Hỏi đáp người dùng: tài khoản đã xác thực được đóng góp, Admin kiểm duyệt. */
 export function QaSection({ programId, schoolName }: { programId: string; schoolName: string }) {
   const toast = useToast();
   const [data, setData] = useState<QaState | null>(null);
@@ -90,7 +90,6 @@ export function QaSection({ programId, schoolName }: { programId: string; school
     void load();
   }
 
-  const domain = data?.domain ?? "tên miền của trường";
   const approved = data?.items.filter((q) => q.status === "approved") ?? [];
   const mine = data?.items.filter((q) => q.mine && q.status === "pending") ?? [];
 
@@ -99,10 +98,10 @@ export function QaSection({ programId, schoolName }: { programId: string; school
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 sm:flex-1">
           <h2 className="flex items-center gap-2 text-lg font-bold">
-            <LuMessageCircleQuestion className="size-5 text-primary-600" aria-hidden /> Hỏi sinh viên đang học
+            <LuMessageCircleQuestion className="size-5 text-primary-600" aria-hidden /> Hỏi đáp & đánh giá
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Câu trả lời đến từ sinh viên {schoolName} đã xác thực bằng email <strong className="text-slate-700">@{domain}</strong> · mọi nội dung được kiểm duyệt trước khi hiện.
+            Chia sẻ trải nghiệm về {schoolName}. Người dùng đã xác thực có thể trả lời; Admin duyệt nội dung trước khi hiển thị.
           </p>
         </div>
         <Button size="sm" className="shrink-0 self-start" onClick={() => document.getElementById("qa-text")?.focus()}>
@@ -139,7 +138,7 @@ export function QaSection({ programId, schoolName }: { programId: string; school
 
       <form onSubmit={ask} className="mt-6 rounded-xl bg-slate-50 p-4" noValidate>
         <label htmlFor="qa-text" className="text-sm font-semibold text-slate-800">
-          Đặt câu hỏi cho sinh viên
+          Đặt câu hỏi cho cộng đồng
         </label>
         <textarea
           id="qa-text"
@@ -169,13 +168,12 @@ export function QaSection({ programId, schoolName }: { programId: string; school
 
       {data && !data.canAnswer && (
         <p className="mt-3 text-xs text-slate-500">
-          Bạn là sinh viên của trường?{" "}
           {data.loggedIn ? (
-            <>Đăng ký tài khoản bằng email @{domain} để trả lời.</>
+            <>Xác thực email và sử dụng tài khoản đang hoạt động để trả lời.</>
           ) : (
             <>
               <Link href="/dang-ky" className="font-semibold text-primary-700 hover:underline">
-                Đăng ký bằng email @{domain}
+                Đăng ký tài khoản User
               </Link>{" "}
               để trả lời câu hỏi.
             </>
@@ -199,7 +197,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
     if (action === "helpful") setVotes({ ...votes, [a.id]: { ...cur, helpful: json.helpful, voted: json.votedHelpful } });
     else {
       setVotes({ ...votes, [a.id]: { ...cur, reported: true } });
-      toast(json.hidden ? "Câu trả lời đã được ẩn để kiểm duyệt lại. Cảm ơn bạn!" : "Đã báo cáo — kiểm duyệt viên sẽ xem lại.", "info");
+      toast(json.hidden ? "Câu trả lời đã được ẩn để kiểm duyệt lại. Cảm ơn bạn!" : "Đã báo cáo — Admin sẽ xem lại.", "info");
       if (json.hidden) onAnswered();
     }
   }
@@ -244,7 +242,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold text-slate-900">{a.displayName}</span>
                   <Badge tone="success" title={`Đã xác thực bằng email @${a.schoolDomain}`}>
-                    <LuShieldCheck className="size-3.5" aria-hidden /> SV · đã xác thực
+                      <LuShieldCheck className="size-3.5" aria-hidden /> User · đã xác thực
                   </Badge>
                 </div>
                 <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-slate-700">{a.text}</p>
@@ -275,7 +273,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-[13px] text-slate-500">Chưa có sinh viên trả lời.</p>
+        <p className="mt-2 text-[13px] text-slate-500">Chưa có câu trả lời.</p>
       )}
       {canAnswer &&
         (open ? (
@@ -304,7 +302,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
           </form>
         ) : (
           <Button variant="outline" size="sm" className="mt-3" onClick={() => setOpen(true)}>
-            Trả lời với tư cách sinh viên
+            Trả lời câu hỏi
           </Button>
         ))}
     </article>
