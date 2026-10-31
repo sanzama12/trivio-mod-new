@@ -125,146 +125,153 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
         </ul>
       )}
 
-      {groups.length > 0 && (
-        <fieldset className="mt-3 min-w-0 rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
-          <legend className="px-1 text-sm font-semibold text-slate-700">Danh mục / Nhóm ngành</legend>
-          <div className="mt-2 space-y-1">
-            {groups.map((g) => (
-              <Checkbox
-                key={g.id}
-                label={<span className="break-words">{g.name}</span>}
-                className="min-h-10 items-center"
-                checked={draft.groups?.includes(g.id) ?? false}
-                onChange={() => apply({ groups: toggle(draftRef.current.groups, g.id) })}
-              />
-            ))}
-          </div>
-        </fieldset>
-      )}
-
       <div id="filter-body" className="mt-3 hidden min-w-0 flex-col gap-3 lg:flex">
-
-      {chips.length > 0 && (
-        <div className="min-w-0 basis-full">
-          <p className="mb-2 text-xs font-bold tracking-wider text-slate-500 uppercase">Bộ lọc đang áp dụng</p>
-          <div className="flex flex-wrap gap-2">
-            {chips.map((c) => (
-              <button
-                key={c.label}
-                type="button"
-                onClick={() => apply(c.clear(draftRef.current))}
-                className="flex min-w-0 items-center gap-1 rounded-full border border-slate-900 bg-white px-2.5 py-1 text-xs font-bold text-slate-900 hover:bg-slate-100"
-                aria-label={`Bỏ lọc ${c.label}`}
-              >
-                <span className="truncate">{c.label}</span>
-                <LuX className="size-3 shrink-0" aria-hidden />
-              </button>
-            ))}
+        {chips.length > 0 && (
+          <div className="min-w-0 basis-full">
+            <p className="mb-2 text-xs font-bold tracking-wider text-slate-500 uppercase">Bộ lọc đang áp dụng</p>
+            <div className="flex flex-wrap gap-2">
+              {chips.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={() => apply(c.clear(draftRef.current))}
+                  className="flex min-w-0 items-center gap-1 rounded-full border border-slate-900 bg-white px-2.5 py-1 text-xs font-bold text-slate-900 hover:bg-slate-100"
+                  aria-label={`Bỏ lọc ${c.label}`}
+                >
+                  <span className="truncate">{c.label}</span>
+                  <LuX className="size-3 shrink-0" aria-hidden />
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
-        <Label htmlFor="f-method">Phương thức xét tuyển</Label>
-        <select
-          id="f-method"
-          value={method}
-          onChange={(e) => {
-            const m = e.target.value as AdmissionMethodKey;
-            // Đổi thang điểm → bỏ điểm cũ để không so sai thang.
-            setScore("");
-            apply({ method: m === "thpt" ? undefined : m, score: undefined });
-          }}
-          className="mb-4 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none"
-        >
-          {METHOD_KEYS.map((k) => (
-            <option key={k} value={k}>
-              {ADMISSION_METHODS[k].label}
-            </option>
-          ))}
-        </select>
-        <Label htmlFor="f-score">Điểm xét tuyển của bạn</Label>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            commitScore();
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            id="f-score"
-            inputMode="decimal"
-            placeholder={method === "thpt" || method === "hocba" ? "VD: 26.5" : `0 – ${cfg.max}`}
-            value={score}
-            invalid={scoreInvalid}
-            onChange={(e) => setScore(e.target.value)}
-            onBlur={commitScore}
-            aria-describedby="f-score-hint"
-          />
-        </form>
-        <p id="f-score-hint" className={cn("mt-1.5 text-xs", scoreInvalid ? "text-danger-700" : "text-slate-500")}>
-          {scoreInvalid
-            ? `Nhập điểm từ 0 đến ${cfg.max}.`
-            : cfg.needsCombo
-              ? `Tổng 3 môn + điểm ưu tiên (thang ${cfg.max}).`
-              : `Điểm bài thi + ưu tiên quy đổi (thang ${cfg.max}). Chỉ hiện trường xét phương thức này.`}
-        </p>
-      </div>
-
-      <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
-      <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-slate-700">Khối / Tổ hợp xét tuyển</legend>
-        <div className="space-y-2.5">
-          {visibleCombos.map((c) => (
-            <Checkbox
-              key={c.code}
-              label={`${c.code} (${c.subjects.map(short).join(", ")})`}
-              checked={draft.combos?.includes(c.code) ?? false}
-              onChange={() => apply({ combos: toggle(draftRef.current.combos, c.code) })}
-            />
-          ))}
-        </div>
-        {combos.length > 5 && (
-          <button type="button" onClick={() => setShowAllCombos((v) => !v)} className="mt-3 text-[13px] font-semibold text-primary-600 hover:underline">
-            {showAllCombos ? "Thu gọn" : `Xem thêm ${combos.length - 5} tổ hợp`}
-          </button>
         )}
-      </fieldset>
-      </div>
 
-      <div className="min-w-0 flex-1 basis-[200px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
-      <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-slate-700">Học phí tối đa / năm</legend>
-        <div className="space-y-2.5">
-          <Radio name="tuition" label="Không giới hạn" checked={!draft.tuition} onChange={() => apply({ tuition: undefined })} />
-          {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((k) => (
-            <Radio key={k} name="tuition" label={TUITION_RANGES[k].label} checked={draft.tuition === k} onChange={() => apply({ tuition: k })} />
-          ))}
+        {/* 1. Điểm & Phương thức xét tuyển (Đưa lên đầu bộ lọc) */}
+        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <Label htmlFor="f-method">Phương thức xét tuyển</Label>
+          <select
+            id="f-method"
+            value={method}
+            onChange={(e) => {
+              const m = e.target.value as AdmissionMethodKey;
+              // Đổi thang điểm → bỏ điểm cũ để không so sai thang.
+              setScore("");
+              apply({ method: m === "thpt" ? undefined : m, score: undefined });
+            }}
+            className="mb-4 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none"
+          >
+            {METHOD_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {ADMISSION_METHODS[k].label}
+              </option>
+            ))}
+          </select>
+          <Label htmlFor="f-score">Điểm xét tuyển của bạn</Label>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              commitScore();
+            }}
+            className="flex gap-2"
+          >
+            <Input
+              id="f-score"
+              inputMode="decimal"
+              placeholder={method === "thpt" || method === "hocba" ? "VD: 26.5" : `0 – ${cfg.max}`}
+              value={score}
+              invalid={scoreInvalid}
+              onChange={(e) => setScore(e.target.value)}
+              onBlur={commitScore}
+              aria-describedby="f-score-hint"
+            />
+          </form>
+          <p id="f-score-hint" className={cn("mt-1.5 text-xs", scoreInvalid ? "text-danger-700" : "text-slate-500")}>
+            {scoreInvalid
+              ? `Nhập điểm từ 0 đến ${cfg.max}.`
+              : cfg.needsCombo
+                ? `Tổng 3 môn + điểm ưu tiên (thang ${cfg.max}).`
+                : `Điểm bài thi + ưu tiên quy đổi (thang ${cfg.max}). Chỉ hiện trường xét phương thức này.`}
+          </p>
         </div>
-      </fieldset>
-      </div>
 
-      <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
-      <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-slate-700">Khu vực địa lý</legend>
-        <div className="space-y-2.5">
-          {(Object.keys(REGION_LABELS) as Region[]).map((r) => (
-            <Checkbox key={r} label={REGION_LABELS[r]} checked={draft.regions?.includes(r) ?? false} onChange={() => apply({ regions: toggle(draftRef.current.regions, r) })} />
-          ))}
+        {/* 2. Khối / Tổ hợp xét tuyển */}
+        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <fieldset>
+            <legend className="mb-3 text-sm font-semibold text-slate-700">Khối / Tổ hợp xét tuyển</legend>
+            <div className="space-y-2.5">
+              {visibleCombos.map((c) => (
+                <Checkbox
+                  key={c.code}
+                  label={`${c.code} (${c.subjects.map(short).join(", ")})`}
+                  checked={draft.combos?.includes(c.code) ?? false}
+                  onChange={() => apply({ combos: toggle(draftRef.current.combos, c.code) })}
+                />
+              ))}
+            </div>
+            {combos.length > 5 && (
+              <button type="button" onClick={() => setShowAllCombos((v) => !v)} className="mt-3 text-[13px] font-semibold text-primary-600 hover:underline">
+                {showAllCombos ? "Thu gọn" : `Xem thêm ${combos.length - 5} tổ hợp`}
+              </button>
+            )}
+          </fieldset>
         </div>
-      </fieldset>
-      </div>
 
-      <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
-      <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-slate-700">Loại hình trường</legend>
-        <div className="space-y-2.5">
-          {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => (
-            <Checkbox key={t} label={SCHOOL_TYPE_LABELS[t]} checked={draft.types?.includes(t) ?? false} onChange={() => apply({ types: toggle(draftRef.current.types, t) })} />
-          ))}
+        {/* 3. Danh mục / Nhóm ngành */}
+        {groups.length > 0 && (
+          <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+            <fieldset>
+              <legend className="mb-3 text-sm font-semibold text-slate-700">Danh mục / Nhóm ngành</legend>
+              <div className="space-y-2.5">
+                {groups.map((g) => (
+                  <Checkbox
+                    key={g.id}
+                    label={<span className="break-words">{g.name}</span>}
+                    className="min-h-10 items-center"
+                    checked={draft.groups?.includes(g.id) ?? false}
+                    onChange={() => apply({ groups: toggle(draftRef.current.groups, g.id) })}
+                  />
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
+
+        {/* 4. Khu vực địa lý */}
+        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <fieldset>
+            <legend className="mb-3 text-sm font-semibold text-slate-700">Khu vực địa lý</legend>
+            <div className="space-y-2.5">
+              {(Object.keys(REGION_LABELS) as Region[]).map((r) => (
+                <Checkbox key={r} label={REGION_LABELS[r]} checked={draft.regions?.includes(r) ?? false} onChange={() => apply({ regions: toggle(draftRef.current.regions, r) })} />
+              ))}
+            </div>
+          </fieldset>
         </div>
-      </fieldset>
-      </div>
+
+        {/* 5. Học phí tối đa / năm */}
+        <div className="min-w-0 flex-1 basis-[200px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <fieldset>
+            <legend className="mb-3 text-sm font-semibold text-slate-700">Học phí tối đa / năm</legend>
+            <div className="space-y-2.5">
+              <Radio name="tuition" label="Không giới hạn" checked={!draft.tuition} onChange={() => apply({ tuition: undefined })} />
+              {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((k) => (
+                <Radio key={k} name="tuition" label={TUITION_RANGES[k].label} checked={draft.tuition === k} onChange={() => apply({ tuition: k })} />
+              ))}
+            </div>
+          </fieldset>
+        </div>
+
+        {/* 6. Loại hình trường */}
+        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <fieldset>
+            <legend className="mb-3 text-sm font-semibold text-slate-700">Loại hình trường</legend>
+            <div className="space-y-2.5">
+              {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => (
+                <Checkbox key={t} label={SCHOOL_TYPE_LABELS[t]} checked={draft.types?.includes(t) ?? false} onChange={() => apply({ types: toggle(draftRef.current.types, t) })} />
+              ))}
+            </div>
+          </fieldset>
+        </div>
       </div>
     </aside>
   );

@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LuNewspaper,LuPlay } from 'react-icons/lu';
-import { repositories } from '@database/repositories';
-import { newsFilter } from '@/services/news-validation';
+import { newsService } from '@/services/news.service';
 import { NewsPagination } from '@/components/news/news-pagination';
 import { httpsLink } from '@/lib/news-content';
 import { buttonClass } from '@/components/ui/button';
@@ -11,8 +10,7 @@ export const dynamic='force-dynamic';
 export const metadata:Metadata={title:'Tin tức tuyển sinh & hướng dẫn nguyện vọng',description:'Bài viết và video về tuyển sinh, hướng dẫn chuẩn bị và sắp xếp nguyện vọng.'};
 const date=(value:string|null)=>value?new Date(value).toLocaleDateString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'';
 export default async function NewsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
-  const filter=newsFilter(await searchParams);
-  const [categories,list]=await Promise.all([repositories.news.categories(),repositories.news.list(filter)]);
+  const {filter,categories,list}=await newsService.getListPage(await searchParams);
   return <div className="container-page py-8 sm:py-12">
     <header className="mb-8 rounded-3xl bg-primary-50 p-6 sm:p-10">
       <p className="mb-3 flex items-center gap-2 text-sm font-bold text-primary-700"><LuNewspaper aria-hidden/> Cẩm nang tuyển sinh</p>

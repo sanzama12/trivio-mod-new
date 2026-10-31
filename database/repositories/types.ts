@@ -32,6 +32,7 @@ import type {
   User,
   UserData,
 } from "@/domain/types";
+import type { ChatConversation } from "@/domain/chat";
 
 export interface SchoolRepository {
   findAll(): Promise<School[]>;
@@ -64,6 +65,7 @@ export interface CatalogRepository {
   findPlanningPrograms(): Promise<PlanningProgram[]>;
   findDiscoveryStats(): Promise<{
     programCountByMajor: Record<string, number>;
+    schoolCountByMajor?: Record<string, number>;
     programCountByGroup: Record<string, number>;
     schoolCountByGroup: Record<string, number>;
     totalPrograms: number;
@@ -75,6 +77,7 @@ export interface CatalogRepository {
     schools: School[];
     stats: {
       programCountByMajor: Record<string, number>;
+      schoolCountByMajor?: Record<string, number>;
       programCountByGroup: Record<string, number>;
       schoolCountByGroup: Record<string, number>;
       totalPrograms: number;
@@ -142,6 +145,13 @@ export interface ChatLogRepository {
   add(log: ChatLog): Promise<void>;
   setHelpful(id: string, helpful: boolean): Promise<boolean>;
   list(limit?: number): Promise<ChatLog[]>;
+}
+
+export interface ChatHistoryRepository {
+  findById(id: string, userId: string): Promise<ChatConversation | null>;
+  listByUser(userId: string, limit?: number): Promise<ChatConversation[]>;
+  put(conversation: ChatConversation): Promise<ChatConversation>;
+  delete(id: string, userId: string): Promise<boolean>;
 }
 
 export interface NotificationRepository {

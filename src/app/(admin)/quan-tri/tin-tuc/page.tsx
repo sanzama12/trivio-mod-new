@@ -6,15 +6,13 @@ import { AdminBody,inputCls,selectCls,fmtDate } from '@/components/admin/ui';
 import { buttonClass } from '@/components/ui/button';
 import { NewsPagination } from '@/components/news/news-pagination';
 import { NEWS_STATUS_LABELS } from '@/domain/news';
-import { repositories } from '@database/repositories';
-import { newsFilter } from '@/services/news-validation';
+import { newsService } from '@/services/news.service';
 
 export const dynamic='force-dynamic';
 export const metadata:Metadata={title:'Quản trị tin tức & video',robots:{index:false,follow:false}};
 export default async function AdminNews({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
   await adminPage('/quan-tri/tin-tuc');
-  const filter=newsFilter(await searchParams);
-  const [list,categories]=await Promise.all([repositories.news.list(filter,true),repositories.news.categories()]);
+  const {filter,list,categories}=await newsService.getListPage(await searchParams,true);
   return <><AdminHeader title="Tin tức & Video" crumb="Tin tức" actions={<Link href="/quan-tri/tin-tuc/tao-moi" className={buttonClass()}>Tạo bài mới</Link>}/><AdminBody>
     <p className="text-sm text-slate-600">Biên tập tin tuyển sinh, video và hướng dẫn nguyện vọng. Chỉ bài đã đăng mới xuất hiện công khai.</p>
     <form action="/quan-tri/tin-tuc" className="flex flex-wrap items-end gap-3">

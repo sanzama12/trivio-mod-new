@@ -8,35 +8,9 @@ import { matchesQuery } from "../lib/text";
 import { hasTuitionData } from "../lib/format";
 import { computeFit, cutoffFor, type FitInfo } from "./scoring.service";
 import { TUITION_RANGES, type ProgramFilters, type ProgramSort, type TuitionRange } from "./program.filters";
-
 export type { ProgramFilters, ProgramSort, TuitionRange } from "./program.filters";
-
-export interface ProgramView {
-  program: Program;
-  school: School;
-  major: Major;
-  /** Điểm chuẩn gần nhất theo `cutoffMethod` (mặc định điểm thi THPT). */
-  latestCutoff: number | null;
-  cutoffMethod: AdmissionMethodKey;
-  /** Tổ hợp đang so với điểm chuẩn (THPT/học bạ). */
-  cutoffCombo?: string;
-  fit: FitInfo | null;
-}
-
-export interface SearchSuggestion {
-  label: string;
-  patch: Partial<ProgramFilters>;
-  count: number;
-}
-
-export interface ProgramSearchResult {
-  items: ProgramView[];
-  total: number;
-  page: number;
-  pageCount: number;
-  pageSize: number;
-  suggestions: SearchSuggestion[];
-}
+import type { ProgramSearchResult, ProgramView, SearchSuggestion } from "../models/dtos";
+export type { ProgramSearchResult, ProgramView, SearchSuggestion };
 
 const fallbackSchool: School = {
   id: "unknown",
@@ -180,9 +154,9 @@ export const programService = {
     return { ...view, similar };
   },
 
-  /** Tối đa 3 chương trình cho trang so sánh. */
+  /** Tối đa 4 chương trình cho trang so sánh. */
   async getByIds(ids: string[], score?: number | null) {
-    return buildViews(await repositories.programs.findByIds(ids.slice(0, 3)), score);
+    return buildViews(await repositories.programs.findByIds(ids.slice(0, 4)), score);
   },
 
   /** Tra cứu nhiều chương trình (danh sách đã lưu, nguyện vọng). */

@@ -9,6 +9,8 @@ import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
 import { REGION_LABELS, SCHOOL_TYPE_LABELS } from "@/services/program.filters";
 import type { Region } from "@/domain/types";
 import { SchoolLogo } from "@/components/school/school-logo";
+import { SchoolCard } from "@/components/school/school-card";
+import { OpenCompareButton } from "@/components/program/program-actions";
 
 export const metadata: Metadata = { title: "Danh mục trường" };
 
@@ -75,11 +77,14 @@ export default async function SchoolsPage({ searchParams }: Props) {
             title={`${result.total} trường`}
             subtitle={q || region ? "Đúng bộ lọc đang chọn." : "Không lọc — đây là toàn bộ danh mục."}
             action={
-              q || region ? (
-                <Link href="/truong" className="text-sm font-semibold text-primary-600 hover:underline">
-                  Xoá lọc
-                </Link>
-              ) : undefined
+              <div className="flex items-center gap-3">
+                <OpenCompareButton />
+                {q || region ? (
+                  <Link href="/truong" className="text-sm font-semibold text-primary-600 hover:underline">
+                    Xoá lọc
+                  </Link>
+                ) : null}
+              </div>
             }
           />
           {result.total === 0 && !q && !region ? (
@@ -95,30 +100,11 @@ export default async function SchoolsPage({ searchParams }: Props) {
               </EmptyState>
             </Card>
           ) : (
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 space-y-4">
               {items.map((s) => (
-                <li key={s.id}>
-                  <Link href={`/truong/${s.slug}`} className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-card transition hover:border-primary-200 hover:shadow-elevated">
-                    <SchoolLogo school={s} size="sm" />
-                    <span className="min-w-0">
-                      <span className="block font-semibold break-words text-slate-900">{s.name}</span>
-                      <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-slate-500">
-                        {s.shortName ? <span>{s.shortName}</span> : null}
-                        {s.code ? <span>{s.code}</span> : null}
-                        {s.city ? (
-                          <span className="inline-flex items-center gap-1">
-                            <LuMapPin className="size-3" aria-hidden />
-                            {s.city}
-                          </span>
-                        ) : null}
-                        <span>{REGION_LABELS[s.region]}</span>
-                        <span>{SCHOOL_TYPE_LABELS[s.type]}</span>
-                      </span>
-                    </span>
-                  </Link>
-                </li>
+                <SchoolCard key={s.id} school={s} />
               ))}
-            </ul>
+            </div>
           )}
           {result.total > 0 && result.pageCount > 1 ? (
             <div className="mt-8">

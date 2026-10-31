@@ -33,6 +33,27 @@ export interface ChatAnswer {
   polished?: boolean;
 }
 
+export interface ChatHistoryMessage {
+  id: string;
+  role: "user" | "assistant";
+  at: string;
+  text?: string;
+  answer?: ChatAnswer;
+  logId?: string | null;
+}
+
+export interface ChatConversation {
+  id: string;
+  userId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatHistoryMessage[];
+}
+
+/** DTO lịch sử gửi ra client; không lộ chủ sở hữu. */
+export type ChatConversationView = Omit<ChatConversation, "userId">;
+
 /** Chỉ cho phép link nội bộ ("/…") hoặc https — phòng thủ khi hiển thị link do server trả về. */
 export function safeChatHref(href: unknown): string | null {
   if (typeof href !== "string" || href.length > 500) return null;

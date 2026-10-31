@@ -7,12 +7,24 @@ import { ADMISSION_METHODS, formatMethodScore, profileScore } from "@/services/s
 
 /** Gợi ý dùng hồ sơ điểm đã lưu khi URL chưa có điểm. */
 export function SavedScoreHint({ filters }: { filters: ProgramFilters }) {
-  const { profile, hydrated } = useTrovio();
+  const { profile, preferences, hydrated } = useTrovio();
   if (!hydrated) return null;
+
   if (!profile) {
+    if (preferences?.estimatedScore != null) {
+      const estimatedScore = preferences.estimatedScore;
+      const combo = preferences.estimatedCombo || undefined;
+      const combos = combo ? (filters.combos?.length ? filters.combos : [combo]) : filters.combos;
+      const href = `/chuong-trinh${serializeProgramFilters({ ...filters, score: estimatedScore, combos, page: undefined })}`;
+      return (
+        <Link href={href} className="font-semibold text-primary-600 hover:underline">
+          Dùng điểm dự kiến hồ sơ ({estimatedScore} điểm{combo ? ` · ${combo}` : ""})
+        </Link>
+      );
+    }
     return (
-      <Link href="/diem-cua-toi" className="font-semibold text-primary-600 hover:underline">
-        Tạo hồ sơ học tập & xét tuyển để xem mức độ phù hợp
+      <Link href="/ho-so" className="font-semibold text-primary-600 hover:underline">
+        Khai báo điểm dự kiến trong hồ sơ để đối chiếu
       </Link>
     );
   }

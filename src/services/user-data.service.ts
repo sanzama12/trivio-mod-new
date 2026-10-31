@@ -2,7 +2,7 @@
  * SERVICE LAYER — dữ liệu cá nhân đồng bộ theo tài khoản (đã lưu, nguyện vọng, hồ sơ điểm, kết quả RIASEC).
  * Khách dùng localStorage; khi đăng nhập, dữ liệu trên máy được GỘP vào tài khoản (không ghi đè).
  */
-import type { AdmissionMethodKey, Goal, Region, StoredProfile, UserData, WishlistItem } from "../domain/types";
+import type { AcademicPerformance, AdmissionMethodKey, Goal, RecommendationPreferences, Region, StoredProfile, UserData, WishlistItem } from "../domain/types";
 import { repositories } from "@database/repositories";
 import { ADMISSION_METHODS, isMethodKey, isValidSubjectScore } from "./scoring.service";
 
@@ -16,7 +16,7 @@ export type UserDataInput = Omit<UserData, "updatedAt">;
 
 export const MAX_REMINDERS = 50;
 
-export const emptyUserData = (): UserData => ({ saved: [], wishlist: [], profile: null, reminders: [], goal: null, updatedAt: new Date(0).toISOString() });
+export const emptyUserData = (): UserData => ({ saved: [], wishlist: [], profile: null, reminders: [], goal: null, preferences: null, updatedAt: new Date(0).toISOString() });
 
 const REGIONS: Region[] = ["bac", "trung", "nam"];
 const COMBO_RE = /^[A-Z]\d{2}$/;
@@ -42,6 +42,46 @@ export function sanitizeGoal(input: unknown): Goal | null {
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
+export function sanitizeRecommendationPreferences(input: unknown): RecommendationPreferences | null {
+  if (!isObj(input) || typeof input.updatedAt !== "string" || Number.isNaN(Date.parse(input.updatedAt))) return null;
+  const ids = (value: unknown, max: number) =>
+    Array.isArray(value)
+      ? Array.from(new Set(value.filter((id): id is string => typeof id === "string" && ID_RE.test(id)))).slice(0, max)
+      : [];
+  const perf =
+    typeof input.academicPerformance === "string" && ["xuat-sac", "gioi", "kha", "trung-binh"].includes(input.academicPerformance)
+      ? (input.academicPerformance as AcademicPerformance)
+      : undefined;
+  const estScore =
+    typeof input.estimatedScore === "number" && Number.isFinite(input.estimatedScore) && input.estimatedScore >= 0 && input.estimatedScore <= 30
+      ? Math.round(input.estimatedScore * 100) / 100
+      : undefined;
+  const estCombo = typeof input.estimatedCombo === "string" && COMBO_RE.test(input.estimatedCombo) ? input.estimatedCombo : undefined;
+  const targetRegions = Array.isArray(input.targetRegions)
+    ? Array.from(new Set(input.targetRegions.filter((r): r is Region => REGIONS.includes(r as Region))))
+    : undefined;
+  const budget =
+    typeof input.budgetMax === "number" && Number.isFinite(input.budgetMax) && input.budgetMax > 0 && input.budgetMax < 10_000
+      ? Math.round(input.budgetMax)
+      : undefined;
+
+  const res: RecommendationPreferences = {
+    groupIds: ids(input.groupIds, 12),
+    interestMajorIds: ids(input.interestMajorIds, 20),
+    strongSubjectIds: ids(input.strongSubjectIds, 12),
+    useSavedBehavior: input.useSavedBehavior === true,
+    updatedAt: new Date(Date.parse(input.updatedAt)).toISOString(),
+  };
+
+  if (perf) res.academicPerformance = perf;
+  if (estScore != null) res.estimatedScore = estScore;
+  if (estCombo) res.estimatedCombo = estCombo;
+  if (targetRegions?.length) res.targetRegions = targetRegions;
+  if (budget != null) res.budgetMax = budget;
+
+  return res;
+}
+
 function sanitizeProfile(input: unknown): StoredProfile | null {
   if (
     !isObj(input) ||
@@ -63,6 +103,15 @@ function sanitizeProfile(input: unknown): StoredProfile | null {
   const interestMajorIds = Array.isArray(input.interestMajorIds)
     ? Array.from(new Set(input.interestMajorIds.filter((id): id is string => typeof id === "string" && ID_RE.test(id)))).slice(0, 20)
     : undefined;
+  const perf =
+    typeof input.academicPerformance === "string" && ["xuat-sac", "gioi", "kha", "trung-binh"].includes(input.academicPerformance)
+      ? (input.academicPerformance as AcademicPerformance)
+      : undefined;
+  const estScore =
+    typeof input.estimatedScore === "number" && Number.isFinite(input.estimatedScore) && input.estimatedScore >= 0 && input.estimatedScore <= 30
+      ? Math.round(input.estimatedScore * 100) / 100
+      : undefined;
+
   const profile = input as unknown as StoredProfile;
   return {
     ...profile,
@@ -70,6 +119,8 @@ function sanitizeProfile(input: unknown): StoredProfile | null {
     scores,
     methods: methods?.length ? methods : undefined,
     interestMajorIds: interestMajorIds?.length ? interestMajorIds : undefined,
+    ...(perf ? { academicPerformance: perf } : {}),
+    ...(estScore != null ? { estimatedScore: estScore } : {}),
   };
 }
 const uniq = <T>(arr: T[], key: (x: T) => string) => {
@@ -95,7 +146,7 @@ export function sanitizeUserData(input: unknown): UserDataInput {
     (Array.isArray(src.reminders) ? src.reminders : []).filter((x): x is string => typeof x === "string" && ID_RE.test(x)),
     (x) => x,
   ).slice(0, MAX_REMINDERS);
-  return { saved, wishlist, profile, reminders, goal: sanitizeGoal(src.goal) };
+  return { saved, wishlist, profile, reminders, goal: sanitizeGoal(src.goal), preferences: sanitizeRecommendationPreferences(src.preferences) };
 }
 
 const newer = <T>(a: T | null, b: T | null, at: (x: T) => string): T | null => {
@@ -122,7 +173,8 @@ export function mergeUserData(server: UserDataInput, local: UserDataInput): User
   for (const w of wishlist) if (!saved.includes(w.id)) saved.push(w.id);
   const reminders = uniq([...server.reminders, ...local.reminders], (x) => x).slice(0, MAX_REMINDERS);
   const goal = newer(server.goal ?? null, local.goal ?? null, (x) => x.updatedAt);
-  return { saved, wishlist, profile, reminders, goal };
+  const preferences = newer(server.preferences ?? null, local.preferences ?? null, (x) => x.updatedAt);
+  return { saved, wishlist, profile, reminders, goal, preferences };
 }
 
 async function onlyExistingPrograms(data: UserDataInput): Promise<UserDataInput> {

@@ -1,8 +1,36 @@
 import { repositories } from '@database/repositories';
 import { NewsError } from '@/domain/news';
-import { validateNews } from './news-validation';
+import { newsFilter, validateNews } from './news-validation';
+
+type SearchParams = Record<string, string | string[] | undefined>;
 
 export const newsService={
+  async getListPage(searchParams: SearchParams, includeDrafts = false) {
+    const filter = newsFilter(searchParams);
+    const [list, categories] = await Promise.all([
+      repositories.news.list(filter, includeDrafts),
+      repositories.news.categories(),
+    ]);
+    return { filter, list, categories };
+  },
+
+  async getEditorPage(id: string) {
+    const [item, categories, history] = await Promise.all([
+      repositories.news.byId(id),
+      repositories.news.categories(),
+      repositories.news.history(id),
+    ]);
+    return { item, categories, history };
+  },
+
+  async getCategories() {
+    return repositories.news.categories();
+  },
+
+  async getPublicBySlug(slug: string) {
+    return repositories.news.publicBySlug(slug);
+  },
+
   async save(actor:{id:string;admin:boolean},raw:Record<string,unknown>) {
     if(!actor.admin)throw new NewsError('Bạn không có quyền quản lý tin tức.',403);
     const data=raw.data;

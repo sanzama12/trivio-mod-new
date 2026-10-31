@@ -19,10 +19,10 @@ export interface RecState {
 
 /** Gọi /api/recommendations bằng dữ liệu trên máy (kết quả trắc nghiệm, hồ sơ điểm, mục tiêu). */
 export function useRecommendations(limit = 6): RecState & { hasInput: boolean } {
-  const { profile, goal, hydrated, user } = useTrovio();
+  const { profile, goal, preferences, hydrated, user } = useTrovio();
   const [state, setState] = useState<RecState>({ items: null, goal: null, missing: [], province: null, userScore: null, budgetMax: null, error: false });
-  const hasInput = !!(profile || goal?.majorId);
-  const key = JSON.stringify([profile?.updatedAt, goal?.updatedAt, user?.id, limit]);
+  const hasInput = !!(profile || goal?.majorId || preferences?.groupIds.length || preferences?.interestMajorIds.length);
+  const key = JSON.stringify([profile?.updatedAt, goal?.updatedAt, preferences?.updatedAt, user?.id, limit]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -49,8 +49,8 @@ export function useRecommendations(limit = 6): RecState & { hasInput: boolean } 
         comboScores,
         budgetMax,
         regions: profile?.regions?.length ? profile.regions : (goal?.regions ?? []),
-        groupIds: profile?.groupIds ?? [],
-        interestMajorIds: profile?.interestMajorIds ?? [],
+        groupIds: preferences?.groupIds?.length ? preferences.groupIds : (profile?.groupIds ?? []),
+        interestMajorIds: preferences?.interestMajorIds?.length ? preferences.interestMajorIds : (profile?.interestMajorIds ?? []),
         goalMajorId: goal?.majorId ?? null,
         limit,
       }),

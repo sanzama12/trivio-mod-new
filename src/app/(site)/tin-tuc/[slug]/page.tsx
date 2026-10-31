@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { repositories } from '@database/repositories';
+import { newsService } from '@/services/news.service';
 import { NewsContent } from '@/components/news/news-content';
 import { httpsLink } from '@/lib/news-content';
 
 export const dynamic='force-dynamic';
-const getPost=cache((slug:string)=>repositories.news.publicBySlug(slug));
+const getPost=cache((slug:string)=>newsService.getPublicBySlug(slug));
 export async function generateMetadata({params}:{params:Promise<{slug:string}>}):Promise<Metadata> {
   const post=await getPost((await params).slug);
   if(!post)return {title:'Không tìm thấy bài viết',robots:{index:false}};

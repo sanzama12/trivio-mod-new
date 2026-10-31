@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { LuBookOpen, LuFilterX, LuLayers3 } from "react-icons/lu";
+import {
+  LuArrowLeftRight,
+  LuArrowRight,
+  LuBuilding2,
+  LuCalendarClock,
+  LuCompass,
+  LuGraduationCap,
+  LuSparkles,
+} from "react-icons/lu";
 import { catalogService } from "@/services";
-import { cn } from "@/lib/cn";
-import { buttonClass } from "@/components/ui/button";
-import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
-import { MajorSchoolSearch } from "@/components/catalog/major-school-search";
-import { MajorGroupCard } from "@/components/catalog/major-group-card";
-import { MajorCard } from "@/components/catalog/major-card";
+import { Breadcrumb } from "@/components/ui/misc";
+import { MajorExplorer } from "@/components/catalog/major-explorer";
+import { MajorSmartSuggester } from "@/components/catalog/major-smart-suggester";
 
 export const metadata: Metadata = {
-  title: "Khám phá ngành học",
-  description: "Khám phá nhóm ngành, ngành học và chương trình đào tạo theo một danh mục rõ ràng, có số liệu.",
+  title: "Khám phá ngành học | Trovio",
+  description: "Khám phá nhóm ngành, tìm kiếm ngành học và danh sách các trường đại học đào tạo trên toàn quốc.",
 };
-
-const LETTERS = ["A", "B", "C", "D", "Đ", "E", "G", "H", "I", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "X", "Y"];
-const PAGE_SIZE = 24;
 
 type Props = { searchParams: Promise<Record<string, string | undefined>> };
 
@@ -24,177 +25,173 @@ export default async function MajorsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const group = sp.group || undefined;
   const q = sp.q?.trim() || undefined;
-  const letter = sp.letter || undefined;
-  const requestedPage = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
-  const { groups, items, schools } = await catalogService.getDiscoveryPage({ group, q, letter });
-  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const page = Math.min(requestedPage, pageCount);
-  const visibleItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const activeGroup = groups.find((item) => item.group.id === group);
+
+  // Lấy toàn bộ danh mục nhóm ngành & ngành học và danh mục môn học
+  const [{ groups, items }, subjects] = await Promise.all([
+    catalogService.getDiscoveryPage(),
+    catalogService.getSubjects(),
+  ]);
+
   const totals = groups.reduce(
-    (acc, item) => ({ majors: acc.majors + item.majorCount, programs: acc.programs + item.programCount }),
-    { majors: 0, programs: 0 },
+    (acc, item) => ({
+      majors: acc.majors + item.majorCount,
+      programs: acc.programs + item.programCount,
+      schools: acc.schools + item.schoolCount,
+    }),
+    { majors: 0, programs: 0, schools: 0 }
   );
-  const qs = (patch: Record<string, string | undefined>) => {
-    const params = new URLSearchParams(Object.entries({ group, q, letter, ...patch }).filter(([, value]) => value) as [string, string][]);
-    const query = params.toString();
-    return query ? `/nganh?${query}#danh-sach` : "/nganh#danh-sach";
-  };
 
   return (
-    <>
-      <section className="relative isolate overflow-hidden bg-slate-950">
-        <Image
-          src="https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2000&q=75"
-          alt="Sân trường đại học mùa tuyển sinh"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover opacity-70"
-        />
-        <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/40 to-transparent" />
-        <div className="container-page relative py-16 sm:py-24 lg:py-32">
-          <div className="max-w-3xl">
-            <Breadcrumb inverse items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá ngành" }]} />
-            <p className="mt-6 inline-flex items-center gap-2 bg-accent-500 px-3 py-1 text-[13px] font-black text-slate-900">
-              <LuLayers3 className="size-4" aria-hidden /> {groups.length} nhóm · {totals.majors.toLocaleString("vi-VN")} ngành · {totals.programs.toLocaleString("vi-VN")} chương trình
-            </p>
-            <h1 className="mt-5 max-w-3xl text-4xl leading-[1.02] font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Tìm ngành từ bức tranh lớn đến lựa chọn cụ thể.
-            </h1>
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-200 sm:text-lg">
-              Bắt đầu bằng một nhóm bạn quan tâm, lọc theo tên hoặc mã ngành, rồi xem các chương trình đang được đào tạo.
-            </p>
-            <div className="mt-8 w-full max-w-2xl rounded-2xl bg-white p-3 shadow-2xl sm:p-4">
-              <MajorSchoolSearch
-                defaultQuery={q}
-                schools={schools.map((school) => ({
-                  id: school.id,
-                  slug: school.slug,
-                  name: school.name,
-                  shortName: school.shortName,
-                  code: school.code,
-                  logoUrl: school.logoUrl,
-                  city: school.city,
-                  region: school.region,
-                  type: school.type,
-                }))}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="min-h-screen bg-[#FAF9F5] pb-20">
+      {/* Thanh định hướng & Tiêu đề trang gọn gàng */}
+      <section className="border-b border-[#EBE6DC] bg-white">
+        <div className="container-page py-6 sm:py-8">
+          <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá ngành" }]} />
 
-      <section className="border-b border-slate-200 bg-white" aria-labelledby="nhom-nganh">
-        <div className="container-page py-12 lg:py-16">
-          <div className="flex flex-col gap-4 border-b-2 border-slate-950 pb-7 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-black tracking-[0.16em] text-primary-700 uppercase">Bước 1 · Chọn phạm vi</p>
-              <h2 id="nhom-nganh" className="mt-2 text-3xl leading-tight font-black tracking-tight text-slate-950 md:text-4xl">
-                Khám phá theo nhóm ngành
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">
-                Mỗi nhóm gom các ngành có nền tảng học tập và hướng nghề nghiệp gần nhau. Số liệu được tính trực tiếp từ danh mục đang công khai.
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#FAF5EB] px-3 py-1 text-xs font-bold text-[#B58A3C]">
+                <LuGraduationCap className="size-4" />
+                <span>
+                  {groups.length} nhóm ngành · {totals.majors} ngành đào tạo
+                </span>
+              </div>
+              <h1 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-stone-900">
+                Khám phá ngành học
+              </h1>
+              <p className="mt-1 text-sm sm:text-base text-stone-600 max-w-2xl">
+                Tìm kiếm thông tin ngành học, tìm trường đào tạo và xem tổng quan nghề nghiệp giúp bạn định hướng tương lai.
               </p>
             </div>
-            {activeGroup ? (
-              <div className="flex shrink-0 items-center gap-3 rounded-2xl border-2 border-slate-950 bg-accent-50 px-4 py-3">
-                <div>
-                  <p className="text-xs font-bold text-slate-500 uppercase">Đang xem</p>
-                  <p className="mt-1 font-black text-slate-950">{activeGroup.group.name}</p>
-                </div>
-                <Link href="/nganh#danh-sach" className="min-h-10 text-sm font-bold text-primary-700 hover:underline">
-                  Bỏ chọn
-                </Link>
-              </div>
-            ) : null}
-          </div>
-          <div className="mt-8 grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {groups.map((summary, index) => (
-              <MajorGroupCard
-                key={summary.group.id}
-                summary={summary}
-                index={index}
-                selected={group === summary.group.id}
-                href={qs({ group: group === summary.group.id ? undefined : summary.group.id, letter: undefined })}
-              />
-            ))}
           </div>
         </div>
       </section>
 
-      <section id="danh-sach" className="container-page py-12 lg:py-16" aria-labelledby="tat-ca-nganh">
-        <div className="flex flex-col gap-4 border-b-2 border-slate-950 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-black tracking-[0.16em] text-primary-700 uppercase">Bước 2 · Thu hẹp lựa chọn</p>
-            <h2 id="tat-ca-nganh" className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-              {activeGroup ? activeGroup.group.name : "Danh sách ngành đào tạo"}
+      {/* Khu vực chính: Gợi ý ngành theo sở thích & thế mạnh + Bộ lọc danh mục */}
+      <section className="container-page py-6 sm:py-8 space-y-10">
+        <MajorSmartSuggester
+          groups={groups.map((g) => g.group)}
+          subjects={subjects}
+        />
+
+        <div>
+          <div className="mb-6 flex flex-col gap-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">
+              Tất cả ngành đào tạo ({totals.majors})
             </h2>
-            <p className="mt-2 text-sm text-slate-600">
-              {items.length.toLocaleString("vi-VN")} kết quả{q ? ` khớp “${q}”` : ""}{letter ? ` bắt đầu bằng “${letter}”` : ""}.
+            <p className="text-sm text-stone-500">
+              Tra cứu theo nhóm ngành, lọc theo tên gọi hoặc xem nhanh các trường đào tạo trực thuộc.
             </p>
           </div>
-          {group || q || letter ? (
-            <Link href="/nganh#danh-sach" className={buttonClass({ variant: "outline", size: "sm", className: "w-full sm:w-auto" })}>
-              <LuFilterX className="size-4" aria-hidden /> Xóa bộ lọc
-            </Link>
-          ) : null}
+          <MajorExplorer
+            groups={groups}
+            items={items}
+            initialGroup={group}
+            initialQuery={q}
+          />
         </div>
 
-        <nav aria-label="Lọc ngành theo chữ cái" className="mt-6 rounded-3xl border border-slate-200 bg-white p-3 sm:p-4">
-          <p className="px-1 pb-3 text-xs font-bold text-slate-500 uppercase">Tên ngành bắt đầu bằng</p>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={qs({ letter: undefined })}
-              className={cn("flex min-h-10 items-center justify-center rounded-full px-4 text-sm font-bold", !letter ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}
-            >
-              Tất cả
-            </Link>
-            {LETTERS.map((value) => (
+        {/* Khối điều hướng cao cấp: Bước tiếp theo sau khi chọn ngành */}
+        <div className="relative mt-16 overflow-hidden rounded-3xl border border-sky-800/30 bg-gradient-to-br from-[#0a2744] via-[#0d3b66] to-[#081e33] p-8 sm:p-10 lg:p-12 text-white shadow-xl">
+          {/* Họa tiết ánh sáng trang trí */}
+          <div className="pointer-events-none absolute -left-20 -top-20 size-80 rounded-full bg-sky-500/15 blur-3xl" aria-hidden="true" />
+          <div className="pointer-events-none absolute -bottom-24 -right-20 size-96 rounded-full bg-amber-400/10 blur-3xl" aria-hidden="true" />
+
+          <div className="relative grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
+            {/* Cột trái: Lời kêu gọi hành động định hướng */}
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-sky-200">
+                <LuSparkles className="size-3.5 text-amber-300" aria-hidden="true" />
+                <span>Bước tiếp theo sau khi chọn ngành</span>
+              </span>
+
+              <h2 className="mt-4 text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+                Đã nhắm được ngành yêu thích? Khám phá ngay các trường đào tạo hàng đầu.
+              </h2>
+
+              <p className="mt-3 text-sm sm:text-base leading-relaxed text-sky-100/80 max-w-xl">
+                Cùng một ngành học nhưng mỗi trường đại học lại có thế mạnh chuyên sâu, môi trường thực tập và mức học phí khác nhau. Hãy tìm hiểu ngôi trường phù hợp nhất với bạn.
+              </p>
+
+              <div className="mt-7 flex flex-wrap items-center gap-3.5">
+                <Link
+                  href="/truong"
+                  className="inline-flex items-center gap-2.5 rounded-xl bg-amber-400 px-5 sm:px-6 py-3.5 text-sm font-bold text-stone-950 shadow-md transition-all hover:bg-amber-300 hover:shadow-lg active:scale-95"
+                >
+                  <LuBuilding2 className="size-4.5" />
+                  <span>Khám phá danh mục trường</span>
+                  <LuArrowRight className="size-4" />
+                </Link>
+
+                <Link
+                  href="/chuong-trinh"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3.5 text-sm font-bold text-white backdrop-blur-xs transition-all hover:bg-white/20 hover:border-white/30 active:scale-95"
+                >
+                  <LuCompass className="size-4 text-sky-200" />
+                  <span>Tìm chương trình đào tạo</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Cột phải: 3 khối tính năng kính (Glassmorphic cards) */}
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 lg:grid-cols-1">
+              {/* Thẻ 1: Danh mục trường */}
               <Link
-                key={value}
-                href={qs({ letter: value })}
-                aria-current={letter === value ? "true" : undefined}
-                className={cn(
-                  "flex size-10 items-center justify-center rounded-full text-sm font-bold",
-                  letter === value ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-                )}
+                href="/truong"
+                className="group flex items-start gap-4 rounded-2xl border border-white/10 bg-white/5 p-4.5 backdrop-blur-xs transition-all hover:border-white/25 hover:bg-white/10"
               >
-                {value}
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300 group-hover:scale-105 transition-transform">
+                  <LuBuilding2 className="size-5.5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                    200+ trường đại học & học viện
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-sky-100/70">
+                    Tra cứu thông tin tuyển sinh, cơ sở vật chất, địa chỉ và học phí trên toàn quốc.
+                  </p>
+                </div>
               </Link>
-            ))}
-          </div>
-        </nav>
 
-        {items.length === 0 ? (
-          <div className="mt-6 rounded-3xl border-2 border-slate-950 bg-white">
-            <EmptyState icon={<LuBookOpen />} title="Chưa có ngành phù hợp" description="Thử từ khóa khác, chọn chữ cái khác hoặc xóa bớt bộ lọc.">
-              <Link href="/nganh#danh-sach" className={buttonClass({ variant: "outline", size: "sm" })}>
-                Xem tất cả ngành
+              {/* Thẻ 2: Tìm chương trình đào tạo */}
+              <Link
+                href="/chuong-trinh"
+                className="group flex items-start gap-4 rounded-2xl border border-white/10 bg-white/5 p-4.5 backdrop-blur-xs transition-all hover:border-white/25 hover:bg-white/10"
+              >
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-400/20 text-amber-300 group-hover:scale-105 transition-transform">
+                  <LuCompass className="size-5.5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                    Tìm kiếm chương trình đào tạo
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-sky-100/70">
+                    Lọc theo điểm số, tổ hợp môn thi và mức học phí chi tiết.
+                  </p>
+                </div>
               </Link>
-            </EmptyState>
-          </div>
-        ) : (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleItems.map((item) => <MajorCard key={item.major.id} item={item} />)}
-          </div>
-        )}
-        {items.length > PAGE_SIZE ? (
-          <div className="mt-8">
-            <Pagination page={page} pageCount={pageCount} hrefFor={(value) => qs({ page: String(value) })} />
-          </div>
-        ) : null}
 
-        <div className="mt-14 grid gap-6 rounded-3xl bg-slate-950 p-6 text-white sm:p-8 md:grid-cols-[1fr_auto] md:items-center md:p-10">
-          <div>
-            <h2 className="max-w-xl text-2xl leading-tight font-black tracking-tight">Danh mục giúp bạn hiểu lựa chọn. Điểm số giúp bạn biết lựa chọn nào vừa sức.</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">Lưu hồ sơ điểm một lần để Trovio phân nhóm chương trình An toàn, Vừa sức và Thử sức.</p>
+              {/* Thẻ 3: Mốc tuyển sinh 2026 */}
+              <Link
+                href="/moc-tuyen-sinh"
+                className="group flex items-start gap-4 rounded-2xl border border-white/10 bg-white/5 p-4.5 backdrop-blur-xs transition-all hover:border-white/25 hover:bg-white/10"
+              >
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300 group-hover:scale-105 transition-transform">
+                  <LuCalendarClock className="size-5.5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                    Lịch & Mốc tuyển sinh 2026
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-sky-100/70">
+                    Cập nhật thời hạn nộp hồ sơ, lịch thi ĐGNL/ĐGTD và các đợt xét tuyển sớm.
+                  </p>
+                </div>
+              </Link>
+            </div>
           </div>
-          <Link href="/diem-cua-toi" className={buttonClass({ variant: "accent", size: "lg", className: "w-full md:w-auto" })}>
-            Nhập điểm xét tuyển
-          </Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }

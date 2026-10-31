@@ -30,12 +30,13 @@ import { useTrovio } from "@/stores/trovio-store";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
-import type { PublicUser } from "@/domain/types";
+import type { Combo, MajorGroup, PublicUser, Subject } from "@/domain/types";
 import { Avatar } from "@/components/ui/avatar";
 import { FieldError, Input, Label } from "@/components/ui/field";
 import { ProfileFields, type ProfileFormValue } from "@/components/account/profile-fields";
 import { LoginMethods } from "@/components/account/login-methods";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { AcademicDossier } from "./academic-dossier";
 
 const NAV = [
   { href: "#tong-quan", label: "Tổng quan", icon: LuUserRound },
@@ -45,7 +46,25 @@ const NAV = [
   { href: "#cai-dat", label: "Cài đặt tài khoản", icon: LuSettings },
 ];
 
-export function ProfileClient({ user, googleConfigured, notice }: { user: PublicUser; googleConfigured: boolean; notice?: { linked?: string; error?: string } }) {
+export interface ProfileClientProps {
+  user: PublicUser;
+  googleConfigured: boolean;
+  notice?: { linked?: string; error?: string };
+  combos?: Combo[];
+  subjects?: Subject[];
+  groups?: MajorGroup[];
+  majors?: { id: string; name: string; groupId: string }[];
+}
+
+export function ProfileClient({
+  user,
+  googleConfigured,
+  notice,
+  combos = [],
+  subjects = [],
+  groups = [],
+  majors = [],
+}: ProfileClientProps) {
   const router = useRouter();
   const toast = useToast();
   const store = useTrovio();
@@ -140,8 +159,13 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
     max == null ? "Không giới hạn" : (Object.values(TUITION_RANGES).find((r) => r.max === max)?.label ?? `${max} triệu`);
 
   const missing = [
-    user.gradYear == null && "năm tốt nghiệp THPT",
-    !user.province && "tỉnh/thành",
+    user.gradYear == null && "năm tốt nghiệp",
+    !user.province && "tỉnh/thành sinh sống",
+    !(store.preferences?.strongSubjectIds?.length) && "môn học thế mạnh",
+    !(store.preferences?.groupIds?.length || store.profile?.groupIds?.length) && "lĩnh vực yêu thích",
+    !(store.preferences?.academicPerformance || store.profile?.academicPerformance || store.preferences?.estimatedScore || store.profile?.admission) && "học lực / điểm dự kiến",
+    !(store.preferences?.targetRegions?.length || store.profile?.regions?.length) && "địa điểm học tập",
+    !(store.preferences?.budgetMax != null || store.profile?.budgetMax != null) && "mức học phí mong muốn",
   ].filter((item): item is string => Boolean(item));
 
   const facts: [string, string][] = [
@@ -155,7 +179,8 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
     ...(user.lastLoginAt ? [["Đăng nhập gần nhất", formatDateVi(user.lastLoginAt)] as [string, string]] : []),
   ];
 
-  const profileCompletion = Math.round(((2 - missing.length) / 2) * 100);
+  const totalCriteria = 7;
+  const profileCompletion = Math.round(((totalCriteria - missing.length) / totalCriteria) * 100);
   const activity = [
     { n: store.saved.length, label: "Đã lưu", detail: "Chương trình", href: "/da-luu", icon: LuHeart },
     { n: store.wishlist.length, label: "Nguyện vọng", detail: "Dự kiến", href: "/da-luu", icon: LuBookOpen },
@@ -225,7 +250,7 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
               <div className="h-full rounded-full bg-accent-500" style={{ width: `${profileCompletion}%` }} />
             </div>
             <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              {missing.length ? `Bổ sung ${missing.join(", ")} để gợi ý sát hơn.` : "Thông tin cơ bản đã đầy đủ."}
+              {missing.length ? `Bổ sung ${missing.slice(0, 2).join(", ")}${missing.length > 2 ? ` và ${missing.length - 2} mục khác` : ""} để gợi ý sát hơn.` : "Hồ sơ của bạn đã đầy đủ 100%!"}
             </p>
           </div>
 
@@ -310,46 +335,13 @@ export function ProfileClient({ user, googleConfigured, notice }: { user: Public
             </div>
           </Card>
 
-          <Card id="dieu-kien" className="scroll-mt-24 overflow-hidden border-slate-300 shadow-none">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-5 sm:px-6">
-              <div>
-                <p className="text-xs font-black tracking-[0.14em] text-primary-700 uppercase">02 · Dữ liệu gợi ý</p>
-                <h2 className="mt-1 text-xl font-black tracking-tight">Học tập & xét tuyển</h2>
-              </div>
-              <Link href="/diem-cua-toi" className={buttonClass({ size: "sm" })}>{store.profile ? "Cập nhật điểm" : "Tạo hồ sơ điểm"}</Link>
-            </div>
-            <div className="p-5 sm:p-6">
-              {store.hydrated && store.profile ? (
-                <div className="grid gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
-                  <div className="flex min-h-36 flex-col justify-between rounded-2xl bg-accent-500 p-5 text-slate-950">
-                    <p className="text-xs font-black tracking-wider uppercase">Điểm xét tuyển</p>
-                    <p className="text-4xl font-black tracking-tight">{formatMethodScore(profileScore(store.profile).total, profileMethod(store.profile))}</p>
-                    <p className="text-xs font-bold">{PRIORITY_REGION_LABELS[store.profile.priorityRegion]}</p>
-                  </div>
-                  <dl className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl bg-primary-50 p-4">
-                      <dt className="text-xs font-bold text-primary-700">Phương thức{store.profile.combo ? " · tổ hợp" : ""}</dt>
-                      <dd className="mt-1 font-bold text-slate-900">{(store.profile.methods?.length ? store.profile.methods : [profileMethod(store.profile)]).map((k) => ADMISSION_METHODS[k].short).join(", ")}{store.profile.combo ? ` · ${store.profile.combo}` : ""}</dd>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <dt className="text-xs font-bold text-slate-500">Khu vực mong muốn</dt>
-                      <dd className="mt-1 font-bold text-slate-900">{store.profile.regions.map((r) => REGION_LABELS[r]).join(", ") || "Mọi khu vực"}</dd>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4 sm:col-span-2">
-                      <dt className="text-xs font-bold text-slate-500">Ngân sách học phí</dt>
-                      <dd className="mt-1 font-bold text-slate-900">{budgetLabel(store.profile.budgetMax)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              ) : (
-                <div className="rounded-2xl border-2 border-dashed border-slate-200 px-5 py-8 text-center">
-                  <LuSlidersHorizontal className="mx-auto size-8 text-primary-600" aria-hidden />
-                  <p className="mt-3 font-bold text-slate-900">Chưa có hồ sơ điểm</p>
-                  <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">Nhập điểm và phương thức để nhận gợi ý An toàn, Vừa sức, Thử sức.</p>
-                </div>
-              )}
-            </div>
-          </Card>
+          <AcademicDossier
+            combos={combos}
+            subjects={subjects}
+            groups={groups}
+            majors={majors}
+            userProvince={user.province}
+          />
 
 
 

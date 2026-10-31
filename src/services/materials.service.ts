@@ -1,7 +1,28 @@
 import {repositories} from '@database/repositories';
 import {MaterialError} from '@/domain/materials';
-import {validateMaterial,validatePdf} from './material-validation';
+import {materialFilter,validateMaterial,validatePdf} from './material-validation';
+
+type SearchParams = Record<string,string|string[]|undefined>;
+
 export const materialsService={
+  async getListPage(searchParams:SearchParams,includeDrafts=false){
+    const filter=materialFilter(searchParams);
+    const [subjects,list]=await Promise.all([
+      repositories.materials.subjects(),
+      repositories.materials.list(filter,includeDrafts),
+    ]);
+    return {filter,subjects,list};
+  },
+  async getEditorPage(id:string){
+    const [item,subjects]=await Promise.all([
+      repositories.materials.byId(id),
+      repositories.materials.subjects(),
+    ]);
+    return {item,subjects};
+  },
+  async getSubjects(){return repositories.materials.subjects();},
+  async getPublicBySlug(slug:string){return repositories.materials.publicBySlug(slug);},
+  async download(id:string){return repositories.materials.download(id);},
   async save(actor:{id:string;admin:boolean},raw:Record<string,unknown>,upload?:{bytes:Uint8Array;name:string}){
     if(!actor.admin)throw new MaterialError('Bạn không có quyền quản lý tài liệu.',403);
     if(!raw.data||typeof raw.data!=='object'||Array.isArray(raw.data))throw new MaterialError('Dữ liệu không hợp lệ.');

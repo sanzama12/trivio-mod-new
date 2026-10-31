@@ -1,11 +1,11 @@
 import {cache} from 'react';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
-import {repositories} from '@database/repositories';
+import {materialsService} from '@/services/materials.service';
 import {MaterialMedia} from '@/components/materials/material-media';
 import {MATERIAL_KINDS} from '@/domain/materials';
 export const dynamic='force-dynamic';
-const getItem=cache((slug:string)=>repositories.materials.publicBySlug(slug));
+const getItem=cache((slug:string)=>materialsService.getPublicBySlug(slug));
 export async function generateMetadata({params}:{params:Promise<{slug:string}>}){const item=await getItem((await params).slug);return item?{title:item.title,description:item.description.slice(0,160)}:{title:'Không tìm thấy tài liệu',robots:{index:false}};}
 export default async function MaterialDetail({params}:{params:Promise<{slug:string}>}){
   const item=await getItem((await params).slug);if(!item)notFound();

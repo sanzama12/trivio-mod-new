@@ -23,7 +23,7 @@ const paths = [
     href: "/nganh",
   },
   {
-    img: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=70",
+    img: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=900&q=70",
     title: "Chưa có định hướng",
     desc: "Lọc theo tổ hợp và điểm của bạn để thu hẹp lựa chọn.",
     cta: "Khám phá ngành",

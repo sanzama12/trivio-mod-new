@@ -8,7 +8,9 @@ import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
 import { buttonClass } from "@/components/ui/button";
 import { FilterPanel } from "@/components/search/filter-panel";
 import { ProgramCard } from "@/components/program/program-card";
+import { OpenCompareButton } from "@/components/program/program-actions";
 import { SavedScoreHint } from "@/components/search/saved-score-hint";
+import { PersonalizedSuggestions } from "@/components/search/personalized-suggestions";
 
 export const metadata: Metadata = { title: "Tìm chương trình đào tạo" };
 
@@ -44,15 +46,18 @@ export default async function SearchPage({ searchParams }: Props) {
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 md:text-base">Lọc theo điểm, tổ hợp, học phí và khu vực để đi từ danh mục rộng đến lựa chọn có căn cứ.</p>
         </div>
       </section>
-      <p className="mt-4 max-w-2xl text-sm break-words text-slate-600">
-        Tìm thấy <strong className="text-slate-900">{result.total}</strong> chương trình phù hợp
-        {filters.score == null && (
-          <>
-            {" "}·{" "}
-            <SavedScoreHint filters={filters} />
-          </>
-        )}
-      </p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-2xl text-sm break-words text-slate-600">
+          Tìm thấy <strong className="text-slate-900">{result.total}</strong> chương trình phù hợp
+          {filters.score == null && (
+            <>
+              {" "}·{" "}
+              <SavedScoreHint filters={filters} />
+            </>
+          )}
+        </p>
+        <OpenCompareButton />
+      </div>
       <div className="mt-5 min-w-0">
         <form action="/chuong-trinh" role="search" className="mx-auto flex w-full min-w-0 max-w-lg flex-col gap-2 rounded-xl border-2 border-slate-900 bg-white p-2">
           {Object.entries({ ...filters, q: undefined, page: undefined }).map(([k, v]) =>
@@ -67,6 +72,7 @@ export default async function SearchPage({ searchParams }: Props) {
           </div>
           <button className={cn(buttonClass({ size: "sm" }), "w-full sm:w-auto")}>Tìm</button>
         </form>
+        <PersonalizedSuggestions query={filters.q} />
       </div>
 
       <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">

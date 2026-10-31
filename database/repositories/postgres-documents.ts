@@ -11,6 +11,7 @@ import type {
   AuditRepository,
   ChatAliasRepository,
   ChatLogRepository,
+  ChatHistoryRepository,
   CommentRepository,
   ImportBatchRepository,
   NotificationRepository,
@@ -39,6 +40,7 @@ import type {
   TimelineConfig,
   UserData,
 } from "@/domain/types";
+import type { ChatConversation } from "@/domain/chat";
 
 interface DocumentRow<T> {
   payload: T;
@@ -168,6 +170,19 @@ export const postgresChatLogRepository: ChatLogRepository = {
     return !!(await updateDocument<ChatLog>("chat-log", id, { helpful }, (value) => ({ status: value.kind })));
   },
   list: (limit = 200) => listDocuments<ChatLog>("chat-log", undefined, limit),
+};
+
+export const postgresChatHistoryRepository: ChatHistoryRepository = {
+  async findById(id, userId) {
+    const conversation = await getDocument<ChatConversation>("chat-history", id);
+    return conversation?.userId === userId ? conversation : null;
+  },
+  listByUser: (userId, limit = 20) => listDocuments<ChatConversation>("chat-history", { ownerId: userId }, limit),
+  put: (conversation) => putDocument("chat-history", conversation.id, conversation, { ownerId: conversation.userId }),
+  async delete(id, userId) {
+    const conversation = await getDocument<ChatConversation>("chat-history", id);
+    return conversation?.userId === userId ? deleteDocument("chat-history", id) : false;
+  },
 };
 
 export const postgresNotificationRepository: NotificationRepository = {

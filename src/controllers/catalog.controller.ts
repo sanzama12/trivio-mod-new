@@ -15,9 +15,17 @@ export class CatalogController {
     const region = (sp.get("region")?.trim() || undefined) as Region | undefined;
     const type = (sp.get("type")?.trim() || undefined) as SchoolType | undefined;
     const city = sp.get("city")?.trim().toLowerCase() || undefined;
+    const majorId = sp.get("majorId")?.trim() || undefined;
+    const majorQuery = sp.get("majorQuery")?.trim() || sp.get("major")?.trim() || undefined;
     const pageRaw = Number(sp.get("page"));
     const limitRaw = Number(sp.get("limit") || sp.get("pageSize"));
-    return NextResponse.json(await catalogService.searchSchools({ q, region, type, city, page: pageRaw, limit: limitRaw }));
+    return NextResponse.json(await catalogService.searchSchools({ q, region, type, city, majorId, majorQuery, page: pageRaw, limit: limitRaw }));
+  }
+
+  static async compareSchools(req: NextRequest): Promise<Response> {
+    const ids = (req.nextUrl.searchParams.get("ids") ?? "").split(",").filter(Boolean);
+    const items = await catalogService.compareSchools(ids);
+    return NextResponse.json({ items });
   }
 
   static async listMajors(req: NextRequest): Promise<Response> {

@@ -16,6 +16,7 @@ import {
   LuBotMessageSquare,
   LuChevronRight,
   LuExternalLink,
+  LuHistory,
   LuInfo,
   LuRotateCcw,
   LuSendHorizontal,
@@ -23,9 +24,10 @@ import {
   LuThumbsDown,
   LuThumbsUp,
   LuTriangleAlert,
+  LuTrash2,
   LuX,
 } from "react-icons/lu";
-import { MAX_QUESTION, safeChatHref, type ChatAnswer } from "@/domain/chat";
+import { MAX_QUESTION, safeChatHref, type ChatAnswer, type ChatConversationView, type ChatHistoryMessage } from "@/domain/chat";
 import { cn } from "@/lib/cn";
 import { useTrovio } from "@/stores/trovio-store";
 import { SaveButton, useCompareBarVisible } from "@/components/program/program-actions";
@@ -39,6 +41,7 @@ type Msg =
   | { id: string; role: "error"; text: string };
 
 const MAX_MESSAGES = 40;
+const GUEST_HISTORY_KEY = "trovio:chat-history:v1";
 const HIDDEN_ON: string[] = [];
 const STARTERS = ["Giới thiệu ngành Marketing", "Điểm chuẩn ngành Công nghệ thông tin", "Học phí ngành Kế toán", "Tôi nên học ngành gì?"];
 /** Sự kiện để nơi khác mở khung chat, VD: window.dispatchEvent(new CustomEvent("trovio:open-chat", { detail: "Câu hỏi" })). */
@@ -47,7 +50,27 @@ export const OPEN_CHAT_EVENT = "trovio:open-chat";
 let seq = 0;
 const nextId = () => `m${++seq}`;
 
+function readGuestHistory(): ChatConversationView[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(GUEST_HISTORY_KEY) ?? "[]") as unknown;
+    return Array.isArray(value) ? value.filter((item): item is ChatConversationView => !!item && typeof item === "object" && typeof (item as ChatConversationView).id === "string").slice(0, 20) : [];
+  } catch { return []; }
+}
+
+function writeGuestHistory(items: ChatConversationView[]) {
+  try { localStorage.setItem(GUEST_HISTORY_KEY, JSON.stringify(items.slice(0, 20))); } catch { /* storage unavailable */ }
+}
+
+function historyToMessages(conversation: ChatConversationView): Msg[] {
+  return conversation.messages.flatMap((message): Msg[] => {
+    if (message.role === "user" && typeof message.text === "string") return [{ id: message.id, role: "user", text: message.text }];
+    if (message.role === "assistant" && message.answer) return [{ id: message.id, role: "bot", answer: message.answer, logId: message.logId ?? null }];
+    return [];
+  });
+}
+
 export function ChatWidget() {
+  const { user } = useTrovio();
   const pathname = usePathname();
   const compareVisible = useCompareBarVisible();
   const [open, setOpen] = useState(false);
@@ -55,6 +78,10 @@ export function ChatWidget() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [ctx, setCtx] = useState<ChatAnswer["context"]>({});
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [history, setHistory] = useState<ChatConversationView[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -82,6 +109,19 @@ export function ChatWidget() {
 
   const push = (...m: Msg[]) => setMessages((prev) => [...prev, ...m].slice(-MAX_MESSAGES));
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    if (!user) {
+      setHistory(readGuestHistory());
+      setHistoryLoading(false);
+      return;
+    }
+    const response = await fetch("/api/chat", { cache: "no-store" }).catch(() => null);
+    const data = await response?.json().catch(() => null);
+    setHistory(response?.ok && Array.isArray(data?.items) ? data.items : []);
+    setHistoryLoading(false);
+  }, [user]);
+
   const send = useCallback(
     async (raw: string) => {
       const question = raw.replace(/\s+/g, " ").trim();
@@ -90,18 +130,37 @@ export function ChatWidget() {
         push({ id: nextId(), role: "error", text: `Câu hỏi tối đa ${MAX_QUESTION} ký tự.` });
         return;
       }
-      push({ id: nextId(), role: "user", text: question });
+      const userMessage: Msg = { id: nextId(), role: "user", text: question };
+      const requestedConversationId = conversationId ?? (user ? null : crypto.randomUUID());
+      if (requestedConversationId) setConversationId(requestedConversationId);
+      push(userMessage);
       setInput("");
       setBusy(true);
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ message: question, context: { ...ctx, page: pathname } }),
+          body: JSON.stringify({ message: question, context: { ...ctx, page: pathname }, conversationId: requestedConversationId }),
         });
-        const data = (await res.json().catch(() => null)) as { ok?: boolean; answer?: ChatAnswer; logId?: string; message?: string } | null;
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; answer?: ChatAnswer; logId?: string; conversationId?: string | null; message?: string } | null;
         if (res.ok && data?.ok && data.answer) {
-          push({ id: nextId(), role: "bot", answer: data.answer, logId: data.logId ?? null });
+          const botMessage: Msg = { id: nextId(), role: "bot", answer: data.answer, logId: data.logId ?? null };
+          push(botMessage);
+          const resolvedId = data.conversationId ?? requestedConversationId;
+          if (resolvedId) setConversationId(resolvedId);
+          if (!user && resolvedId) {
+            const now = new Date().toISOString();
+            const historyMessages: ChatHistoryMessage[] = [...messages, userMessage, botMessage].flatMap((message): ChatHistoryMessage[] =>
+              message.role === "user"
+                ? [{ id: message.id, role: "user", at: now, text: message.text }]
+                : message.role === "bot"
+                  ? [{ id: message.id, role: "assistant", at: now, answer: message.answer, logId: message.logId }]
+                  : [],
+            ).slice(-MAX_MESSAGES);
+            const existing = readGuestHistory();
+            const previous = existing.find((item) => item.id === resolvedId);
+            writeGuestHistory([{ id: resolvedId, title: previous?.title ?? question.slice(0, 80), createdAt: previous?.createdAt ?? now, updatedAt: now, messages: historyMessages }, ...existing.filter((item) => item.id !== resolvedId)]);
+          }
           track("chat_asked");
           setCtx(data.answer.context ?? {});
         } else {
@@ -113,7 +172,7 @@ export function ChatWidget() {
         setBusy(false);
       }
     },
-    [busy, ctx, pathname],
+    [busy, conversationId, ctx, messages, pathname, user],
   );
 
   // Cho phép nơi khác mở khung chat (kèm câu hỏi gợi ý).
@@ -136,7 +195,31 @@ export function ChatWidget() {
     setMessages([]);
     setCtx({});
     setInput("");
+    setConversationId(null);
+    setHistoryOpen(false);
     inputRef.current?.focus();
+  };
+
+  const openHistory = async () => {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next) await loadHistory();
+  };
+
+  const selectHistory = (conversation: ChatConversationView) => {
+    const restored = historyToMessages(conversation);
+    setConversationId(conversation.id);
+    setMessages(restored);
+    const lastAnswer = [...restored].reverse().find((message) => message.role === "bot");
+    setCtx(lastAnswer?.role === "bot" ? lastAnswer.answer.context : {});
+    setHistoryOpen(false);
+  };
+
+  const deleteHistory = async (id: string) => {
+    if (user) await fetch(`/api/chat?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+    else writeGuestHistory(readGuestHistory().filter((item) => item.id !== id));
+    if (conversationId === id) reset();
+    await loadHistory();
   };
 
   const feedback = async (id: string, logId: string | null, helpful: boolean) => {
@@ -206,6 +289,9 @@ export function ChatWidget() {
                 Trả lời từ dữ liệu Trovio, luôn kèm nguồn
               </p>
             </div>
+            <button type="button" onClick={() => void openHistory()} className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-white" aria-label="Xem lịch sử trò chuyện" title="Lịch sử trò chuyện">
+              <LuHistory className="size-4" />
+            </button>
             {messages.length > 0 && (
               <button type="button" onClick={reset} className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-white" aria-label="Bắt đầu cuộc trò chuyện mới" title="Cuộc trò chuyện mới">
                 <LuRotateCcw className="size-4" />
@@ -217,6 +303,20 @@ export function ChatWidget() {
           </header>
 
           <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite" aria-busy={busy}>
+            {historyOpen ? (
+              <div>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div><h3 className="font-bold text-slate-900">Lịch sử trò chuyện</h3><p className="text-xs text-slate-500">{user ? "Đồng bộ theo tài khoản" : "Lưu trên trình duyệt này"}</p></div>
+                  <button type="button" onClick={reset} className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold text-white">Cuộc trò chuyện mới</button>
+                </div>
+                {historyLoading ? <p className="py-8 text-center text-sm text-slate-500">Đang tải lịch sử…</p> : history.length ? <ul className="space-y-2">
+                  {history.map((conversation) => <li key={conversation.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
+                    <button type="button" onClick={() => selectHistory(conversation)} className="min-w-0 flex-1 rounded-lg px-2 py-1 text-left hover:bg-primary-50"><span className="block truncate text-sm font-semibold text-slate-900">{conversation.title}</span><span className="text-xs text-slate-500">{new Date(conversation.updatedAt).toLocaleString("vi-VN")} · {Math.ceil(conversation.messages.length / 2)} lượt hỏi</span></button>
+                    <button type="button" onClick={() => void deleteHistory(conversation.id)} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-danger-600 hover:bg-danger-50" aria-label={`Xóa hội thoại ${conversation.title}`}><LuTrash2 className="size-4" /></button>
+                  </li>)}
+                </ul> : <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center"><LuHistory className="mx-auto size-8 text-slate-400" /><p className="mt-2 text-sm font-semibold text-slate-700">Chưa có lịch sử trò chuyện</p></div>}
+              </div>
+            ) : <>
             <div className="rounded-xl border border-accent-200 bg-accent-50 p-3 text-xs leading-relaxed text-slate-700">
               <p className="flex gap-1.5">
                 <LuInfo className="mt-0.5 size-3.5 shrink-0 text-accent-700" aria-hidden />
@@ -267,9 +367,10 @@ export function ChatWidget() {
                 ))}
               </div>
             )}
+            </>}
           </div>
 
-          <form onSubmit={onSubmit} className="border-t border-slate-200 p-3">
+          {!historyOpen && <form onSubmit={onSubmit} className="border-t border-slate-200 p-3">
             <label htmlFor={`${panelId}-input`} className="sr-only">
               Câu hỏi của bạn
             </label>
@@ -300,7 +401,7 @@ export function ChatWidget() {
                 {input.length}/{MAX_QUESTION}
               </span>
             </p>
-          </form>
+          </form>}
         </section>
       )}
     </div>

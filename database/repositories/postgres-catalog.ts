@@ -139,6 +139,15 @@ async function findDiscoveryStats(): Promise<DiscoveryStats> {
         ) counts
       ) AS "programCountByMajor",
       (
+        SELECT COALESCE(jsonb_object_agg(counts.major_id, counts.school_count), '{}'::jsonb)
+        FROM (
+          SELECT p.major_id, COUNT(DISTINCT p.school_id)::int AS school_count
+          FROM trovio.public_programs p
+          WHERE NOT p.hidden
+          GROUP BY p.major_id
+        ) counts
+      ) AS "schoolCountByMajor",
+      (
         SELECT COALESCE(jsonb_object_agg(counts.group_id, counts.program_count), '{}'::jsonb)
         FROM (
           SELECT m.group_id, COUNT(*)::int AS program_count
@@ -163,6 +172,7 @@ async function findDiscoveryStats(): Promise<DiscoveryStats> {
   `).then((rows) => {
     const value = rows[0] ?? {
       programCountByMajor: {},
+      schoolCountByMajor: {},
       programCountByGroup: {},
       schoolCountByGroup: {},
       totalPrograms: 0,
@@ -188,6 +198,7 @@ async function findDiscoveryCatalog(): Promise<DiscoveryCatalog> {
     majors: Major[];
     schools: School[];
     programCountByMajor: Record<string, number>;
+    schoolCountByMajor: Record<string, number>;
     programCountByGroup: Record<string, number>;
     schoolCountByGroup: Record<string, number>;
     totalPrograms: number;
@@ -263,6 +274,15 @@ async function findDiscoveryCatalog(): Promise<DiscoveryCatalog> {
         ) counts
       ) AS "programCountByMajor",
       (
+        SELECT COALESCE(jsonb_object_agg(counts.major_id, counts.school_count), '{}'::jsonb)
+        FROM (
+          SELECT p.major_id, COUNT(DISTINCT p.school_id)::int AS school_count
+          FROM trovio.public_programs p
+          WHERE NOT p.hidden
+          GROUP BY p.major_id
+        ) counts
+      ) AS "schoolCountByMajor",
+      (
         SELECT COALESCE(jsonb_object_agg(counts.group_id, counts.program_count), '{}'::jsonb)
         FROM (
           SELECT m.group_id, COUNT(*)::int AS program_count
@@ -292,6 +312,7 @@ async function findDiscoveryCatalog(): Promise<DiscoveryCatalog> {
       schools: row?.schools ?? [],
       stats: {
         programCountByMajor: row?.programCountByMajor ?? {},
+        schoolCountByMajor: row?.schoolCountByMajor ?? {},
         programCountByGroup: row?.programCountByGroup ?? {},
         schoolCountByGroup: row?.schoolCountByGroup ?? {},
         totalPrograms: row?.totalPrograms ?? 0,

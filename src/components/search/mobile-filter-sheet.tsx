@@ -78,6 +78,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
           </button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-4">
+          {/* 1. Điểm xét tuyển */}
           <div>
             <label htmlFor="sheet-score" className="text-[15px] font-semibold text-slate-900">
               {method === "thpt" ? "Điểm thi tốt nghiệp THPT" : `Điểm ${ADMISSION_METHODS[method].short}`}
@@ -90,6 +91,28 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
               {invalid ? `Điểm phải từ 0 đến ${max}.` : method === "thpt" ? "Tổng điểm 3 môn theo tổ hợp xét tuyển" : ADMISSION_METHODS[method].label}
             </p>
           </div>
+
+          {/* 2. Khối / Tổ hợp xét tuyển */}
+          <fieldset>
+            <legend className="text-[15px] font-semibold text-slate-900">Khối / Tổ hợp xét tuyển</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {shown.map((c) => {
+                const on = !!draft.combos?.includes(c.code);
+                return (
+                  <button key={c.code} type="button" aria-pressed={on} className={chip(on)} onClick={() => applyDraft({ ...draft, combos: toggle(draft.combos, c.code) })}>
+                    {c.code} {on ? `(${c.subjects.map(short).join(", ")})` : ""}
+                  </button>
+                );
+              })}
+              {combos.length > 5 && (
+                <button type="button" className="px-2 text-sm font-semibold text-primary-600" onClick={() => setAllCombos((v) => !v)}>
+                  {allCombos ? "Thu gọn" : `+${combos.length - 5} tổ hợp`}
+                </button>
+              )}
+            </div>
+          </fieldset>
+
+          {/* 3. Danh mục / Nhóm ngành */}
           {groups.length > 0 && (
           <fieldset>
             <legend className="text-[15px] font-semibold text-slate-900">Danh mục / Nhóm ngành</legend>
@@ -114,36 +137,10 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
             </div>
           </fieldset>
           )}
+
+          {/* 4. Khu vực địa lý */}
           <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Khối / Tổ hợp xét tuyển</legend>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {shown.map((c) => {
-                const on = !!draft.combos?.includes(c.code);
-                return (
-                  <button key={c.code} type="button" aria-pressed={on} className={chip(on)} onClick={() => applyDraft({ ...draft, combos: toggle(draft.combos, c.code) })}>
-                    {c.code} {on ? `(${c.subjects.map(short).join(", ")})` : ""}
-                  </button>
-                );
-              })}
-              {combos.length > 5 && (
-                <button type="button" className="px-2 text-sm font-semibold text-primary-600" onClick={() => setAllCombos((v) => !v)}>
-                  {allCombos ? "Thu gọn" : `+${combos.length - 5} tổ hợp`}
-                </button>
-              )}
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Học phí tối đa / năm</legend>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((t) => (
-                <button key={t} type="button" aria-pressed={draft.tuition === t} className={chip(draft.tuition === t)} onClick={() => applyDraft({ ...draft, tuition: draft.tuition === t ? undefined : t })}>
-                  {SHORT_TUITION[t]}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Khu vực</legend>
+            <legend className="text-[15px] font-semibold text-slate-900">Khu vực địa lý</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {(Object.keys(REGION_LABELS) as Region[]).map((r) => {
                 const on = !!draft.regions?.includes(r);
@@ -153,6 +150,18 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
                   </button>
                 );
               })}
+            </div>
+          </fieldset>
+
+          {/* 5. Học phí tối đa / năm */}
+          <fieldset>
+            <legend className="text-[15px] font-semibold text-slate-900">Học phí tối đa / năm</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((t) => (
+                <button key={t} type="button" aria-pressed={draft.tuition === t} className={chip(draft.tuition === t)} onClick={() => applyDraft({ ...draft, tuition: draft.tuition === t ? undefined : t })}>
+                  {SHORT_TUITION[t]}
+                </button>
+              ))}
             </div>
           </fieldset>
           <fieldset>

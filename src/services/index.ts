@@ -15,6 +15,8 @@ export * from "./password.rules";
 export * from "./scoring.service";
 export { recommendationService, FOCUS_WEIGHTS } from "./recommendation.service";
 export type { Recommendation, RecommendInput, RecommendFocus } from "./recommendation.service";
+export { majorRecommendationService } from "./major-recommendation.service";
+export type { MajorRecommendation, MajorRecommendationInput } from "./major-recommendation.service";
 export { shareService, SHARE_DAYS, MAX_COMMENTS_PER_SHARE } from "./share.service";
 export type { SharedView } from "./share.service";
 export { timelineService } from "./timeline.service";

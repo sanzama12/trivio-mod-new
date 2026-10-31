@@ -9,13 +9,13 @@
  * - Đăng xuất / hết phiên: xoá bản sao dữ liệu tài khoản khỏi trình duyệt (giữ danh sách so sánh).
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Goal, StoredProfile, UserData, WishlistItem } from "@/domain/types";
+import type { Goal, RecommendationPreferences, StoredProfile, UserData, WishlistItem } from "@/domain/types";
 import { track } from "@/lib/track";
 import { useToast } from "@/components/ui/toast";
 
 export type { Goal, StoredProfile, WishlistItem } from "@/domain/types";
 
-export const MAX_COMPARE = 3;
+export const MAX_COMPARE = 4;
 const STORAGE_KEY = "trovio:v1";
 const INTENT_KEY = "trovio:intent";
 
@@ -41,13 +41,14 @@ interface State {
   reminders: string[];
   /** Mục tiêu đặt qua hội thoại. */
   goal: Goal | null;
+  preferences: RecommendationPreferences | null;
   /** Mini-test phong cách làm việc (tham khảo, không tính điểm). */
   /** Mã MBTI tự nhập (tham khảo, không tính điểm). */
   /** id tài khoản sở hữu dữ liệu đang lưu trên máy (null = dữ liệu của khách). */
   owner: string | null;
 }
 
-const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, reminders: [], goal: null, owner: null };
+const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, reminders: [], goal: null, preferences: null, owner: null };
 
 interface Store extends Omit<State, "owner"> {
   hydrated: boolean;
@@ -69,6 +70,9 @@ interface Store extends Omit<State, "owner"> {
   clearCompare: () => void;
   setProfile: (profile: StoredProfile | null) => void;
   setGoal: (goal: Goal | null) => void;
+  setRecommendationPreferences: (preferences: RecommendationPreferences) => void;
+  isInterestedMajor: (id: string) => boolean;
+  toggleInterestedMajor: (id: string) => boolean;
   resetAll: () => void;
   setPendingIntent: (intent: PendingIntent | null) => void;
 }
@@ -99,15 +103,16 @@ function load(): State {
       compare: Array.isArray(s.compare) ? s.compare : [],
       reminders: Array.isArray(s.reminders) ? s.reminders : [],
       goal: s.goal && typeof s.goal === "object" ? s.goal : null,
+      preferences: s.preferences && typeof s.preferences === "object" ? s.preferences : null,
     };
   } catch {
     return initialState;
   }
 }
 
-const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, reminders: s.reminders, goal: s.goal });
+const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, reminders: s.reminders, goal: s.goal, preferences: s.preferences });
 const hasGuestData = (s: State) =>
-  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || s.reminders.length > 0 || !!s.goal;
+  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || s.reminders.length > 0 || !!s.goal || !!s.preferences;
 
 function takeIntent(): PendingIntent | null {
   try {
@@ -178,7 +183,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       syncedFor.current = null;
       inflight.current = null;
       setSync("guest");
-      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, reminders: [], goal: null, owner: null }));
+      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, reminders: [], goal: null, preferences: null, owner: null }));
       return;
     }
     if (syncedFor.current === uid || inflight.current === uid) return;
@@ -204,6 +209,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
           profile: data.profile,
           reminders: data.reminders ?? [],
           goal: data.goal ?? null,
+          preferences: data.preferences ?? null,
           owner: uid,
         }));
         setSync("synced");
@@ -229,7 +235,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         .catch(() => setSync("error"));
     }, 600);
     return () => clearTimeout(t);
-  }, [uid, state.saved, state.wishlist, state.profile, state.reminders, state.goal, state.owner]);
+  }, [uid, state.saved, state.wishlist, state.profile, state.reminders, state.goal, state.preferences, state.owner]);
 
   useEffect(() => {
     const flush = () => {
@@ -249,6 +255,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       profile: state.profile,
       reminders: state.reminders,
       goal: state.goal,
+      preferences: state.preferences,
       hydrated,
       user,
       sync,
@@ -305,6 +312,23 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       clearCompare: () => update((s) => ({ ...s, compare: [] })),
       setProfile: (profile) => update((s) => ({ ...s, profile })),
       setGoal: (goal) => update((s) => ({ ...s, goal })),
+      setRecommendationPreferences: (preferences) => update((s) => ({ ...s, preferences })),
+      isInterestedMajor: (id) => state.preferences?.interestMajorIds.includes(id) ?? false,
+      toggleInterestedMajor: (id) => {
+        const current = state.preferences?.interestMajorIds ?? [];
+        const added = !current.includes(id);
+        update((s) => ({
+          ...s,
+          preferences: {
+            groupIds: s.preferences?.groupIds ?? s.profile?.groupIds ?? [],
+            strongSubjectIds: s.preferences?.strongSubjectIds ?? [],
+            useSavedBehavior: s.preferences?.useSavedBehavior ?? false,
+            interestMajorIds: added ? [id, ...current].slice(0, 20) : current.filter((item) => item !== id),
+            updatedAt: new Date().toISOString(),
+          },
+        }));
+        return added;
+      },
       resetAll: () => update(() => initialState),
       setPendingIntent: (intent) => {
         try {

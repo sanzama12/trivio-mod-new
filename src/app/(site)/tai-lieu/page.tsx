@@ -1,15 +1,13 @@
 import Link from 'next/link';
 import {LuBookOpen,LuFileText,LuImage,LuPlay} from 'react-icons/lu';
-import {repositories} from '@database/repositories';
-import {materialFilter} from '@/services/material-validation';
+import {materialsService} from '@/services/materials.service';
 import {MATERIAL_KINDS} from '@/domain/materials';
 import {MaterialPagination,materialUrl} from '@/components/materials/material-pagination';
 import {buttonClass} from '@/components/ui/button';
 export const dynamic='force-dynamic';
 export const metadata={title:'Tài liệu học tập theo môn',description:'Video, hình ảnh và tài liệu PDF học tập theo từng môn học.'};
 export default async function MaterialsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
-  const filter=materialFilter(await searchParams);
-  const [subjects,list]=await Promise.all([repositories.materials.subjects(),repositories.materials.list(filter)]);
+  const {filter,subjects,list}=await materialsService.getListPage(await searchParams);
   const subject=subjects.find(s=>s.id===filter.subject);
   return <div className="container-page py-8 sm:py-12">
     <header className="mb-7 rounded-3xl bg-primary-50 p-6 sm:p-10"><p className="flex items-center gap-2 text-sm font-bold text-primary-700"><LuBookOpen aria-hidden/> Góc học tập</p><h1 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">Tài liệu theo môn học</h1><p className="mt-3 max-w-2xl leading-7 text-slate-600">Chọn môn để xem video, hình ảnh hướng dẫn và tải tài liệu PDF về ôn tập.</p></header>

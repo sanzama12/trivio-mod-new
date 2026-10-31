@@ -12,10 +12,33 @@ import {
   REGION_LABELS,
   type RecommendFocus,
 } from "../services";
+import { majorRecommendationService } from "../services/major-recommendation.service";
 import { getCurrentUser } from "../lib/auth";
 import { jsonBody } from "../lib/http";
 
 export class RecommendationController {
+  static async getMajorRecommendations(req: Request): Promise<Response> {
+    const { body, error } = await jsonBody(req, 16 * 1024);
+    if (error) return error;
+    const source = body ?? {};
+    const ids = (value: unknown, max: number) =>
+      Array.isArray(value)
+        ? Array.from(new Set(value.filter((id): id is string => typeof id === "string" && /^[a-z0-9][a-z0-9-]{0,99}$/.test(id)))).slice(0, max)
+        : [];
+    const useSavedBehavior = source.useSavedBehavior === true;
+    const items = await majorRecommendationService.recommend(
+      {
+        groupIds: ids(source.groupIds, 12),
+        interestMajorIds: ids(source.interestMajorIds, 20),
+        strongSubjectIds: ids(source.strongSubjectIds, 12),
+        behaviorProgramIds: useSavedBehavior ? ids(source.behaviorProgramIds, 200) : [],
+        query: typeof source.query === "string" ? source.query.trim().slice(0, 100) : undefined,
+      },
+      typeof source.limit === "number" && Number.isInteger(source.limit) ? source.limit : 8,
+    );
+    return NextResponse.json({ items, usedSavedBehavior: useSavedBehavior });
+  }
+
   /**
    * Xử lý yêu cầu POST /api/recommendations
    */

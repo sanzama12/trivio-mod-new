@@ -17,10 +17,10 @@ Model không được import từ `src/controllers`, `src/views`, `src/component
 
 ## 2. Controller
 
-- `src/controllers`: xác thực HTTP, parse input, gọi một use-case và định dạng response.
-- `src/app/api/**/route.ts`: adapter Next.js mỏng, chỉ chuyển request/params cho controller.
+- `src/app/api/**/route.ts` là HTTP Controller theo convention của Next.js: xác thực HTTP, parse input, gọi một use-case và định dạng response.
+- `src/controllers` chứa handler được tách ra khi một controller dài, cần dùng chung hoặc cần kiểm thử độc lập. Route ngắn không cần thêm một lớp ủy quyền hình thức.
 
-Controller không chứa truy vấn SQL và không chứa quy tắc nghiệp vụ.
+Controller chỉ được gọi service. Controller không import repository, không chứa truy vấn SQL và không chứa quy tắc nghiệp vụ.
 
 ## 3. View
 
@@ -33,7 +33,7 @@ View không import repository hay `database/seeds`.
 ## Read-model và hiệu năng
 
 - View server chỉ gọi service; không import Repository trực tiếp.
-- Route Handler chỉ chuyển request/params cho Controller. Controller gọi service và không chứa SQL.
+- Route Handler là Controller hoặc ủy quyền cho một Controller đã tách. Cả hai chỉ gọi service và không chứa SQL.
 - Một màn hình có nhiều dữ liệu phải có một read-model trong service (`get…PageData`, `get…Options`) để View không tự ghép Repository.
 - Khi tổng hợp theo khoá, dùng `Map`/`Set` hoặc helper `src/lib/collections.ts`; không dùng `filter` lồng trong `map` trên danh sách lớn.
 - Danh sách override quản trị phải lấy theo lô (`listOverrideIds`) thay vì truy vấn từng bản ghi.
@@ -49,8 +49,8 @@ View không import repository hay `database/seeds`.
 ## Chiều phụ thuộc
 
 ```text
-app/routes -> controllers -> services -> repository interfaces
-                                      -> PostgreSQL adapters
+app/pages ---------------------------> services -> repositories -> PostgreSQL
+app/api routes -> [src/controllers] -> services -> repositories -> PostgreSQL
 views/client -> HTTP API contract
 ```
 

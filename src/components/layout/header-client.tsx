@@ -21,7 +21,7 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 import { Logo } from "./logo";
 
 const NAV = [
-  { href: "/chuong-trinh", label: "Tìm chương trình", match: ["/chuong-trinh", "/truong", "/diem-cua-toi"] },
+  { href: "/chuong-trinh", label: "Tìm trường", match: ["/chuong-trinh", "/truong", "/diem-cua-toi"] },
   { href: "/nganh", label: "Khám phá ngành", match: ["/nganh"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
   { href: "/moc-tuyen-sinh", label: "Mốc tuyển sinh", match: ["/moc-tuyen-sinh"] },
@@ -268,17 +268,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
         {open && (
           <nav id="menu-di-dong" aria-label="Menu di động" className="border-t border-slate-200 bg-white">
             <div className="container-page grid gap-1 py-2 sm:grid-cols-2">
-              {NAV.slice(0, 3).map((n) => (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  aria-current={isActive(n.match) ? "page" : undefined}
-                  className={cn("rounded-lg px-3 py-3 text-[15px]", isActive(n.match) ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50")}
-                >
-                  {n.label}
-                </Link>
-              ))}
-              {[...NAV.slice(3), { href: "/da-luu", label: `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
+              {[...NAV, { href: "/da-luu", label: `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}

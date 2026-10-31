@@ -8,3 +8,10 @@ export async function POST(req: Request) {
   return ChatbotController.handleChat(req);
 }
 
+export async function GET() {
+  return ChatbotController.history();
+}
+
+export async function DELETE(req: Request) {
+  return ChatbotController.deleteHistory(req);
+}

@@ -79,11 +79,13 @@ export default async function MajorPage({ params }: Props) {
             <article key={program.id} className="flex flex-col gap-4 border-2 border-slate-900 bg-white p-4 md:flex-row md:items-center">
               <SchoolCode code={school.code} />
               <div className="min-w-0 flex-1">
-                <Link href={`/chuong-trinh/${program.slug}`} className="font-bold break-words text-slate-900 hover:underline">
+                <Link href={`/truong/${school.slug}`} className="font-bold break-words text-slate-900 hover:text-primary-700 hover:underline">
                   {school.name}
                 </Link>
                 <p className="text-[13px] text-slate-600 break-words">
-                  {program.name} · {school.city}
+                  <Link href={`/chuong-trinh/${program.slug}`} className="hover:underline">
+                    {program.name}
+                  </Link> · {school.city}
                 </p>
               </div>
               <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-1 text-[13px]">
@@ -97,8 +99,11 @@ export default async function MajorPage({ params }: Props) {
               </div>
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center md:w-auto">
                 <SaveButton id={program.id} />
+                <Link href={`/truong/${school.slug}`} className={buttonClass({ variant: "outline", size: "sm" })}>
+                  Xem chi tiết trường
+                </Link>
                 <Link href={`/chuong-trinh/${program.slug}`} className={buttonClass({ size: "sm" })}>
-                  Xem chi tiết chương trình
+                  Xem chương trình
                 </Link>
               </div>
             </article>

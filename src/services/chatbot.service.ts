@@ -11,7 +11,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { ChatAlias, Major, Program, PublicUser, RiasecResult, School } from "../domain/types";
-import { MAX_QUESTION, type ChatAnswer, type ChatItem, type ChatKind, type ChatSource } from "../domain/chat";
+import { MAX_QUESTION, type ChatAnswer, type ChatConversationView, type ChatHistoryMessage, type ChatItem, type ChatKind, type ChatSource } from "../domain/chat";
 import { RIASEC_INFO } from "../domain/riasec";
 import { repositories } from "@database/repositories";
 import { hasTuitionData } from "../lib/format";
@@ -20,6 +20,8 @@ import { ADMISSION_METHODS, cutoffFor, formatMethodScore } from "./scoring.servi
 import { matchMajor, riasecService, sanitizeRiasec } from "./riasec.service";
 import { timelineService } from "./timeline.service";
 import { polishWithLlm } from "./chatbot-llm";
+import { majorRecommendationService } from "./major-recommendation.service";
+import { userDataService } from "./user-data.service";
 
 export { MAX_QUESTION } from "../domain/chat";
 export type { ChatAnswer, ChatItem, ChatKind, ChatSource } from "../domain/chat";
@@ -208,7 +210,7 @@ function methodAsked(n: string) {
   return "thpt" as const;
 }
 
-export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}): Promise<ChatAnswer> {
+export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}, userId?: string): Promise<ChatAnswer> {
   const q = question.slice(0, MAX_QUESTION);
   const n = norm(q);
   const k = await knowledge();
@@ -332,6 +334,28 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   }
 
   if (has(n, I.recommend) && !explicitMajor) {
+    if (userId) {
+      const data = await userDataService.get(userId);
+      const preferences = data.preferences;
+      const strongSubjectIds = preferences?.strongSubjectIds.length
+        ? preferences.strongSubjectIds
+        : Object.entries(data.profile?.scores ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id);
+      const recommendations = await majorRecommendationService.recommend({
+        groupIds: preferences?.groupIds.length ? preferences.groupIds : (data.profile?.groupIds ?? []),
+        interestMajorIds: preferences?.interestMajorIds.length ? preferences.interestMajorIds : (data.profile?.interestMajorIds ?? []),
+        strongSubjectIds,
+        behaviorProgramIds: preferences?.useSavedBehavior ? Array.from(new Set([...data.saved, ...data.wishlist.map((item) => item.id)])) : [],
+      }, 5);
+      if (recommendations.length) {
+        return base("recommend", "answer", "Dựa trên lĩnh vực, ngành quan tâm và các môn có điểm cao trong hồ sơ của bạn, Trovio gợi ý các ngành sau:", {
+          context: ctx,
+          items: recommendations.map((item) => ({ title: item.major.name, meta: `${item.score}% phù hợp · ${item.reasons.join(" · ")}`, href: `/nganh/${item.major.slug}` })),
+          sources: [{ label: "Cập nhật hồ sơ điểm", href: "/diem-cua-toi" }, { label: "Tìm trường theo ngành", href: "/chuong-trinh" }],
+          note: "Kết quả dùng để định hướng và không thay thế tư vấn chuyên môn hoặc quyết định của bạn.",
+          suggestions: recommendations.slice(0, 2).map((item) => `Trường nào đào tạo ngành ${item.major.name}?`),
+        });
+      }
+    }
     return base(
       "recommend",
       "answer",
@@ -738,18 +762,46 @@ export const chatbotService = {
     return true;
   },
 
-  async ask(question: unknown, ctx: ChatContextIn = {}): Promise<{ ok: true; answer: ChatAnswer; logId: string } | { ok: false; message: string }> {
+  async ask(question: unknown, ctx: ChatContextIn = {}, history?: { userId: string; conversationId?: string | null }): Promise<{ ok: true; answer: ChatAnswer; logId: string; conversationId: string | null } | { ok: false; message: string }> {
     const q = typeof question === "string" ? question.replace(/[\u0000-\u001F\u007F]/g, " ").trim() : "";
     if (q.length < 2) return { ok: false, message: "Bạn hãy nhập câu hỏi nhé." };
     if (q.length > MAX_QUESTION) return { ok: false, message: `Câu hỏi tối đa ${MAX_QUESTION} ký tự.` };
-    let answer = await answerQuestion(q, ctx);
+    let answer = await answerQuestion(q, ctx, history?.userId);
     if (answer.kind === "answer") {
       const polished = await polishWithLlm(q, answer).catch(() => null);
       if (polished) answer = { ...answer, text: polished, polished: true };
     }
     const logId = randomUUID();
     await repositories.chatLogs.add({ id: logId, at: new Date().toISOString(), question: maskQuestion(q), intent: answer.intent, kind: answer.kind, helpful: null });
-    return { ok: true, answer, logId };
+    let conversationId: string | null = null;
+    if (history?.userId) {
+      const now = new Date().toISOString();
+      const requestedId = typeof history.conversationId === "string" && /^[a-f0-9-]{36}$/i.test(history.conversationId) ? history.conversationId : null;
+      const current = requestedId ? await repositories.chatHistory.findById(requestedId, history.userId) : null;
+      conversationId = current?.id ?? randomUUID();
+      const messages: ChatHistoryMessage[] = [
+        ...(current?.messages ?? []),
+        { id: randomUUID(), role: "user" as const, at: now, text: q },
+        { id: randomUUID(), role: "assistant" as const, at: now, answer, logId },
+      ].slice(-40);
+      await repositories.chatHistory.put({
+        id: conversationId,
+        userId: history.userId,
+        title: current?.title ?? q.slice(0, 80),
+        createdAt: current?.createdAt ?? now,
+        updatedAt: now,
+        messages,
+      });
+    }
+    return { ok: true, answer, logId, conversationId };
+  },
+
+  async history(userId: string, limit = 20): Promise<ChatConversationView[]> {
+    return (await repositories.chatHistory.listByUser(userId, Math.min(30, Math.max(1, limit)))).map(({ userId: _owner, ...conversation }) => conversation);
+  },
+
+  deleteHistory(userId: string, conversationId: string) {
+    return repositories.chatHistory.delete(conversationId, userId);
   },
 
   feedback(logId: string, helpful: boolean) {

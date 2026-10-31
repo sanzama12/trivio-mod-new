@@ -9,3 +9,4 @@ export * from "../domain/chat";
 export * from "../domain/provinces";
 export * from "../domain/audit-labels";
 export * from "../domain/sus";
+export * from "./dtos";

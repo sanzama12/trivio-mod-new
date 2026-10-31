@@ -254,6 +254,15 @@ export type PublicUser = Omit<User, "passwordHash" | "googleId" | "failedAttempt
   admin: boolean;
 };
 
+export type AcademicPerformance = "xuat-sac" | "gioi" | "kha" | "trung-binh";
+
+export const ACADEMIC_PERFORMANCE_LABELS: Record<AcademicPerformance, { label: string; desc: string }> = {
+  "xuat-sac": { label: "Xuất sắc", desc: "Điểm trung bình ≥ 9.0" },
+  gioi: { label: "Giỏi", desc: "Điểm trung bình 8.0 – 8.9" },
+  kha: { label: "Khá", desc: "Điểm trung bình 6.5 – 7.9" },
+  "trung-binh": { label: "Trung bình", desc: "Điểm trung bình 5.0 – 6.4" },
+};
+
 /** Hồ sơ điểm của học sinh (S07). */
 export interface ScoreProfile {
   /** Phương thức chính; thiếu = "thpt" (hồ sơ tạo trước khi có tính năng này). */
@@ -272,6 +281,10 @@ export interface ScoreProfile {
   methods?: AdmissionMethodKey[];
   /** Ngành cụ thể đang quan tâm (ngoài nhóm ngành). */
   interestMajorIds?: string[];
+  /** Mức học lực tự đánh giá của học sinh. */
+  academicPerformance?: AcademicPerformance | null;
+  /** Điểm xét tuyển ước tính/dự kiến (thang 30). */
+  estimatedScore?: number | null;
 }
 
 export interface AdmissionScore {
@@ -331,6 +344,26 @@ export interface StoredQuiz {
   savedToProfile: boolean;
 }
 
+/** Hồ sơ đầu vào cho luồng gợi ý ngành; tách khỏi hồ sơ điểm xét tuyển. */
+export interface RecommendationPreferences {
+  groupIds: string[];
+  interestMajorIds: string[];
+  strongSubjectIds: string[];
+  /** Chỉ dùng các chương trình người học chủ động lưu/nguyện vọng khi đã bật. */
+  useSavedBehavior: boolean;
+  /** Mức học lực tự đánh giá của học sinh. */
+  academicPerformance?: AcademicPerformance | null;
+  /** Điểm xét tuyển ước tính/dự kiến (thang 30). */
+  estimatedScore?: number | null;
+  /** Tổ hợp xét tuyển ước tính/dự kiến (VD: A00, D01...). */
+  estimatedCombo?: string | null;
+  /** Địa điểm mong muốn học tập (miền Bắc, Trung, Nam). */
+  targetRegions?: Region[];
+  /** Ngân sách học phí mong muốn tối đa (triệu/năm). */
+  budgetMax?: number | null;
+  updatedAt: string;
+}
+
 /** Dữ liệu cá nhân được đồng bộ theo tài khoản (đa thiết bị). */
 export interface UserData {
   saved: string[];
@@ -340,6 +373,8 @@ export interface UserData {
   reminders: string[];
   /** Mục tiêu đặt qua hội thoại (/muc-tieu); thiếu = chưa đặt. */
   goal?: Goal | null;
+  /** Sở thích và môn thế mạnh do học sinh chủ động cung cấp cho bộ gợi ý ngành. */
+  preferences?: RecommendationPreferences | null;
   /** Mini-test phong cách làm việc; thiếu = chưa làm. */
   /** Mã MBTI tự nhập; thiếu = chưa nhập. */
   updatedAt: string;
