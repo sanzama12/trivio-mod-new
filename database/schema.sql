@@ -775,4 +775,37 @@ COMMENT ON TABLE recommend_weights IS 'Trọng số các tiêu chí gợi ý ch�
 COMMENT ON TABLE audit_logs IS 'Nhật ký mọi thay đổi dữ liệu của quản trị viên / kiểm duyệt viên / cổng trường.';
 COMMENT ON TABLE analytics_events IS 'Phễu hành vi ẩn danh (chỉ gửi sau khi đồng ý cookie), xoá sau 180 ngày.';
 
+-- =====================================================================================================
+-- 14. ỦNG HỘ & DOANH THU (Donations / VNPay Gateway)
+-- =====================================================================================================
+CREATE TABLE donations (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  donor_name          TEXT NOT NULL,
+  donor_email         TEXT,
+  amount              NUMERIC(12, 2) NOT NULL CHECK (amount >= 5000),
+  message             TEXT,
+  order_info          TEXT NOT NULL,
+  vnp_txn_ref         TEXT NOT NULL UNIQUE,
+  vnp_transaction_no  TEXT,
+  vnp_bank_code       TEXT,
+  vnp_card_type       TEXT,
+  vnp_pay_date        TIMESTAMP WITH TIME ZONE,
+  vnp_response_code   TEXT,
+  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
+  ip_address          TEXT,
+  created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  paid_at             TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX idx_donations_status ON donations(status);
+CREATE INDEX idx_donations_vnp_txn_ref ON donations(vnp_txn_ref);
+CREATE INDEX idx_donations_created_at ON donations(created_at DESC);
+
+CREATE TRIGGER trg_donations_touch
+  BEFORE UPDATE ON donations
+  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+COMMENT ON TABLE donations IS 'Giao dịch ủng hộ dự án qua cổng thanh toán VNPay.';
+
 COMMIT;

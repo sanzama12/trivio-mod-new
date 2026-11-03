@@ -16,7 +16,8 @@ export type AdminSection =
   | "news"
   | "materials"
   | "chatbot"
-  | "stats";
+  | "stats"
+  | "donations";
 
 /** Số việc đang chờ xử lý hiển thị trên thanh bên (gọi ở server). */
 export async function adminBadges(): Promise<Partial<Record<AdminSection, number>>> {

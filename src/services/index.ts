@@ -22,3 +22,6 @@ export type { SharedView } from "./share.service";
 export { timelineService } from "./timeline.service";
 export { adminService, validateProgramEdit } from "./admin.service";
 export type { ProgramEditInput } from "./admin.service";
+export { donationService } from "./donation.service";
+export type { CreateDonationInput, CreateDonationResult } from "./donation.service";
+export { buildVnpayPaymentUrl, verifyVnpayCallback } from "./vnpay.service";

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LuCircleCheck, LuLandmark, LuTriangleAlert } from "react-icons/lu";
+import { LuCircleCheck, LuHandHeart, LuLandmark, LuTriangleAlert, LuWallet } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { dataOpsService } from "@/services/data-ops.service";
+import { donationService } from "@/services/donation.service";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody, AdminStat, Panel, StatGrid, ago } from "@/components/admin/ui";
 import { DataIssues } from "@/components/admin/data-issues";
@@ -16,11 +17,18 @@ const DOT: Record<string, string> = { import: "bg-success-500", program: "bg-pri
 export default async function AdminOverviewPage() {
   const user = await adminPage("/quan-tri");
   if (!user.admin) redirect("/quan-tri/hoi-dap");
-  const data = await dataOpsService.overview();
+  const [data, donationStats] = await Promise.all([
+    dataOpsService.overview(),
+    donationService.getAdminStats(),
+  ]);
   const { stats, progress } = data;
   const total = progress.verified + progress.pending + progress.missing || 1;
   const pct = (n: number) => Math.round((n / total) * 100);
   const now = Date.now();
+
+  const formatVnd = (num: number) => {
+    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(num);
+  };
 
   return (
     <>
@@ -30,7 +38,14 @@ export default async function AdminOverviewPage() {
           <AdminStat label="Tổng trường" value={stats.schools.toLocaleString("vi-VN")} hint={<Link href="/quan-tri/truong" className="font-semibold hover:underline">Quản lý trường ›</Link>} hintTone="success" Icon={LuLandmark} valueTone="primary" />
           <AdminStat label="Tổng chương trình" value={stats.programs.toLocaleString("vi-VN")} hint={`${stats.verifiedPct}% đã xác minh`} Icon={LuCircleCheck} tone="success" valueTone="primary" />
           <AdminStat label="Chờ kiểm duyệt" value={stats.pending.toLocaleString("vi-VN")} hint="Chương trình chưa đối chiếu nguồn trong 12 tháng" Icon={LuTriangleAlert} tone="accent" valueTone="accent" />
-          <AdminStat label="Thiếu nguồn" value={stats.missingSource.toLocaleString("vi-VN")} hint="Bản ghi chưa có nguồn chính thức" Icon={LuTriangleAlert} tone="danger" valueTone="danger" />
+          <AdminStat
+            label="Doanh thu ủng hộ VNPay"
+            value={formatVnd(donationStats.totalRevenue)}
+            hint={<Link href="/quan-tri/doanh-thu" className="font-semibold hover:underline">{donationStats.successCount} lượt ủng hộ thành công ›</Link>}
+            Icon={LuHandHeart}
+            tone="success"
+            valueTone="primary"
+          />
         </StatGrid>
 
         <Panel className="p-5 sm:p-6" aria-labelledby="issues-h">
@@ -61,21 +76,13 @@ export default async function AdminOverviewPage() {
                 ) : null,
               )}
             </div>
-            <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-slate-600">
-              <li className="flex items-center gap-2">
-                <span className="size-2.5 rounded-full bg-success-500" aria-hidden /> Đã xác minh · {progress.verified} ({pct(progress.verified)}%)
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="size-2.5 rounded-full bg-accent-500" aria-hidden /> Chờ xác minh · {progress.pending} ({pct(progress.pending)}%)
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="size-2.5 rounded-full bg-danger-500" aria-hidden /> Thiếu dữ liệu · {progress.missing} ({pct(progress.missing)}%)
-              </li>
-            </ul>
-            <p className="mt-4 text-[13px] text-slate-500">
-              “Đã xác minh” = quản trị viên đối chiếu nguồn (Điểm &amp; Học phí → Xác minh hàng loạt) hoặc trường xác nhận trên Cổng trường, còn hiệu lực 12 tháng.
-            </p>
+            <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-600">
+              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-success-500" /> Đã xác minh: {progress.verified}</span>
+              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-accent-500" /> Chờ xác minh: {progress.pending}</span>
+              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-danger-500" /> Thiếu dữ liệu: {progress.missing}</span>
+            </div>
           </Panel>
+
           <Panel className="p-5 sm:p-6" aria-labelledby="act-h">
             <h2 id="act-h" className="text-lg font-bold text-slate-900">
               Hoạt động gần đây

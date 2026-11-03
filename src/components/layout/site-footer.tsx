@@ -9,6 +9,7 @@ const cols = [
       { label: "Giới thiệu chung", href: "/tro-giup" },
       { label: "Cách Trovio gợi ý", href: "/cach-goi-y" },
       { label: "Mốc tuyển sinh & nhắc hạn", href: "/moc-tuyen-sinh" },
+      { label: "Ủng hộ dự án (VNPay)", href: "/ung-ho" },
       { label: "Trợ giúp & Liên hệ", href: "/tro-giup" },
     ],
   },
@@ -38,6 +39,17 @@ export function SiteFooter() {
           <p className="mt-4 max-w-xs text-sm leading-relaxed">
             Hệ thống thông tin tuyển sinh và định hướng nghề nghiệp thông minh, minh bạch và hoàn toàn miễn phí cho học sinh Việt Nam.
           </p>
+          <div className="mt-6 flex gap-3 text-slate-400">
+            <a href="https://facebook.com" aria-label="Facebook" className="hover:text-white">
+              <LuFacebook className="size-5" />
+            </a>
+            <a href="https://youtube.com" aria-label="YouTube" className="hover:text-white">
+              <LuYoutube className="size-5" />
+            </a>
+            <a href="https://linkedin.com" aria-label="LinkedIn" className="hover:text-white">
+              <LuLinkedin className="size-5" />
+            </a>
+          </div>
         </div>
         {cols.map((c) => (
           <div key={c.title}>
@@ -54,40 +66,27 @@ export function SiteFooter() {
           </div>
         ))}
         <div>
-          <h3 className="mb-4 text-sm font-bold text-white">Liên hệ hỗ trợ</h3>
+          <h2 className="mb-4 text-sm font-bold text-white">Liên hệ</h2>
           <ul className="space-y-3 text-sm">
             <li className="flex items-center gap-2">
-              <LuMail className="size-4 shrink-0" aria-hidden />
-              <a href="mailto:support@trovio.vn" className="hover:text-white">
-                support@trovio.vn
-              </a>
+              <LuMail className="size-4 shrink-0 text-slate-500" />
+              <span>hotro@trovio.vn</span>
             </li>
             <li className="flex items-center gap-2">
-              <LuPhone className="size-4 shrink-0" aria-hidden /> 1900 8198 (8:00 – 18:00)
+              <LuPhone className="size-4 shrink-0 text-slate-500" />
+              <span>1900 6868 (8:00 - 17:30)</span>
             </li>
-            <li className="flex gap-2 text-[13px] leading-relaxed">
-              <LuMapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
-              Tầng 5, Tòa nhà Innovation, Công viên phần mềm Quang Trung, Quận 12, TP. Hồ Chí Minh
+            <li className="flex items-start gap-2">
+              <LuMapPin className="mt-0.5 size-4 shrink-0 text-slate-500" />
+              <span>Hà Nội & TP. Hồ Chí Minh</span>
             </li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-slate-800">
-        <div className="container-page flex flex-col gap-4 py-6 text-[13px] md:flex-row md:items-center md:justify-between">
-          <p>
-            © 2026 Trovio. Công cụ hỗ trợ ra quyết định; hãy đối chiếu đề án tuyển sinh và thông báo chính thức của trường trước khi đăng ký.
-          </p>
-          <div className="flex items-center gap-2">
-            <a href="https://facebook.com" aria-label="Facebook" className="-m-2 flex size-10 items-center justify-center rounded-lg hover:text-white">
-              <LuFacebook className="size-5" aria-hidden />
-            </a>
-            <a href="https://youtube.com" aria-label="YouTube" className="-m-2 flex size-10 items-center justify-center rounded-lg hover:text-white">
-              <LuYoutube className="size-5" aria-hidden />
-            </a>
-            <a href="https://linkedin.com" aria-label="LinkedIn" className="-m-2 flex size-10 items-center justify-center rounded-lg hover:text-white">
-              <LuLinkedin className="size-5" aria-hidden />
-            </a>
-          </div>
+      <div className="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+        <div className="container-page flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <p>© {new Date().getFullYear()} Trovio. Nền tảng dữ liệu tuyển sinh mở.</p>
+          <p>Dữ liệu chỉ mang tính chất tham khảo · Luôn đối chiếu đề án chính thức của trường.</p>
         </div>
       </div>
     </footer>

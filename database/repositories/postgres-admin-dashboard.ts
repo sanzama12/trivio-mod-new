@@ -62,14 +62,20 @@ export const postgresAdminDashboardRepository = {
     return { programs, schoolCount: Number(rows[0]?.schoolCount ?? 0) };
   },
   async badges() {
-    const [row] = await query<{ qa: string | number; overview: string | number; users: string | number }>(`
+    const [row] = await query<{ qa: string | number; overview: string | number; users: string | number; donations: string | number }>(`
       SELECT
         (SELECT COALESCE(sum(CASE WHEN payload->>'status' = 'pending' THEN 1 ELSE 0 END
           + COALESCE((SELECT count(*) FROM jsonb_array_elements(COALESCE(payload->'answers', '[]'::jsonb)) a WHERE a->>'status' = 'pending'), 0)), 0)
           FROM trovio.app_documents WHERE collection = 'qa-question') AS qa,
+        (SELECT COUNT(*)::int FROM trovio.donations WHERE status = 'success' AND paid_at > now() - INTERVAL '24 hours') AS donations,
         0 AS overview,
         0 AS users
     `);
-    return { qa: Number(row?.qa ?? 0), overview: Number(row?.overview ?? 0), users: Number(row?.users ?? 0) };
+    return {
+      qa: Number(row?.qa ?? 0),
+      overview: Number(row?.overview ?? 0),
+      users: Number(row?.users ?? 0),
+      donations: Number(row?.donations ?? 0),
+    };
   },
 };

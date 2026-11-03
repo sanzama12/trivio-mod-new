@@ -30,8 +30,10 @@ import { postgresAdminDashboardRepository } from "./postgres-admin-dashboard";
 import { postgresProgramAdminRepository } from "./postgres-program-admin";
 import { postgresNewsRepository } from "./postgres-news";
 import { postgresMaterialsRepository } from "./postgres-materials";
+import { postgresDonationsRepository } from "./postgres-donations";
 
 export const repositories = {
+  donations: postgresDonationsRepository,
   materials: postgresMaterialsRepository,
   news: postgresNewsRepository,
   adminDashboard: postgresAdminDashboardRepository,
@@ -78,3 +80,4 @@ export type {
   UserDataRepository,
   UserRepository,
 } from "./types";
+export type { DonationRecord, DonationStats } from "./postgres-donations";

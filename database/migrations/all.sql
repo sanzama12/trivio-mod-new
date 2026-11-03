@@ -1087,3 +1087,38 @@ ALTER TABLE users
 
 COMMIT;
 
+-- @migration 20261031_donations_vnpay.sql
+BEGIN;
+SET search_path TO trovio, public;
+
+CREATE TABLE IF NOT EXISTS donations (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  donor_name          TEXT NOT NULL,
+  donor_email         TEXT,
+  amount              NUMERIC(12, 2) NOT NULL CHECK (amount >= 5000),
+  message             TEXT,
+  order_info          TEXT NOT NULL,
+  vnp_txn_ref         TEXT NOT NULL UNIQUE,
+  vnp_transaction_no  TEXT,
+  vnp_bank_code       TEXT,
+  vnp_card_type       TEXT,
+  vnp_pay_date        TIMESTAMP WITH TIME ZONE,
+  vnp_response_code   TEXT,
+  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
+  ip_address          TEXT,
+  created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  paid_at             TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_donations_status ON donations(status);
+CREATE INDEX IF NOT EXISTS idx_donations_vnp_txn_ref ON donations(vnp_txn_ref);
+CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at DESC);
+
+DROP TRIGGER IF EXISTS trg_donations_touch ON donations;
+CREATE TRIGGER trg_donations_touch
+  BEFORE UPDATE ON donations
+  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+COMMIT;
+
