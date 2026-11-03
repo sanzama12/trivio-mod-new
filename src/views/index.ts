@@ -38,7 +38,6 @@ export * from "../components/search/saved-score-hint";
 
 // --- 5. Recommendation & Score Views ---
 export * from "../components/score/score-wizard";
-export * from "../components/recommend/why-drawer";
 
 // --- 6. Wishlist & Planning Views ---
 export * from "../components/wishlist/strategy-panel";

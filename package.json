@@ -26,7 +26,8 @@
     "db:verify:news": "node --conditions=react-server --import tsx database/scripts/verify-news.ts",
     "db:smoke:news": "node --import tsx database/scripts/smoke-news-http.ts",
     "db:verify:materials": "node --conditions=react-server --import tsx database/scripts/verify-materials.ts",
-    "db:smoke:materials": "node --import tsx database/scripts/smoke-materials-http.ts"
+    "db:smoke:materials": "node --import tsx database/scripts/smoke-materials-http.ts",
+    "ship": "tsx scripts/ship.ts"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",
