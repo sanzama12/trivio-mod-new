@@ -24,6 +24,22 @@ export class DonationValidationError extends Error {
   }
 }
 
+// In-memory cache để loại bỏ query chậm trên trang chủ và API public
+let cachedStats: DonationStats | null = null;
+let statsCachedAt = 0;
+const STATS_CACHE_TTL_MS = 60 * 1000; // 60s cache TTL
+
+let cachedRecentDonors: Array<Pick<DonationRecord, "id" | "donorName" | "amount" | "message" | "paidAt">> | null = null;
+let recentDonorsCachedAt = 0;
+const RECENT_DONORS_CACHE_TTL_MS = 30 * 1000; // 30s cache TTL
+
+export function invalidateDonationCache(): void {
+  cachedStats = null;
+  statsCachedAt = 0;
+  cachedRecentDonors = null;
+  recentDonorsCachedAt = 0;
+}
+
 export const donationService = {
   /**
    * Khởi tạo giao dịch ủng hộ và tạo link thanh toán VNPay
@@ -131,6 +147,9 @@ export const donationService = {
         responseCode: verified.responseCode,
       });
 
+      // Xóa cache thống kê & danh sách để cập nhật doanh thu ngay lập tức
+      invalidateDonationCache();
+
       return {
         success: verified.isSuccess,
         message: verified.isSuccess
@@ -186,14 +205,24 @@ export const donationService = {
       responseCode: verified.responseCode,
     });
 
+    // Cập nhật doanh thu ngay tức thì
+    invalidateDonationCache();
+
     return { RspCode: "00", Message: "Confirm Success" };
   },
 
   /**
-   * Thống kê tổng hợp doanh thu và số liệu ủng hộ cho quản trị viên
+   * Thống kê tổng hợp doanh thu và số liệu ủng hộ cho quản trị viên (có RAM cache 60s)
    */
-  async getAdminStats(): Promise<DonationStats> {
-    return repositories.donations.getStats();
+  async getAdminStats(forceRefresh = false): Promise<DonationStats> {
+    const now = Date.now();
+    if (!forceRefresh && cachedStats && now - statsCachedAt < STATS_CACHE_TTL_MS) {
+      return cachedStats;
+    }
+    const stats = await repositories.donations.getStats();
+    cachedStats = stats;
+    statsCachedAt = now;
+    return stats;
   },
 
   /**
@@ -209,10 +238,24 @@ export const donationService = {
   },
 
   /**
-   * Danh sách người ủng hộ gần đây công khai (để vinh danh trên trang chủ/trang ủng hộ)
+   * Danh sách người ủng hộ gần đây công khai (có RAM cache 30s)
    */
-  async getRecentDonors(limit = 8) {
-    return repositories.donations.getRecentSuccess(limit);
+  async getRecentDonors(limit = 8, forceRefresh = false) {
+    const now = Date.now();
+    if (
+      !forceRefresh &&
+      limit === 8 &&
+      cachedRecentDonors &&
+      now - recentDonorsCachedAt < RECENT_DONORS_CACHE_TTL_MS
+    ) {
+      return cachedRecentDonors;
+    }
+    const items = await repositories.donations.getRecentSuccess(limit);
+    if (limit === 8) {
+      cachedRecentDonors = items;
+      recentDonorsCachedAt = now;
+    }
+    return items;
   },
 };
 

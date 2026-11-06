@@ -37,6 +37,37 @@ export interface SchoolCompareViewProps {
   initialSchools?: School[];
 }
 
+const schoolToneStyles = [
+  {
+    box: "bg-emerald-50/80 border border-emerald-200/90 text-emerald-950 shadow-2xs",
+    header: "border-t-4 border-t-emerald-500",
+    badge: "bg-emerald-100 border border-emerald-300 text-emerald-950 font-black",
+    dot: "bg-emerald-500",
+    name: "Trường 1 (Xanh ngọc)",
+  },
+  {
+    box: "bg-amber-50/80 border border-amber-200/90 text-amber-950 shadow-2xs",
+    header: "border-t-4 border-t-amber-500",
+    badge: "bg-amber-100 border border-amber-300 text-amber-950 font-black",
+    dot: "bg-amber-500",
+    name: "Trường 2 (Hổ phách)",
+  },
+  {
+    box: "bg-sky-50/80 border border-sky-200/90 text-sky-950 shadow-2xs",
+    header: "border-t-4 border-t-sky-500",
+    badge: "bg-sky-100 border border-sky-300 text-sky-950 font-black",
+    dot: "bg-sky-500",
+    name: "Trường 3 (Xanh da trời)",
+  },
+  {
+    box: "bg-purple-50/80 border border-purple-200/90 text-purple-950 shadow-2xs",
+    header: "border-t-4 border-t-purple-500",
+    badge: "bg-purple-100 border border-purple-300 text-purple-950 font-black",
+    dot: "bg-purple-500",
+    name: "Trường 4 (Tím)",
+  },
+];
+
 export function SchoolCompareView({ initialSchools = [] }: SchoolCompareViewProps) {
   const searchInputId = useId();
   const {
@@ -290,12 +321,16 @@ export function SchoolCompareView({ initialSchools = [] }: SchoolCompareViewProp
               gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
             }}
           >
-            {items.map((item) => {
+            {items.map((item, idx) => {
               const sSaved = hydrated && isSaved(`school:${item.school.id}`);
+              const tone = schoolToneStyles[idx % schoolToneStyles.length];
               return (
                 <div
                   key={item.school.id}
-                  className="relative flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 shadow-xs"
+                  className={cn(
+                    "relative flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 shadow-xs transition-colors",
+                    tone.header
+                  )}
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3">
@@ -395,123 +430,219 @@ export function SchoolCompareView({ initialSchools = [] }: SchoolCompareViewProp
 
           {/* C. BẢNG SO SÁNH MA TRẬN CÁC TIÊU CHÍ CHI TIẾT */}
           <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-xs">
-            <div className="border-b border-stone-200 bg-stone-50 px-6 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-6 py-4">
               <h3 className="text-base font-bold text-stone-900">
                 Ma trận so sánh chi tiết các tiêu chí
               </h3>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-stone-600">
+                <span className="font-bold text-stone-800">Màu đối chiếu khi khác biệt:</span>
+                {items.map((it, i) => {
+                  const t = schoolToneStyles[i % schoolToneStyles.length];
+                  return (
+                    <span key={it.school.id} className="inline-flex items-center gap-1.5 font-semibold">
+                      <span className={cn("size-2.5 rounded-full", t.dot)} />
+                      <span>{it.school.shortName || it.school.code}: {it.school.name.slice(0, 22)}...</span>
+                    </span>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="divide-y divide-stone-200 text-sm">
               {/* Tiêu chí 1: Địa điểm & Khu vực */}
-              <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4">
-                <div className="font-bold text-stone-700 flex items-center gap-2">
-                  <LuMapPin className="size-4 text-stone-400" />
-                  Địa điểm & Khu vực
-                </div>
-                <div
-                  className="grid gap-4"
-                  style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
-                >
-                  {items.map((item) => (
-                    <div key={item.school.id} className="space-y-1">
-                      <p className="font-bold text-stone-900">{item.school.city || "Toàn quốc"}</p>
-                      <p className="text-xs text-stone-500">{REGION_LABELS[item.school.region]}</p>
-                      {item.school.campuses && item.school.campuses.length > 0 && (
-                        <div className="mt-2 text-xs text-stone-600 space-y-0.5">
-                          <p className="font-semibold text-stone-400">Cơ sở đào tạo:</p>
-                          {item.school.campuses.map((c, i) => (
-                            <p key={i}>• {c}</p>
-                          ))}
-                        </div>
+              {(() => {
+                const isDiff = new Set(items.map((it) => `${it.school.city || ""}_${it.school.region || ""}`)).size > 1;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4">
+                    <div className="font-bold text-stone-700 flex items-center justify-between md:flex-col md:items-start gap-1">
+                      <div className="flex items-center gap-2">
+                        <LuMapPin className="size-4 text-stone-400" />
+                        <span>Địa điểm & Khu vực</span>
+                      </div>
+                      {isDiff && (
+                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-extrabold text-stone-700">
+                          Khác biệt
+                        </span>
                       )}
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div
+                      className="grid gap-4"
+                      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+                    >
+                      {items.map((item, colIdx) => {
+                        const tone = schoolToneStyles[colIdx % schoolToneStyles.length];
+                        return (
+                          <div
+                            key={item.school.id}
+                            className={cn(
+                              "space-y-1 rounded-xl p-3 transition-colors",
+                              isDiff ? tone.box : ""
+                            )}
+                          >
+                            <p className="font-bold text-stone-900">{item.school.city || "Toàn quốc"}</p>
+                            <p className="text-xs text-stone-500">{REGION_LABELS[item.school.region]}</p>
+                            {item.school.campuses && item.school.campuses.length > 0 && (
+                              <div className="mt-2 text-xs text-stone-600 space-y-0.5">
+                                <p className="font-semibold text-stone-400">Cơ sở đào tạo:</p>
+                                {item.school.campuses.map((c, i) => (
+                                  <p key={i}>• {c}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Tiêu chí 2: Học phí & Tài chính */}
-              <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4 bg-stone-50/40">
-                <div className="font-bold text-stone-700 flex items-center gap-2">
-                  <LuCoins className="size-4 text-stone-400" />
-                  Học phí / năm
-                </div>
-                <div
-                  className="grid gap-4"
-                  style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
-                >
-                  {items.map((item) => (
-                    <div key={item.school.id} className="space-y-1">
-                      <p className="font-bold text-stone-900">
-                        {hasTuitionData(item.tuitionMin, item.tuitionMax)
-                          ? formatTuition(item.tuitionMin, item.tuitionMax)
-                          : "Chưa công bố"}
-                      </p>
-                      {item.school.scholarships ? (
-                        <p className="text-xs text-stone-600 mt-1 line-clamp-3">
-                          <strong className="text-stone-800">Học bổng:</strong> {item.school.scholarships}
-                        </p>
-                      ) : null}
+              {(() => {
+                const isDiff = new Set(items.map((it) => `${it.tuitionMin}_${it.tuitionMax}`)).size > 1;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4 bg-stone-50/40">
+                    <div className="font-bold text-stone-700 flex items-center justify-between md:flex-col md:items-start gap-1">
+                      <div className="flex items-center gap-2">
+                        <LuCoins className="size-4 text-stone-400" />
+                        <span>Học phí / năm</span>
+                      </div>
+                      {isDiff && (
+                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-extrabold text-stone-700">
+                          Khác biệt
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div
+                      className="grid gap-4"
+                      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+                    >
+                      {items.map((item, colIdx) => {
+                        const tone = schoolToneStyles[colIdx % schoolToneStyles.length];
+                        return (
+                          <div
+                            key={item.school.id}
+                            className={cn(
+                              "space-y-1 rounded-xl p-3 transition-colors",
+                              isDiff ? tone.box : ""
+                            )}
+                          >
+                            <p className="font-bold text-stone-900">
+                              {hasTuitionData(item.tuitionMin, item.tuitionMax)
+                                ? formatTuition(item.tuitionMin, item.tuitionMax)
+                                : "Chưa công bố"}
+                            </p>
+                            {item.school.scholarships ? (
+                              <p className="text-xs text-stone-600 mt-1 line-clamp-3">
+                                <strong className="text-stone-800">Học bổng:</strong> {item.school.scholarships}
+                              </p>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Tiêu chí 3: Quy mô & Ngành đào tạo */}
-              <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4">
-                <div className="font-bold text-stone-700 flex items-center gap-2">
-                  <LuGraduationCap className="size-4 text-stone-400" />
-                  Quy mô đào tạo
-                </div>
-                <div
-                  className="grid gap-4"
-                  style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
-                >
-                  {items.map((item) => (
-                    <div key={item.school.id} className="space-y-1.5">
-                      <p className="font-bold text-stone-900">
-                        {item.programCount} ngành đào tạo
-                      </p>
-                      {item.school.students ? (
-                        <p className="text-xs text-stone-600">
-                          Quy mô: ~{formatNumber(item.school.students)} sinh viên
-                        </p>
-                      ) : null}
-                      {item.school.founded ? (
-                        <p className="text-xs text-stone-500">
-                          Năm thành lập: {item.school.founded}
-                        </p>
-                      ) : null}
+              {(() => {
+                const isDiff = new Set(items.map((it) => `${it.programCount}_${it.school.students || 0}`)).size > 1;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4">
+                    <div className="font-bold text-stone-700 flex items-center justify-between md:flex-col md:items-start gap-1">
+                      <div className="flex items-center gap-2">
+                        <LuGraduationCap className="size-4 text-stone-400" />
+                        <span>Quy mô đào tạo</span>
+                      </div>
+                      {isDiff && (
+                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-extrabold text-stone-700">
+                          Khác biệt
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div
+                      className="grid gap-4"
+                      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+                    >
+                      {items.map((item, colIdx) => {
+                        const tone = schoolToneStyles[colIdx % schoolToneStyles.length];
+                        return (
+                          <div
+                            key={item.school.id}
+                            className={cn(
+                              "space-y-1.5 rounded-xl p-3 transition-colors",
+                              isDiff ? tone.box : ""
+                            )}
+                          >
+                            <p className="font-bold text-stone-900">
+                              {item.programCount} ngành đào tạo
+                            </p>
+                            {item.school.students ? (
+                              <p className="text-xs text-stone-600">
+                                Quy mô: ~{formatNumber(item.school.students)} sinh viên
+                              </p>
+                            ) : null}
+                            {item.school.founded ? (
+                              <p className="text-xs text-stone-500">
+                                Năm thành lập: {item.school.founded}
+                              </p>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Tiêu chí 4: Phương thức xét tuyển */}
-              <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4 bg-stone-50/40">
-                <div className="font-bold text-stone-700 flex items-center gap-2">
-                  <LuLayers className="size-4 text-stone-400" />
-                  Phương thức xét tuyển
-                </div>
-                <div
-                  className="grid gap-4"
-                  style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
-                >
-                  {items.map((item) => (
-                    <div key={item.school.id} className="space-y-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        {item.methods.map((m, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center rounded-md bg-white border border-stone-200 px-2 py-0.5 text-xs font-semibold text-stone-800"
-                          >
-                            {m.name}
-                          </span>
-                        ))}
+              {(() => {
+                const isDiff = new Set(items.map((it) => it.methods.map((m) => m.name).sort().join(","))).size > 1;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4 bg-stone-50/40">
+                    <div className="font-bold text-stone-700 flex items-center justify-between md:flex-col md:items-start gap-1">
+                      <div className="flex items-center gap-2">
+                        <LuLayers className="size-4 text-stone-400" />
+                        <span>Phương thức xét tuyển</span>
                       </div>
+                      {isDiff && (
+                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-extrabold text-stone-700">
+                          Khác biệt
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div
+                      className="grid gap-4"
+                      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+                    >
+                      {items.map((item, colIdx) => {
+                        const tone = schoolToneStyles[colIdx % schoolToneStyles.length];
+                        return (
+                          <div
+                            key={item.school.id}
+                            className={cn(
+                              "space-y-2 rounded-xl p-3 transition-colors",
+                              isDiff ? tone.box : ""
+                            )}
+                          >
+                            <div className="flex flex-wrap gap-1.5">
+                              {item.methods.map((m, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-flex items-center rounded-md bg-white border border-stone-200 px-2 py-0.5 text-xs font-semibold text-stone-800"
+                                >
+                                  {m.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Tiêu chí 5: Lịch sử điểm chuẩn các năm (2025, 2024, 2023) */}
               <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] p-5 gap-4">
@@ -523,25 +654,31 @@ export function SchoolCompareView({ initialSchools = [] }: SchoolCompareViewProp
                   className="grid gap-4"
                   style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
                 >
-                  {items.map((item) => (
-                    <div key={item.school.id} className="space-y-2 text-xs">
-                      {item.cutoffsByYear.length > 0 ? (
-                        item.cutoffsByYear.map((c) => (
-                          <div
-                            key={c.year}
-                            className="flex items-center justify-between rounded-lg bg-stone-50 px-3 py-1.5 border border-stone-100"
-                          >
-                            <span className="font-bold text-stone-600">Năm {c.year}</span>
-                            <span className="font-black text-primary-700 text-sm">
-                              {c.avgScore.toFixed(2)}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-stone-400 italic">Chưa có dữ liệu chính thức</p>
-                      )}
-                    </div>
-                  ))}
+                  {items.map((item, colIdx) => {
+                    const tone = schoolToneStyles[colIdx % schoolToneStyles.length];
+                    return (
+                      <div key={item.school.id} className="space-y-2 text-xs">
+                        {item.cutoffsByYear.length > 0 ? (
+                          item.cutoffsByYear.map((c) => (
+                            <div
+                              key={c.year}
+                              className={cn(
+                                "flex items-center justify-between rounded-xl px-3 py-2 border transition-colors",
+                                tone.box
+                              )}
+                            >
+                              <span className="font-bold text-stone-700">Năm {c.year}</span>
+                              <span className="font-black text-sm">
+                                {c.avgScore.toFixed(2)}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-stone-400 italic">Chưa có dữ liệu chính thức</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -555,7 +692,7 @@ export function SchoolCompareView({ initialSchools = [] }: SchoolCompareViewProp
                   So sánh điểm chuẩn từng năm theo ngành đào tạo
                 </h3>
                 <p className="text-xs text-stone-500">
-                  Đối chiếu điểm chuẩn phương thức điểm thi THPT của các ngành học giữa các trường.
+                  Đối chiếu điểm chuẩn phương thức điểm thi THPT của các ngành học giữa các trường. Khi điểm chuẩn khác biệt, điểm sẽ được tô màu riêng tương ứng với từng trường.
                 </p>
               </div>
             </div>
@@ -565,55 +702,80 @@ export function SchoolCompareView({ initialSchools = [] }: SchoolCompareViewProp
                 <thead>
                   <tr className="border-b border-stone-200 bg-stone-50/70 text-stone-600">
                     <th className="py-3 px-3 font-bold">Ngành học</th>
-                    {items.map((item) => (
-                      <th key={item.school.id} className="py-3 px-3 font-bold">
-                        {item.school.shortName || item.school.name}
-                      </th>
-                    ))}
+                    {items.map((item, colIdx) => {
+                      const tone = schoolToneStyles[colIdx % schoolToneStyles.length];
+                      return (
+                        <th key={item.school.id} className="py-3 px-3 font-bold">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className={cn("size-2 rounded-full", tone.dot)} />
+                            <span>{item.school.shortName || item.school.name}</span>
+                          </span>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100 text-stone-800">
-                  {commonMajors.slice(0, 15).map((m) => (
-                    <tr key={m.id} className="hover:bg-stone-50/60 transition-colors">
-                      <td className="py-3 px-3 font-semibold">
-                        <p className="text-stone-900 font-bold">{m.name}</p>
-                        <p className="text-[11px] text-stone-400">Mã: {m.code}</p>
-                      </td>
-                      {items.map((item) => {
-                        const prog = item.programs.find((p) => p.majorId === m.id);
-                        if (!prog) {
+                  {commonMajors.slice(0, 15).map((m) => {
+                    const latestScores = items.map((it) => it.programs.find((p) => p.majorId === m.id)?.cutoffs?.[0]?.score ?? null);
+                    const validScores = latestScores.filter((s): s is number => s !== null);
+                    const isScoreDiff = new Set(validScores.map((s) => s.toFixed(2))).size > 1;
+
+                    return (
+                      <tr key={m.id} className="hover:bg-stone-50/60 transition-colors">
+                        <td className="py-3 px-3 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-stone-900 font-bold">{m.name}</p>
+                            {isScoreDiff && (
+                              <span className="rounded-full bg-stone-200/90 px-1.5 py-0.2 text-[9px] font-extrabold text-stone-700">
+                                Khác biệt
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-stone-400">Mã: {m.code}</p>
+                        </td>
+                        {items.map((item, colIdx) => {
+                          const prog = item.programs.find((p) => p.majorId === m.id);
+                          const tone = schoolToneStyles[colIdx % schoolToneStyles.length];
+                          if (!prog) {
+                            return (
+                              <td key={item.school.id} className="py-3 px-3 text-stone-400 italic">
+                                Không đào tạo
+                              </td>
+                            );
+                          }
+                          const cutoffs = prog.cutoffs || [];
+                          const latest = cutoffs[0];
                           return (
-                            <td key={item.school.id} className="py-3 px-3 text-stone-400 italic">
-                              Không đào tạo
+                            <td key={item.school.id} className="py-3 px-3">
+                              {latest ? (
+                                <div className="space-y-1">
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-black shadow-2xs",
+                                      isScoreDiff ? tone.badge : "text-primary-800 bg-stone-100"
+                                    )}
+                                  >
+                                    {latest.score.toFixed(2)}{" "}
+                                    <span className="text-[10px] font-normal opacity-75 ml-1">
+                                      ({latest.year})
+                                    </span>
+                                  </span>
+                                  {cutoffs.length > 1 && (
+                                    <p className="text-[11px] text-stone-500">
+                                      {cutoffs.slice(1).map((c) => `${c.year}: ${c.score.toFixed(2)}`).join(" · ")}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-stone-400">Chưa có</span>
+                              )}
                             </td>
                           );
-                        }
-                        const cutoffs = prog.cutoffs || [];
-                        const latest = cutoffs[0];
-                        return (
-                          <td key={item.school.id} className="py-3 px-3">
-                            {latest ? (
-                              <div className="space-y-1">
-                                <p className="font-bold text-primary-700 text-sm">
-                                  {latest.score.toFixed(2)}{" "}
-                                  <span className="text-[10px] font-normal text-stone-500">
-                                    ({latest.year})
-                                  </span>
-                                </p>
-                                {cutoffs.length > 1 && (
-                                  <p className="text-[11px] text-stone-500">
-                                    {cutoffs.slice(1).map((c) => `${c.year}: ${c.score.toFixed(2)}`).join(" · ")}
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-stone-400">Chưa có</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -112,7 +112,14 @@ export class DonationController {
   static async getPublicDonors(req: NextRequest): Promise<Response> {
     const limit = Number(req.nextUrl.searchParams.get("limit") || 8);
     const donors = await donationService.getRecentDonors(limit);
-    return NextResponse.json({ ok: true, data: donors });
+    return NextResponse.json(
+      { ok: true, data: donors },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=30, s-maxage=60, stale-while-revalidate=120",
+        },
+      }
+    );
   }
 
   /**

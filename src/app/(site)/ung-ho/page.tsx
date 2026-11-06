@@ -10,6 +10,7 @@ import {
   LuUsers,
 } from "react-icons/lu";
 import { DonateForm } from "@/components/donate/donate-form";
+import { CommunityImpactBanner } from "@/components/donate/community-impact-banner";
 import { donationService } from "@/services/donation.service";
 
 export const metadata: Metadata = {
@@ -138,6 +139,11 @@ export default async function DonatePage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Khối Banner tác động xã hội & Quy đổi giúp đỡ sĩ tử nghèo */}
+        <div className="mt-16 overflow-hidden rounded-3xl shadow-xl">
+          <CommunityImpactBanner stats={stats} />
         </div>
       </div>
     </div>

@@ -11,11 +11,11 @@ export interface ApiErrorDetail {
   message: string;
 }
 
-export function apiOk<T>(data: T, options?: { status?: number; meta?: Record<string, unknown>; requestId?: string }) {
+export function apiOk<T>(data: T, options?: { status?: number; meta?: Record<string, unknown>; requestId?: string; headers?: Record<string, string> }) {
   const requestId = options?.requestId ?? randomUUID();
   return NextResponse.json(
     { data, meta: { requestId, ...options?.meta } satisfies ApiMeta },
-    { status: options?.status ?? 200, headers: { "X-Request-Id": requestId } },
+    { status: options?.status ?? 200, headers: { "X-Request-Id": requestId, ...(options?.headers || {}) } },
   );
 }
 

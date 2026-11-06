@@ -15,8 +15,13 @@ const positiveInteger = (value: string | null, fallback: number, max = 100): num
 export class V1CatalogController {
   static health(): Promise<Response> {
     return withApiErrors(async () => {
-      await systemService.checkDatabase();
-      return apiOk({ status: "ready", database: "ready" });
+      const db = await systemService.checkDatabase();
+      return apiOk({
+        status: "ready",
+        database: db.ok ? "ready" : "degraded",
+        latencyMs: db.latencyMs,
+        pool: db.pool,
+      });
     });
   }
 
@@ -33,7 +38,10 @@ export class V1CatalogController {
         page,
         limit,
       });
-      return apiOk(result.items, { meta: { page, limit, total: result.total, totalPages: result.pageCount } });
+      return apiOk(result.items, {
+        meta: { page, limit, total: result.total, totalPages: result.pageCount },
+        headers: { "Cache-Control": "public, max-age=60, s-maxage=120, stale-while-revalidate=600" },
+      });
     });
   }
 
@@ -48,7 +56,10 @@ export class V1CatalogController {
         letter: params.get("letter") || undefined,
       });
       const data = items.slice((page - 1) * limit, page * limit);
-      return apiOk(data, { meta: { page, limit, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / limit)) } });
+      return apiOk(data, {
+        meta: { page, limit, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / limit)) },
+        headers: { "Cache-Control": "public, max-age=60, s-maxage=120, stale-while-revalidate=600" },
+      });
     });
   }
 
@@ -65,6 +76,7 @@ export class V1CatalogController {
           totalPages: result.pageCount,
           suggestions: result.suggestions,
         },
+        headers: { "Cache-Control": "public, max-age=60, s-maxage=120, stale-while-revalidate=600" },
       });
     });
   }
