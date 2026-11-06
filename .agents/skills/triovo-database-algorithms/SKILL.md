@@ -177,3 +177,4 @@ Sử dụng hàm tách dấu và chuẩn hóa Unicode trong `src/lib/text.ts`:
 1. **Idempotency**: Webhook IPN VNPay luôn kiểm tra trạng thái trước khi cập nhật. Nếu `status !== 'pending'` thì trả về mã `02 (Order already confirmed)` ngay lập tức.
 2. **Transaction Isolation**: Các chuỗi thao tác ghi danh mục hoặc ghi dữ liệu học sinh phải được bọc trong `withTransaction(async (client) => { ... })`.
 3. **Cache Invalidation**: Bất kỳ hành động commit thay đổi dữ liệu nào đều phải kích hoạt hàm xóa/làm mới cache (`invalidatePostgresCache()`, `invalidateDonationCache()`) qua hook `afterCommit()`.
+

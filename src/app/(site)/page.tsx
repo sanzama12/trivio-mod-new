@@ -2,12 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { LuArrowRight, LuArrowUpRight } from "react-icons/lu";
 import { catalogService, programService } from "@/services";
-import { donationService } from "@/services/donation.service";
 import { admissionTimeline, TIMELINE_SEASON } from "@/domain/admission-reference";
 import { HeroSearch } from "@/components/home/hero-search";
 import { JourneySteps } from "@/components/home/journey-steps";
 import { MajorGroupCard } from "@/components/catalog/major-group-card";
-import { CommunityImpactBanner } from "@/components/donate/community-impact-banner";
 
 const paths = [
   {
@@ -39,14 +37,11 @@ const fmtDay = (iso: string) => {
 };
 
 export default async function HomePage() {
-  const [groups, stats, schools, majors, donationStats] = await Promise.all([
+  const [groups, stats, schools, majors] = await Promise.all([
     catalogService.getGroupsWithCounts(),
     programService.stats(),
     catalogService.listSchools(),
     catalogService.getMajors(),
-    donationService
-      .getAdminStats()
-      .catch(() => ({ totalRevenue: 0, successCount: 0 })),
   ]);
   const groupNames = new Map(groups.map(({ group }) => [group.id, group.name]));
   const today = new Date().toISOString().slice(0, 10);
@@ -137,11 +132,6 @@ export default async function HomePage() {
 
       {/* Giữ nguyên chức năng lộ trình + gợi ý */}
       <JourneySteps />
-
-      {/* Banner cộng đồng: Quy đổi tiền donate giúp đỡ học sinh nghèo */}
-      <div className="mt-12 sm:mt-16">
-        <CommunityImpactBanner stats={donationStats} />
-      </div>
 
       {/* Danh mục nhóm ngành: dữ liệu thật, không lặp ảnh trang trí */}
       <section className="border-y border-slate-200 bg-white" aria-labelledby="nhom-nganh">
