@@ -135,18 +135,40 @@ export function CommunityImpactBanner({
             </div>
           </div>
 
-          {/* Thẻ thành tựu cộng đồng / Live Transparency */}
+          {/* Thẻ thành tựu cộng đồng / Live Transparency kèm ảnh chiến dịch */}
           <div className="lg:col-span-5">
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur-md sm:p-8">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                  Cộng đồng chung tay
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
-                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Minh bạch tự động
-                </span>
+            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/10 shadow-2xl backdrop-blur-md">
+              {/* Hình ảnh tiếp sức mùa thi */}
+              <div className="relative h-48 w-full overflow-hidden">
+                <Image
+                  src="/images/donate-hero.jpg"
+                  alt="Tiếp sức mùa thi TriOVO"
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#042021] via-[#042021]/30 to-transparent" />
+                <div className="absolute bottom-3 left-4 right-4">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-0.5 text-[10px] font-black uppercase text-slate-950 shadow-sm">
+                    <LuSparkles className="size-3" />
+                    Quỹ tiếp sức mùa thi 2026
+                  </span>
+                  <p className="mt-1 text-xs font-bold text-white drop-shadow">
+                    Nâng bước học sinh nghèo đến cánh cổng đại học
+                  </p>
+                </div>
               </div>
+
+              <div className="p-6 sm:p-7">
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                    Cộng đồng chung tay
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                    <LuCircleCheck className="size-3.5 text-emerald-400" />
+                    <span>Minh bạch 100%</span>
+                  </span>
+                </div>
 
               <div className="mt-5 space-y-4">
                 <div>
@@ -182,6 +204,7 @@ export function CommunityImpactBanner({
               </div>
             </div>
           </div>
+        </div>
         </div>
 
         {/* Bảng quy đổi giá trị thực tế: Tiền donate quy ra điều gì? */}

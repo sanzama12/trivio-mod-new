@@ -2,12 +2,13 @@
 
 /**
  * Hộp thoại thông báo ủng hộ TriOVO chuẩn Boutique Design & UX Engagement:
- * - KHÔNG hiện tĩnh trên trang chủ làm phiền người dùng.
- * - Tự động xuất hiện thông báo sau 30 giây kể từ khi người dùng tương tác với các tính năng.
- * - Giao diện cao cấp đồng bộ với thiết kế: icon cà phê gradient, mức tiền gợi ý, cổng VNPay bảo mật.
+ * - Tích hợp hình ảnh chất lượng cao giới thiệu chiến dịch "Tiếp sức mùa thi, nâng bước sĩ tử nghèo".
+ * - Tự động xuất hiện sau khi người dùng sử dụng/tương tác với website (sau 8s khi mở trang hoặc 5s sau lần tương tác đầu tiên).
+ * - Không làm phiền trên trang /ung-ho hoặc /api.
  */
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   LuCoffee,
   LuSparkles,
@@ -19,10 +20,6 @@ import {
 } from "react-icons/lu";
 import { cn } from "@/lib/cn";
 
-// Thời gian đếm ngược: đúng 30 giây kể từ khi người dùng bắt đầu tương tác chức năng
-const ENGAGEMENT_TRIGGER_MS = 30 * 1000;
-const SNOOZE_DURATION_MS = 10 * 60 * 1000; // 10 phút sau mới nhắc lại nếu người dùng ấn "Để sau"
-
 const PRESET_AMOUNTS = [
   { value: 20000, label: "20.000 ₫" },
   { value: 50000, label: "50.000 ₫", popular: true },
@@ -30,7 +27,6 @@ const PRESET_AMOUNTS = [
 ];
 
 export function DonatePromptModal() {
-  const pathname = usePathname();
   const router = useRouter();
 
   const [visible, setVisible] = useState(false);
@@ -43,92 +39,52 @@ export function DonatePromptModal() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Dọn dẹp cờ cũ nếu có để người dùng không bị kẹt vĩnh viễn
-    if (sessionStorage.getItem("trovio_donate_dismissed") === "true") {
-      sessionStorage.removeItem("trovio_donate_dismissed");
-    }
-
-    // Kiểm tra nhanh qua URL ?donate=1 hoặc hash #donate
+    // 1. Kiểm tra nhanh qua URL ?donate=1 hoặc hash #donate
     const search = window.location.search;
-    if (search.includes("donate") || search.includes("ungho") || window.location.hash === "#donate") {
+    if (
+      search.includes("donate") ||
+      search.includes("ungho") ||
+      window.location.hash === "#donate"
+    ) {
       setVisible(true);
       return;
     }
 
-    // Lắng nghe sự kiện mở thủ công
+    // 2. Lắng nghe sự kiện mở thủ công từ bất kỳ nút nào
     const handleCustomOpen = () => setVisible(true);
     window.addEventListener("trovio:open-donate", handleCustomOpen);
 
-    // Bắt đầu ghi nhận thời điểm người dùng bắt đầu sử dụng chức năng
-    const markEngagement = () => {
-      const snooze = sessionStorage.getItem("trovio_donate_snooze");
-      if (snooze && Date.now() < Number(snooze)) return;
-
-      if (!sessionStorage.getItem("trovio_feature_engaged_time")) {
-        sessionStorage.setItem("trovio_feature_engaged_time", String(Date.now()));
+    // 3. Tự động kích hoạt thông báo sau 8 giây khi khách vào tra cứu
+    const autoTimer = setTimeout(() => {
+      const path = window.location.pathname;
+      if (!path.startsWith("/ung-ho") && !path.startsWith("/api")) {
+        setVisible(true);
       }
+    }, 8000);
+
+    // 4. Nếu người dùng tương tác sớm hơn (click, gõ tìm kiếm), kích hoạt sau 5s
+    const onUserAction = () => {
+      setTimeout(() => {
+        const path = window.location.pathname;
+        if (!path.startsWith("/ung-ho") && !path.startsWith("/api")) {
+          setVisible(true);
+        }
+      }, 5000);
     };
 
-    // Lắng nghe mọi tương tác tự nhiên: click nút/link, gõ tìm kiếm, cuộn trang, đổi URL
-    window.addEventListener("pointerdown", markEngagement, { passive: true });
-    window.addEventListener("keydown", markEngagement, { passive: true });
-    window.addEventListener("input", markEngagement, { passive: true });
-
-    // Đánh dấu ngay nếu người dùng truy cập trực tiếp các trang chức năng
-    const currentPath = window.location.pathname;
-    if (
-      currentPath.startsWith("/so-sanh") ||
-      currentPath.startsWith("/diem-cua-toi") ||
-      currentPath.startsWith("/chuong-trinh") ||
-      currentPath.startsWith("/nganh") ||
-      currentPath.startsWith("/truong")
-    ) {
-      markEngagement();
-    }
-
-    // Bộ đếm chu kỳ 1s kiểm tra xem đã đủ 30 giây kể từ khi dùng tính năng chưa
-    const interval = setInterval(() => {
-      // 1. Không hiện ở các trang loại trừ
-      const path = window.location.pathname;
-      if (
-        path.startsWith("/ung-ho") ||
-        path.startsWith("/quan-tri") ||
-        path.startsWith("/api")
-      ) {
-        return;
-      }
-
-      // 2. Kiểm tra hoãn thông báo (snooze)
-      const snooze = sessionStorage.getItem("trovio_donate_snooze");
-      if (snooze && Date.now() < Number(snooze)) return;
-
-      // 3. Kiểm tra thời gian tương tác
-      const engagedStr = sessionStorage.getItem("trovio_feature_engaged_time");
-      if (!engagedStr) return;
-
-      const elapsed = Date.now() - Number(engagedStr);
-      if (elapsed >= ENGAGEMENT_TRIGGER_MS) {
-        setVisible(true);
-        clearInterval(interval);
-      }
-    }, 1000);
+    window.addEventListener("click", onUserAction, { once: true, passive: true });
+    window.addEventListener("input", onUserAction, { once: true, passive: true });
 
     return () => {
-      clearInterval(interval);
+      clearTimeout(autoTimer);
       window.removeEventListener("trovio:open-donate", handleCustomOpen);
-      window.removeEventListener("pointerdown", markEngagement);
-      window.removeEventListener("keydown", markEngagement);
-      window.removeEventListener("input", markEngagement);
+      window.removeEventListener("click", onUserAction);
+      window.removeEventListener("input", onUserAction);
     };
   }, []);
 
   const handleDismiss = () => {
     setVisible(false);
-    // Tạm hoãn nhắc lại trong 10 phút để khách tiếp tục tra cứu thoải mái
-    sessionStorage.setItem(
-      "trovio_donate_snooze",
-      String(Date.now() + SNOOZE_DURATION_MS)
-    );
   };
 
   const effectiveAmount = isCustom
@@ -197,35 +153,42 @@ export function DonatePromptModal() {
     >
       {/* Lớp nền mờ */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
         onClick={handleDismiss}
       />
 
-      {/* Khung thông báo chuẩn Boutique UI */}
-      <div className="relative w-full max-w-[460px] overflow-hidden rounded-3xl bg-white p-6 sm:p-7 shadow-2xl ring-1 ring-slate-900/10 transition-all animate-in zoom-in-95 duration-200">
+      {/* Khung thông báo chuẩn Boutique UI kèm hình ảnh trực quan */}
+      <div className="relative w-full max-w-[480px] overflow-hidden rounded-3xl bg-white p-5 sm:p-6 shadow-2xl ring-1 ring-slate-900/10 transition-all animate-in zoom-in-95 duration-200">
         {/* Nút đóng góc phải */}
         <button
           type="button"
           onClick={handleDismiss}
-          className="absolute top-4 right-4 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+          className="absolute top-3.5 right-3.5 z-20 rounded-full bg-slate-900/40 p-2 text-white backdrop-blur-md transition hover:bg-slate-900/70 cursor-pointer"
           aria-label="Đóng thông báo"
         >
           <LuX className="size-5" />
         </button>
 
-        {/* Header: Icon cà phê nổi bật & Tiêu đề dự án */}
-        <div className="flex items-start gap-4">
-          <div className="flex size-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-md shadow-sky-500/20">
-            <LuCoffee className="size-6" />
-          </div>
-          <div className="pr-6">
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-800">
-              <LuSparkles className="size-3 text-emerald-600" />
-              <span>Dự án giáo dục phi lợi nhuận</span>
-            </div>
+        {/* ẢNH GIỚI THIỆU CHIẾN DỊCH QUYÊN GÓP */}
+        <div className="relative -mx-5 -mt-5 sm:-mx-6 sm:-mt-6 mb-4 h-48 sm:h-52 w-[calc(100%+2.5rem)] sm:w-[calc(100%+3rem)] overflow-hidden">
+          <Image
+            src="/images/donate-hero.jpg"
+            alt="Tiếp sức mùa thi - TriOVO"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+          
+          {/* Thông điệp trên ảnh */}
+          <div className="absolute bottom-3 left-4 right-4 text-white">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-400 px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider text-amber-950 shadow-sm">
+              <LuSparkles className="size-3" />
+              Tiếp sức mùa thi 2026
+            </span>
             <h3
               id="donate-prompt-title"
-              className="mt-0.5 text-lg font-black tracking-tight text-slate-900 sm:text-xl flex items-center gap-1.5"
+              className="mt-1.5 text-lg sm:text-xl font-black text-white leading-tight drop-shadow-md flex items-center gap-2"
             >
               Tiếp sức 1 ly cà phê cho TriOVO ☕
             </h3>
@@ -233,16 +196,13 @@ export function DonatePromptModal() {
         </div>
 
         {/* Nội dung thông điệp chân thành */}
-        <p className="mt-4 text-[13.5px] leading-relaxed text-slate-600">
-          Bạn đã đồng hành trải nghiệm cùng TriOVO! TriOVO là nền tảng phi lợi nhuận giúp hơn 1 triệu sĩ tử tra cứu điểm chuẩn và định hướng đại học <b>100% miễn phí</b>.
-        </p>
-        <p className="mt-2 text-[13.5px] leading-relaxed text-slate-600">
-          Nếu bạn thấy nền tảng hữu ích, hãy ủng hộ chúng mình một ly cà phê qua cổng VNPay để duy trì máy chủ nhé!
+        <p className="text-[13.5px] leading-relaxed text-slate-600">
+          TriOVO là nền tảng phi lợi nhuận đồng hành cùng hơn 1 triệu sĩ tử tra cứu điểm chuẩn và định hướng tương lai <b>100% miễn phí</b>. Mọi sự đóng góp của bạn giúp duy trì máy chủ tốc độ cao và quy đổi thành suất ăn, dụng cụ thi gửi tới sĩ tử khó khăn.
         </p>
 
         {/* 3 mức tiền nhanh */}
-        <div className="mt-5">
-          <div className="grid grid-cols-3 gap-3">
+        <div className="mt-4">
+          <div className="grid grid-cols-3 gap-2.5">
             {PRESET_AMOUNTS.map((item) => {
               const isSelected = !isCustom && selectedAmount === item.value;
               return (
@@ -255,14 +215,14 @@ export function DonatePromptModal() {
                     setErrorMsg(null);
                   }}
                   className={cn(
-                    "group relative flex flex-col items-center justify-center rounded-2xl border py-3 px-2 text-center transition-all cursor-pointer",
+                    "group relative flex flex-col items-center justify-center rounded-2xl border py-2.5 px-2 text-center transition-all cursor-pointer",
                     isSelected
-                      ? "border-emerald-700 bg-emerald-50/80 text-emerald-950 ring-2 ring-emerald-700/20 shadow-xs"
+                      ? "border-emerald-700 bg-emerald-50/90 text-emerald-950 ring-2 ring-emerald-700/25 shadow-xs"
                       : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
                   )}
                 >
                   {item.popular && (
-                    <span className="absolute -top-2.5 rounded-full border border-amber-300 bg-amber-400 px-2 py-0.5 text-[10px] font-black text-amber-950 shadow-xs">
+                    <span className="absolute -top-2 rounded-full border border-amber-300 bg-amber-400 px-1.5 py-0.2 text-[9.5px] font-black text-amber-950 shadow-xs">
                       Gợi ý
                     </span>
                   )}
@@ -274,7 +234,7 @@ export function DonatePromptModal() {
             })}
           </div>
 
-          {/* Nút nhập số tiền tùy chọn */}
+          {/* Nút bật/tắt nhập số tiền khác */}
           <div className="mt-2.5 flex items-center justify-between text-xs">
             <button
               type="button"
@@ -294,7 +254,7 @@ export function DonatePromptModal() {
             <span className="text-[11px] text-slate-400">Tối thiểu 10.000 ₫</span>
           </div>
 
-          {/* Input nhập tiền tùy chọn */}
+          {/* Ô nhập số tiền tùy chọn */}
           {isCustom && (
             <div className="mt-2 animate-in fade-in duration-150">
               <div className="relative">
@@ -330,7 +290,7 @@ export function DonatePromptModal() {
           type="button"
           disabled={submitting}
           onClick={handleProceedDonate}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0d5045] py-3.5 px-4 text-sm font-bold text-white shadow-md shadow-[#0d5045]/20 transition-all hover:bg-[#0a4037] active:scale-[0.99] disabled:opacity-75 cursor-pointer"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0d5045] py-3.5 px-4 text-sm font-bold text-white shadow-md shadow-[#0d5045]/20 transition-all hover:bg-[#0a4037] active:scale-[0.99] disabled:opacity-75 cursor-pointer"
         >
           {submitting ? (
             <>
@@ -349,20 +309,31 @@ export function DonatePromptModal() {
         </button>
 
         {/* Tùy chọn xem chi tiết hoặc để sau */}
-        <div className="mt-3.5 flex flex-col items-center gap-1 text-center">
+        <div className="mt-3 flex items-center justify-between px-1 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              handleDismiss();
+              router.push("/ung-ho");
+            }}
+            className="font-semibold text-emerald-800 transition hover:underline cursor-pointer"
+          >
+            Xem chiến dịch & sao kê →
+          </button>
+
           <button
             type="button"
             onClick={handleDismiss}
-            className="py-1 text-xs text-slate-500 font-medium transition hover:text-slate-800 cursor-pointer"
+            className="text-slate-400 font-medium transition hover:text-slate-600 cursor-pointer"
           >
             Để sau, tôi muốn tiếp tục tra cứu
           </button>
         </div>
 
         {/* Footer bảo mật VNPay */}
-        <div className="mt-3.5 flex items-center justify-center gap-1.5 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
+        <div className="mt-3 flex items-center justify-center gap-1.5 border-t border-slate-100 pt-2.5 text-[11px] text-slate-400">
           <LuShieldCheck className="size-3.5 text-emerald-600" />
-          <span>Thanh toán VNPay QR bảo mật & an toàn</span>
+          <span>Thanh toán VNPay an toàn • Quét mã QR hơn 40 ngân hàng</span>
         </div>
       </div>
     </div>
