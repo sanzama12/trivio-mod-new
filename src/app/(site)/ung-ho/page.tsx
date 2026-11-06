@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
   LuCircleCheck,
@@ -62,6 +63,30 @@ export default async function DonatePage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Khung ảnh chiến dịch điện ảnh Tiếp sức mùa thi */}
+        <div className="relative mt-10 h-64 sm:h-80 lg:h-96 w-full overflow-hidden rounded-3xl border border-slate-200 shadow-2xl">
+          <Image
+            src="/images/donate-hero.jpg"
+            alt="Tiếp sức mùa thi TriOVO - Học sinh Việt Nam"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
+          <div className="absolute bottom-6 left-6 right-6 sm:bottom-8 sm:left-8 sm:right-8 text-white">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400 px-3 py-1 text-xs font-black uppercase text-slate-950 shadow-md">
+              <LuSparkles className="size-3.5" />
+              Chiến dịch Tiếp sức mùa thi 2026
+            </span>
+            <h2 className="mt-2.5 text-xl sm:text-3xl font-black text-white leading-tight">
+              Để không một sĩ tử nào phải dừng bước trước ngưỡng cửa đại học
+            </h2>
+            <p className="mt-1.5 max-w-xl text-xs sm:text-sm text-slate-200">
+              Mỗi đóng góp từ bạn được quy đổi trực tiếp thành công cụ thi, bữa ăn dinh dưỡng và học bổng hỗ trợ học sinh có hoàn cảnh khó khăn trên khắp cả nước.
+            </p>
+          </div>
         </div>
 
         {/* Form ủng hộ chính & Cam kết minh bạch */}
