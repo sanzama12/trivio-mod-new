@@ -1,35 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { LuArrowRight, LuArrowUpRight } from "react-icons/lu";
+import { LuArrowRight } from "react-icons/lu";
 import { catalogService, programService } from "@/services";
 import { admissionTimeline, TIMELINE_SEASON } from "@/domain/admission-reference";
 import { HeroSearch } from "@/components/home/hero-search";
 import { JourneySteps } from "@/components/home/journey-steps";
 import { MajorGroupCard } from "@/components/catalog/major-group-card";
-
-const paths = [
-  {
-    img: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=900&q=70",
-    title: "Đã có trường mong muốn",
-    desc: "Tra đề án, điểm chuẩn và học phí của đúng trường đó.",
-    cta: "Tìm trường",
-    href: "/chuong-trinh",
-  },
-  {
-    img: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=900&q=70",
-    title: "Đã biết ngành yêu thích",
-    desc: "So sánh chương trình đào tạo thực tế giữa các trường.",
-    cta: "Xem ngành học",
-    href: "/nganh",
-  },
-  {
-    img: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=900&q=70",
-    title: "Chưa có định hướng",
-    desc: "Lọc theo tổ hợp và điểm của bạn để thu hẹp lựa chọn.",
-    cta: "Khám phá ngành",
-    href: "/nganh",
-  },
-];
 
 const fmtDay = (iso: string) => {
   const [, m, d] = iso.split("-").map(Number);
@@ -83,28 +59,6 @@ export default async function HomePage() {
           <p className="mt-4 text-sm text-slate-300">
             Bắt đầu nhanh: <Link href="/diem-cua-toi" className="font-bold text-accent-200 underline underline-offset-4">nhập điểm</Link> rồi xem <Link href="/chuong-trinh" className="font-bold text-accent-200 underline underline-offset-4">chương trình phù hợp</Link>.
           </p>
-        </div>
-      </section>
-
-      {/* Ba lối đi: thẻ ảnh lớn */}
-      <section className="container-page py-12 lg:py-16" aria-labelledby="loi-di">
-        <h2 id="loi-di" className="text-2xl font-black tracking-tight text-slate-900 md:text-3xl">
-          Bạn đang ở đâu?
-        </h2>
-        <div className="mt-6 grid gap-5 md:grid-cols-3">
-          {paths.map((p) => (
-            <Link key={p.title} href={p.href} className="group relative overflow-hidden rounded-3xl border-2 border-slate-900 bg-slate-900">
-              <Image src={p.img} alt="" width={900} height={600} className="h-64 w-full object-cover opacity-80 transition duration-300 group-hover:scale-105 group-hover:opacity-70 md:h-72" />
-              <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
-              <span className="absolute inset-x-0 bottom-0 p-5">
-                <span className="block text-lg font-black text-white">{p.title}</span>
-                <span className="mt-1 block text-sm text-slate-200">{p.desc}</span>
-                <span className="mt-3 inline-flex h-10 items-center gap-1.5 bg-white px-4 text-sm font-bold text-slate-900 group-hover:bg-accent-500">
-                  {p.cta} <LuArrowUpRight className="size-4" aria-hidden />
-                </span>
-              </span>
-            </Link>
-          ))}
         </div>
       </section>
 
