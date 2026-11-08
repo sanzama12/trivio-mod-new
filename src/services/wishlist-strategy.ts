@@ -186,8 +186,8 @@ export function analyzeWishlist(
     checks.push({
       id: "combo",
       level: "danger",
-      title: `${joinNv(comboIdx)} không xét tổ hợp ${profile.combo} của bạn`,
-      detail: "Với hồ sơ hiện tại, các nguyện vọng này sẽ không được xét tuyển. Hãy kiểm tra tổ hợp khác của chương trình hoặc thay bằng ngành/trường xét tổ hợp của bạn.",
+      title: `${joinNv(comboIdx)} chưa có tổ hợp phù hợp với điểm đã nhập`,
+      detail: "Hãy kiểm tra tổ hợp chương trình xét và bổ sung đủ điểm các môn tương ứng.",
       programIds: comboIdx.map((i) => items[i].id),
     });
   }
@@ -334,7 +334,7 @@ export function analyzeWishlist(
     if (fitRes.reason === "combo") {
       isEligible = false;
       failReason = "combo";
-      failMsg = `Không xét tổ hợp ${profile.combo}`;
+      failMsg = "Chưa có tổ hợp phù hợp với điểm đã nhập";
       warnings.push(failMsg);
     } else if (fitRes.reason === "method") {
       isEligible = false;

@@ -34,7 +34,7 @@ export function ReminderBanner({ events }: { events: TimelineEvent[] }) {
 
   return (
     <div role="status" className="border-b border-accent-200 bg-accent-50" data-print-hide>
-      <div className="container-page flex items-center gap-3 py-2.5 text-sm text-accent-700">
+      <div className="container-page flex items-center gap-3 py-2.5 text-sm text-accent-800">
         <LuBellRing className="size-4 shrink-0" aria-hidden />
         <p className="min-w-0 flex-1">
           <strong>{first.status === "ongoing" ? "Đang diễn ra" : first.days <= 0 ? "Hôm nay" : `Còn ${first.days} ngày`}:</strong> {first.event.title} ({formatRange(first.event)})
@@ -53,7 +53,7 @@ export function ReminderBanner({ events }: { events: TimelineEvent[] }) {
               /* bỏ qua */
             }
           }}
-          className="rounded p-1 hover:bg-accent-100"
+          className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded p-1 hover:bg-accent-100"
           aria-label="Ẩn nhắc"
         >
           <LuX className="size-4" />

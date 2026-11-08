@@ -6,7 +6,7 @@ import { sanitizeNewsHtml } from '@/lib/news-html';
 export function NewsBody({body,bodyFormat='plain'}:{body:string;bodyFormat?:'plain'|'html'}) {
   if(bodyFormat==='html')return <div className="email-rich-preview news-rich-content text-base leading-8 text-slate-700" dangerouslySetInnerHTML={{__html:sanitizeNewsHtml(body)}}/>;
   return <div className="space-y-5 text-base leading-8 text-slate-700 break-words">{body.split(/\n\s*\n/).filter(Boolean).map((block,i)=>{
-    if(block.startsWith('## '))return <h2 key={i} className="pt-3 text-xl font-bold text-slate-900">{block.slice(3)}</h2>;
+    if(block.startsWith('## '))return <h2 key={i} className="pt-3 text-2xl font-bold text-slate-900">{block.slice(3)}</h2>;
     const lines=block.split('\n');
     if(lines.every(line=>line.startsWith('- ')))return <ul key={i} className="list-disc space-y-1 pl-6">{lines.map((line,j)=><li key={j}>{line.slice(2)}</li>)}</ul>;
     return <p key={i} className="whitespace-pre-wrap">{block}</p>;

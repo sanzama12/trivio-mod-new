@@ -43,13 +43,14 @@ export function VerifyEmail({ email, next = "/", demo = false }: { email: string
   const code = digits.join("");
   const verify = async () => {
     setLoading(true);
+    try {
     const res = await fetch("/api/auth/verify-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, code }) });
     const data = await res.json();
-    setLoading(false);
-    if (data.ok) {
+    if (res.ok && data.ok) {
       setDone(true);
       router.refresh();
-    } else setError(data.message);
+    } else setError(data.message ?? "Không xác thực được, vui lòng thử lại.");
+    } catch { setError("Không thể kết nối, vui lòng thử lại."); } finally { setLoading(false); }
   };
 
   if (done) {
@@ -58,7 +59,7 @@ export function VerifyEmail({ email, next = "/", demo = false }: { email: string
         <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-success-50 text-success-500">
           <LuCircleCheck className="size-8" aria-hidden />
         </span>
-        <h1 className="mt-5 text-2xl font-bold">Email đã được xác thực!</h1>
+        <h1 className="mt-5 text-3xl md:text-4xl font-bold tracking-tight">Email đã được xác thực!</h1>
         <p className="mt-2 text-sm text-slate-600">Tài khoản của bạn đã được kích hoạt. Giờ bạn có thể lưu chương trình và lập danh sách nguyện vọng.</p>
         <Link href={`/chao-mung?next=${encodeURIComponent(next)}`} className={buttonClass({ full: true, className: "mt-6" })}>
           Tiếp tục →
@@ -72,7 +73,7 @@ export function VerifyEmail({ email, next = "/", demo = false }: { email: string
       <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary-50 text-primary-600">
         <LuMailCheck className="size-7" aria-hidden />
       </span>
-      <h1 className="mt-5 text-2xl font-bold">Xác thực email của bạn</h1>
+      <h1 className="mt-5 text-3xl md:text-4xl font-bold tracking-tight">Xác thực email của bạn</h1>
       <p className="mt-2 text-sm text-slate-600">
         Chúng tôi đã gửi mã 6 chữ số đến <strong className="text-slate-900">{email || "email của bạn"}</strong>. Vui lòng nhập mã bên dưới.
       </p>
@@ -107,31 +108,36 @@ export function VerifyEmail({ email, next = "/", demo = false }: { email: string
           {error}
         </p>
       )}
+      {code.length < LEN && <p className="mt-4 text-sm text-slate-600">Nhập đủ mã xác thực để tiếp tục.</p>}
       <Button full className="mt-6" disabled={code.length < LEN || loading} onClick={verify}>
         {loading ? "Đang xác thực…" : "Xác thực →"}
       </Button>
       <p className="mt-4 text-sm text-slate-600">
         Chưa nhận được mã?{" "}
         {cooldown > 0 ? (
-          <span className="text-slate-500">Gửi lại sau {cooldown}s</span>
+          <span className="text-slate-600">Gửi lại sau {cooldown}s</span>
         ) : (
           <button
             type="button"
             className="font-semibold text-primary-600 hover:underline"
             onClick={async () => {
-              setCooldown(60);
+              try {
               const res = await fetch("/api/auth/verify-email/resend", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),
               });
-              toast(res.ok ? "Đã gửi lại mã xác thực" : "Bạn đã yêu cầu quá nhiều lần, vui lòng thử lại sau", res.ok ? "success" : "warning");
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok || data.ok !== true) { setError(data.message ?? "Không gửi lại được mã, vui lòng thử lại."); return; }
+              setCooldown(60); setError(null); toast("Đã gửi lại mã xác thực", "success");
+              } catch { setError("Không thể kết nối, vui lòng thử lại."); }
             }}
           >
             Gửi lại mã
           </button>
         )}
       </p>
+      <Link href={`/chao-mung?next=${encodeURIComponent(next)}`} className="mt-4 inline-block text-sm font-semibold text-primary-600 hover:underline">Để sau</Link>
       <p className="mt-2 text-sm text-slate-600">
         Nhập sai địa chỉ?{" "}
         <Link href={`/dang-ky?next=${encodeURIComponent(next)}`} className="font-semibold text-primary-600 hover:underline">
@@ -139,7 +145,7 @@ export function VerifyEmail({ email, next = "/", demo = false }: { email: string
         </Link>
       </p>
       {demo && (
-        <p className="mt-8 flex items-center justify-center gap-2 rounded-lg bg-primary-50 p-3 text-[13px] text-primary-900">
+        <p className="mt-8 flex items-center justify-center gap-2 rounded-lg bg-primary-50 p-3 text-sm text-primary-900">
           <LuInfo className="size-4 text-primary-600" aria-hidden /> Bản demo: dùng mã <strong>592841</strong> (hoặc mã in ở terminal chạy server)
         </p>
       )}

@@ -132,7 +132,7 @@ const uniq = <T>(arr: T[], key: (x: T) => string) => {
 export function sanitizeUserData(input: unknown): UserDataInput {
   const src = isObj(input) ? input : {};
   const saved = uniq(
-    (Array.isArray(src.saved) ? src.saved : []).filter((x): x is string => typeof x === "string" && ID_RE.test(x)),
+    (Array.isArray(src.saved) ? src.saved : []).filter((x): x is string => typeof x === "string" && (ID_RE.test(x) || (x.startsWith("school:") && ID_RE.test(x.slice(7))))),
     (x) => x,
   ).slice(0, MAX_SAVED);
   const wishlist = uniq(
@@ -179,8 +179,9 @@ export function mergeUserData(server: UserDataInput, local: UserDataInput): User
 
 async function onlyExistingPrograms(data: UserDataInput): Promise<UserDataInput> {
   const ids = Array.from(new Set([...data.saved, ...data.wishlist.map((w) => w.id)]));
-  const existing = new Set((await repositories.programs.findByIds(ids)).map((p) => p.id));
-  return { ...data, saved: data.saved.filter((id) => existing.has(id)), wishlist: data.wishlist.filter((w) => existing.has(w.id)) };
+  const existing = new Set((await repositories.programs.findByIds(ids.filter((id) => !id.startsWith("school:")))).map((p) => p.id));
+  const schools = new Set((await repositories.schools.findAll()).map((s) => s.id));
+  return { ...data, saved: data.saved.filter((id) => id.startsWith("school:") ? schools.has(id.slice(7)) : existing.has(id)), wishlist: data.wishlist.filter((w) => existing.has(w.id)) };
 }
 
 export const userDataService = {

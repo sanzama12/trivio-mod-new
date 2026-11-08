@@ -17,7 +17,7 @@ const ICONS: Record<string, IconType> = {
 
 const TONE_BG: Record<MajorGroup["tone"], string> = {
   primary: "bg-primary-50 text-primary-600",
-  accent: "bg-accent-50 text-accent-700",
+  accent: "bg-accent-50 text-accent-800",
   success: "bg-success-50 text-success-700",
   danger: "bg-danger-50 text-danger-700",
   pink: "bg-pink-50 text-pink-600",

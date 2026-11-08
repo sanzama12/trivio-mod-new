@@ -3,7 +3,7 @@
  * Quản lý các endpoint liên quan đến ủng hộ qua VNPay và doanh thu quản trị
  */
 import { NextResponse, type NextRequest } from "next/server";
-import { donationService, DonationValidationError } from "@/services/donation.service";
+import { donationService, DonationUnavailableError, DonationValidationError } from "@/services/donation.service";
 import { requireAdmin } from "@/lib/auth";
 import { clientIp } from "@/lib/http";
 
@@ -36,6 +36,10 @@ export class DonationController {
       if (err instanceof DonationValidationError) {
         return NextResponse.json({ ok: false, message: err.message }, { status: 400 });
       }
+      if (err instanceof DonationUnavailableError) {
+        console.error("[DonationController.createDonation] VNPay chưa được cấu hình (VNPAY_TMN_CODE / VNPAY_HASH_SECRET).");
+        return NextResponse.json({ ok: false, message: err.message }, { status: 503 });
+      }
       console.error("[DonationController.createDonation] Error:", err);
       return NextResponse.json(
         { ok: false, message: "Không thể tạo liên kết thanh toán. Vui lòng thử lại sau." },
@@ -58,29 +62,19 @@ export class DonationController {
 
       const result = await donationService.processReturn(queryParams);
 
+      // Trang kết quả tự đọc trạng thái từ database theo mã đơn — không đưa trạng thái/số tiền lên URL
+      // để không ai giả được một biên lai "thành công".
       const baseRedirectUrl = new URL("/ung-ho/ket-qua", req.nextUrl.origin);
-      baseRedirectUrl.searchParams.set("status", result.success ? "success" : "failed");
-      baseRedirectUrl.searchParams.set("message", result.message);
-
       if (result.donation) {
-        baseRedirectUrl.searchParams.set("txnRef", result.donation.vnpTxnRef);
-        baseRedirectUrl.searchParams.set("amount", String(result.donation.amount));
-        baseRedirectUrl.searchParams.set("donorName", result.donation.donorName);
-        if (result.donation.vnpBankCode) {
-          baseRedirectUrl.searchParams.set("bankCode", result.donation.vnpBankCode);
-        }
-        if (result.donation.vnpTransactionNo) {
-          baseRedirectUrl.searchParams.set("transNo", result.donation.vnpTransactionNo);
-        }
-        if (result.donation.paidAt) {
-          baseRedirectUrl.searchParams.set("paidAt", result.donation.paidAt);
-        }
+        baseRedirectUrl.searchParams.set("ref", result.donation.vnpTxnRef);
+      } else {
+        baseRedirectUrl.searchParams.set("loi", "xac-thuc");
       }
 
       return NextResponse.redirect(baseRedirectUrl);
     } catch (err) {
       console.error("[DonationController.handleVnpayReturn] Error:", err);
-      const fallbackUrl = new URL("/ung-ho/ket-qua?status=error&message=LoiXacThuc", req.nextUrl.origin);
+      const fallbackUrl = new URL("/ung-ho/ket-qua?loi=he-thong", req.nextUrl.origin);
       return NextResponse.redirect(fallbackUrl);
     }
   }

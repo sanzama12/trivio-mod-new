@@ -1,7 +1,8 @@
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LuCircleAlert, LuCircleCheck, LuEye, LuInfo, LuUnlink, LuTriangleAlert } from "react-icons/lu";
-import { ADMISSION_METHODS, cutoffFor, fitForProfile, formatMethodScore, profileMethod, shareService } from "@/services";
+import { ADMISSION_METHODS, cutoffFor, evaluateProgramFit, formatMethodScore, profileMethod, shareService } from "@/services";
 import { analyzeWishlist, type CheckLevel } from "@/services/wishlist-strategy";
 import { formatDateVi, formatTuition } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -32,24 +33,7 @@ export default async function SharedWishlistPage({ params }: Props) {
   const { id } = await params;
   const data = await shareService.view(id);
 
-  if (!data) {
-    return (
-      <div className="container-page py-16">
-        <Card>
-          <EmptyState
-            icon={<LuUnlink />}
-            headingAs="h1"
-            title="Link không còn hiệu lực"
-            description="Link chia sẻ đã hết hạn, đã bị thu hồi hoặc không đúng. Hãy nhờ người gửi tạo link mới."
-          >
-            <Link href="/" className={buttonClass()}>
-              Về trang chủ Trovio
-            </Link>
-          </EmptyState>
-        </Card>
-      </div>
-    );
-  }
+  if (!data) notFound();
 
   const method = profileMethod(data.profile);
   const report = data.profile ? analyzeWishlist(data.items.map(({ view }) => ({ id: view.program.id, label: view.program.name, program: view.program })), data.profile) : null;
@@ -62,13 +46,13 @@ export default async function SharedWishlistPage({ params }: Props) {
           Chế độ chỉ xem · link hết hạn ngày {formatDateVi(data.expiresAt)}
         </div>
 
-        <h1 className="mt-6 text-2xl font-bold tracking-tight md:text-[28px]">Nguyện vọng dự kiến của {data.ownerName}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="mt-6 text-3xl md:text-4xl font-bold tracking-tight">Nguyện vọng dự kiến của {data.ownerName}</h1>
+        <p className="mt-1 text-sm text-slate-600">
           Đây là kế hoạch cá nhân lập trên Trovio, chưa phải đăng ký tuyển sinh chính thức.
           {data.scoreLabel && (
             <>
               {" "}
-              Điểm dùng để đánh giá: <strong className="text-slate-800">{data.scoreLabel}</strong>.
+              Hồ sơ tham chiếu: <strong className="text-slate-800">{data.scoreLabel}</strong>.
             </>
           )}
         </p>
@@ -84,7 +68,7 @@ export default async function SharedWishlistPage({ params }: Props) {
                     <st.icon className={cn("mt-0.5 size-4 shrink-0", st.cls)} aria-hidden />
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{c.title}</p>
-                      <p className="text-[13px] text-slate-600">{c.detail}</p>
+                      <p className="text-sm text-slate-600">{c.detail}</p>
                     </div>
                   </li>
                 );
@@ -100,26 +84,29 @@ export default async function SharedWishlistPage({ params }: Props) {
             </Card>
           ) : (
             data.items.map(({ view: v, note }, i) => {
-              const fit = data.profile ? fitForProfile(data.profile, v.program).fit : null;
-              const cut = cutoffFor(v.program, method);
+              const evaluated = data.profile ? evaluateProgramFit(data.profile, v.program) : null;
+              const fit = evaluated?.fit ?? null;
+              const selectedMethod = evaluated?.method ?? method;
+              const cut = cutoffFor(v.program, selectedMethod);
               return (
                 <Card key={v.program.id} className="p-5">
                   <div className="flex gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">NV{i + 1}</span>
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-sm font-semibold text-white">NV{i + 1}</span>
                     <SchoolCode code={v.school.code} />
                     <div className="min-w-0 flex-1">
                       <Link href={`/chuong-trinh/${v.program.slug}`} className="font-bold text-slate-900 hover:text-primary-700">
                         {v.program.name}
                       </Link>
-                      <p className="text-[13px] text-primary-600">{v.school.name}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+                      <p className="text-sm text-primary-600">{v.school.name}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                         <span className="rounded-md bg-primary-50 px-2 py-1 font-semibold text-primary-700">
-                          {cut ? `Chuẩn ${cut.year}: ${formatMethodScore(cut.score, method)} ${ADMISSION_METHODS[method].short}` : `Không xét ${ADMISSION_METHODS[method].short}`}
+                          {cut ? `Chuẩn ${cut.year}: ${formatMethodScore(cut.score, selectedMethod)} ${ADMISSION_METHODS[selectedMethod].short}` : `Không xét ${ADMISSION_METHODS[selectedMethod].short}`}
                         </span>
                         <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">{formatTuition(v.program.tuitionMin, v.program.tuitionMax)}</span>
                         <FitBadge fit={fit} />
+                        {evaluated && <span>{evaluated.combo} · {formatMethodScore(evaluated.total, evaluated.method)} điểm</span>}
                       </div>
-                      {note && <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[13px] text-slate-700">Ghi chú: {note}</p>}
+                      {note && <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">Ghi chú: {note}</p>}
                     </div>
                   </div>
                 </Card>
@@ -130,7 +117,7 @@ export default async function SharedWishlistPage({ params }: Props) {
 
         <ShareCommentForm shareId={id} programs={data.items.map(({ view }, i) => ({ id: view.program.id, label: `NV${i + 1}: ${view.program.name} – ${view.school.shortName}` }))} />
 
-        <p className="mt-8 text-center text-xs text-slate-500">
+        <p className="mt-8 text-center text-xs text-slate-600">
           Thông tin phản ánh dữ liệu Trovio đang có; hãy đối chiếu đề án tuyển sinh và thông báo chính thức của trường.{" "}
           <Link href="/cach-goi-y" className="font-semibold text-primary-600 hover:underline">
             Cách Trovio đánh giá

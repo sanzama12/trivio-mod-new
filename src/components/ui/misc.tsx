@@ -5,13 +5,13 @@ import { cn } from "@/lib/cn";
 
 export function Breadcrumb({ items, inverse = false }: { items: { label: string; href?: string }[]; inverse?: boolean }) {
   return (
-    <nav aria-label="Breadcrumb" className={cn("text-[13px]", inverse ? "text-slate-300" : "text-slate-500")}>
+    <nav aria-label="Breadcrumb" className={cn("text-sm", inverse ? "text-slate-300" : "text-slate-600")}>
       <ol className="flex flex-wrap items-center gap-1.5">
         {items.map((it, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            {i > 0 && <LuChevronRight className={cn("size-3.5", inverse ? "text-slate-500" : "text-slate-400")} aria-hidden />}
+            {i > 0 && <LuChevronRight className={cn("size-3.5", inverse ? "text-slate-600" : "text-slate-400")} aria-hidden />}
             {it.href ? (
-              <Link href={it.href} className={inverse ? "hover:text-white" : "hover:text-primary-700"}>
+              <Link href={it.href} className={cn("inline-flex min-h-11 sm:min-h-6 items-center", inverse ? "hover:text-white" : "hover:text-primary-700")}>
                 {it.label}
               </Link>
             ) : (
@@ -33,7 +33,7 @@ export function Pagination({ page, pageCount, hrefFor }: { page: number; pageCou
     if (p === 1 || p === pageCount || Math.abs(p - page) <= 1) pages.push(p);
     else if (pages[pages.length - 1] !== "…") pages.push("…");
   }
-  const cls = "flex size-10 items-center justify-center rounded-lg border text-sm font-semibold transition-colors";
+  const cls = "flex size-10 max-sm:size-11 items-center justify-center rounded-lg border text-sm font-semibold transition-colors";
   return (
     <nav aria-label="Phân trang" className="flex items-center justify-center gap-2">
       {page > 1 ? (
@@ -47,7 +47,7 @@ export function Pagination({ page, pageCount, hrefFor }: { page: number; pageCou
       )}
       {pages.map((p, i) =>
         p === "…" ? (
-          <span key={`e${i}`} className="px-1 text-slate-500">
+          <span key={`e${i}`} className="px-1 text-slate-600">
             …
           </span>
         ) : (
@@ -94,7 +94,7 @@ export function EmptyState({
     <div className={cn("flex flex-col items-center px-6 py-14 text-center", className)}>
       <div aria-hidden className="mb-5 flex size-16 items-center justify-center rounded-full bg-primary-50 text-primary-600 [&>svg]:size-7">{icon}</div>
       <Heading className="text-lg font-bold text-slate-900">{title}</Heading>
-      {description && <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-500">{description}</p>}
+      {description && <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">{description}</p>}
       {children && <div className="mt-6 flex flex-wrap justify-center gap-3">{children}</div>}
     </div>
   );

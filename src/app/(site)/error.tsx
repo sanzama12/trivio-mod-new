@@ -1,5 +1,7 @@
 "use client";
 
+import { siteContact } from "@/lib/site-contact";
+
 import Link from "next/link";
 import { useEffect } from "react";
 import { LuTriangleAlert } from "react-icons/lu";
@@ -12,10 +14,10 @@ export default function SiteError({ error, reset }: { error: Error & { digest?: 
 
   return (
     <div className="container-page flex flex-col items-center py-24 text-center">
-      <span className="flex size-24 items-center justify-center rounded-full bg-accent-100 text-accent-700">
+      <span className="flex size-24 items-center justify-center rounded-full bg-accent-100 text-accent-800">
         <LuTriangleAlert className="size-10" aria-hidden />
       </span>
-      <h1 className="mt-6 text-3xl font-bold">Đã xảy ra lỗi hệ thống</h1>
+      <h1 className="mt-6 text-3xl md:text-4xl font-bold tracking-tight">Đã xảy ra lỗi hệ thống</h1>
       <p className="mt-3 max-w-lg text-slate-600">Hệ thống cơ sở dữ liệu đang gặp sự cố. Chúng tôi đang khắc phục để không ảnh hưởng đến trải nghiệm của bạn. Vui lòng thử lại sau ít phút.</p>
       <div className="mt-8 flex gap-3">
         <Button onClick={reset}>Thử lại ngay</Button>
@@ -23,8 +25,8 @@ export default function SiteError({ error, reset }: { error: Error & { digest?: 
           Về trang chủ
         </Link>
       </div>
-      <p className="mt-6 text-xs text-slate-500">
-        Mã lỗi: {error.digest ?? "không có"} · {new Date().toLocaleString("vi-VN")} · Gửi mã này tới support@trovio.vn nếu lỗi lặp lại.
+      <p className="mt-6 text-xs text-slate-600">
+        Mã lỗi: {error.digest ?? "không có"} · {new Date().toLocaleString("vi-VN")} · Gửi mã này tới {siteContact.email}{siteContact.demo && <span className="text-xs"> (email demo của đồ án)</span>} nếu lỗi lặp lại.
       </p>
     </div>
   );

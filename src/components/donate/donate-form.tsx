@@ -1,7 +1,11 @@
 "use client";
 
+import { DONATION_TIERS } from "./donation-tiers";
+
+import { buttonClass } from "@/components/ui/button";
 import { useState } from "react";
 import {
+  LuTriangleAlert,
   LuCreditCard,
   LuHandHeart,
   LuHeart,
@@ -13,16 +17,10 @@ import {
 import { cn } from "@/lib/cn";
 import { Input } from "@/components/ui/field";
 
-const PRESET_AMOUNTS = [
-  { label: "20.000 ₫", value: 20000, desc: "Một ly trà đá tiếp sức" },
-  { label: "50.000 ₫", value: 50000, desc: "Một bữa sáng cho sĩ tử", popular: true },
-  { label: "100.000 ₫", value: 100000, desc: "Chi phí máy chủ 1 ngày" },
-  { label: "200.000 ₫", value: 200000, desc: "Gói dữ liệu tuyển sinh" },
-  { label: "500.000 ₫", value: 500000, desc: "Hỗ trợ học bổng sĩ tử nghèo" },
-];
+const PRESET_AMOUNTS = DONATION_TIERS;
 
 const PAYMENT_METHODS = [
-  { id: "VNPAYQR", label: "VNPAY-QR (App Ngân hàng)", icon: LuQrCode, desc: "Quét mã qua 40+ app ngân hàng & ví" },
+  { id: "VNPAYQR", label: "VNPAY-QR (App Ngân hàng)", icon: LuQrCode, desc: "Quét mã qua app ngân hàng & ví" },
   { id: "VNBANK", label: "Thẻ ATM Nội địa", icon: LuCreditCard, desc: "Thanh toán qua thẻ ATM / Internet Banking" },
   { id: "INTCARD", label: "Thẻ Quốc tế (Visa / Master)", icon: LuCreditCard, desc: "Thẻ tín dụng & ghi nợ quốc tế" },
 ];
@@ -97,7 +95,7 @@ export function DonateForm() {
       {/* Bước 1: Chọn số tiền */}
       <div>
         <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
+          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
             1
           </span>
           <h3 className="text-base font-bold text-slate-900">Chọn số tiền ủng hộ (VNĐ)</h3>
@@ -108,6 +106,7 @@ export function DonateForm() {
             <button
               key={item.value}
               type="button"
+              aria-pressed={!isCustomAmount && selectedAmount === item.value}
               onClick={() => {
                 setSelectedAmount(item.value);
                 setIsCustomAmount(false);
@@ -121,17 +120,18 @@ export function DonateForm() {
               )}
             >
               {item.popular && (
-                <span className="absolute -top-2.5 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                <span className="absolute -top-2.5 rounded-full bg-accent-500 px-2 py-0.5 text-xs font-semibold text-slate-900 shadow-xs">
                   Phổ biến
                 </span>
               )}
-              <span className="text-base font-extrabold">{item.label}</span>
-              <span className="mt-0.5 text-[11px] text-slate-500">{item.desc}</span>
+              <span className="text-base font-semibold">{item.label}</span>
+              <span className="mt-0.5 text-xs text-slate-600">{item.desc}</span>
             </button>
           ))}
 
           <button
             type="button"
+            aria-pressed={isCustomAmount}
             onClick={() => {
               setIsCustomAmount(true);
               setErrorMsg(null);
@@ -143,8 +143,8 @@ export function DonateForm() {
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
             )}
           >
-            <span className="text-base font-bold">Số tiền khác</span>
-            <span className="mt-0.5 text-[11px] text-slate-500">Tuỳ tâm đóng góp</span>
+            <span className="text-base font-semibold">Số tiền khác</span>
+            <span className="mt-0.5 text-xs text-slate-600">Tuỳ tâm đóng góp</span>
           </button>
         </div>
 
@@ -152,18 +152,19 @@ export function DonateForm() {
           <div className="mt-3">
             <div className="relative">
               <Input
+                aria-label="Số tiền muốn ủng hộ"
                 type="text"
                 value={customAmountStr}
                 onChange={handleCustomAmountChange}
                 placeholder="Nhập số tiền muốn ủng hộ (VD: 300.000)"
-                className="pl-4 pr-12 text-base font-bold text-primary-700"
+                className="pl-4 pr-12 text-base font-semibold text-primary-700"
                 autoFocus
               />
-              <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm font-bold text-slate-400">
+              <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm font-semibold text-slate-600">
                 VNĐ
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-500">Tối thiểu: 10.000 ₫ · Tối đa: 100.000.000 ₫</p>
+            <p className="mt-1 text-xs text-slate-600">Tối thiểu: 10.000 ₫ · Tối đa: 100.000.000 ₫</p>
           </div>
         )}
       </div>
@@ -171,7 +172,7 @@ export function DonateForm() {
       {/* Bước 2: Phương thức thanh toán VNPay */}
       <div className="mt-8">
         <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
+          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
             2
           </span>
           <h3 className="text-base font-bold text-slate-900">Phương thức thanh toán qua VNPay</h3>
@@ -198,11 +199,11 @@ export function DonateForm() {
                   className="size-4 text-primary-600 focus:ring-primary-500"
                 />
                 <div>
-                  <div className="text-sm font-bold text-slate-900">{method.label}</div>
-                  <div className="text-xs text-slate-500">{method.desc}</div>
+                  <div className="text-sm font-semibold text-slate-900">{method.label}</div>
+                  <div className="text-xs text-slate-600">{method.desc}</div>
                 </div>
               </div>
-              <method.icon className="size-5 text-slate-400" />
+              <method.icon className="size-5 text-slate-600" />
             </label>
           ))}
         </div>
@@ -211,7 +212,7 @@ export function DonateForm() {
       {/* Bước 3: Thông tin người ủng hộ */}
       <div className="mt-8 space-y-4">
         <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
+          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
             3
           </span>
           <h3 className="text-base font-bold text-slate-900">Thông tin người ủng hộ (Tuỳ chọn)</h3>
@@ -219,8 +220,9 @@ export function DonateForm() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Họ và tên hoặc Biệt danh</label>
+            <label htmlFor="donor-name" className="mb-1 block text-xs font-medium text-slate-700">Họ và tên hoặc Biệt danh</label>
             <Input
+              id="donor-name"
               value={donorName}
               onChange={(e) => setDonorName(e.target.value)}
               placeholder="VD: Nguyễn Văn A (hoặc để trống)"
@@ -228,8 +230,9 @@ export function DonateForm() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Email nhận biên lai</label>
+            <label htmlFor="donor-email" className="mb-1 block text-xs font-medium text-slate-700">Email nhận biên lai</label>
             <Input
+              id="donor-email"
               type="email"
               value={donorEmail}
               onChange={(e) => setDonorEmail(e.target.value)}
@@ -239,21 +242,22 @@ export function DonateForm() {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-700">Lời nhắn gửi gắm đến các sĩ tử</label>
+          <label htmlFor="donor-message" className="mb-1 block text-xs font-medium text-slate-700">Lời nhắn</label>
           <textarea
+            id="donor-message"
             value={message}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
             placeholder="Chúc các bạn 2k8 thi tốt, chạm tay vào cánh cổng đại học mơ ước!"
             rows={2}
             maxLength={500}
-            className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-100"
+            className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900 placeholder:text-slate-600 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-100"
           />
         </div>
       </div>
 
       {errorMsg && (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
-          ⚠️ {errorMsg}
+        <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+          <LuTriangleAlert className="inline size-4" aria-hidden /> {errorMsg}
         </div>
       )}
 
@@ -261,26 +265,22 @@ export function DonateForm() {
       <div className="mt-8 border-t border-slate-100 pt-6">
         <div className="flex items-center justify-between text-sm">
           <span className="text-slate-600">Tổng số tiền ủng hộ:</span>
-          <span className="text-xl font-extrabold text-primary-700">
+          <span className="text-xl font-bold text-primary-700">
             {finalAmount ? finalAmount.toLocaleString("vi-VN") : "0"} ₫
           </span>
         </div>
 
+        {(!finalAmount || finalAmount < 10000) && <p className="mt-3 text-sm text-slate-600">Chọn hoặc nhập số tiền từ 10.000 ₫ để tiếp tục.</p>}
         <button
           type="submit"
           disabled={loading || !finalAmount || finalAmount < 10000}
-          className={cn(
-            "mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold text-white shadow-lg transition-all",
-            loading
-              ? "cursor-not-allowed bg-slate-400"
-              : "bg-primary-600 shadow-primary-600/30 hover:bg-primary-700 active:scale-[0.99]"
-          )}
+          className={buttonClass({ full: true, size: "lg", className: "mt-4" })}
         >
           <LuHandHeart className="size-5" />
-          {loading ? "Đang kết nối cổng VNPay..." : "Xác nhận ủng hộ qua VNPay"}
+          {loading ? "Đang kết nối cổng VNPay..." : "Ủng hộ qua VNPay"}
         </button>
 
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-slate-600">
           <LuLock className="size-3.5" />
           <span>Giao dịch an toàn & bảo mật qua Cổng thanh toán Quốc gia VNPay</span>
         </div>

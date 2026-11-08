@@ -17,13 +17,13 @@ const sources = [
 const steps = [
   { icon: LuScale, title: "Đối chiếu điểm & tổ hợp", desc: `Tổng 3 môn theo tổ hợp + điểm ưu tiên. Từ ${PRIORITY_REDUCTION_THRESHOLD} điểm trở lên, điểm ưu tiên giảm dần theo quy chế.` },
   { icon: LuFilter, title: "Lọc theo ngân sách & khu vực", desc: "Loại bỏ chương trình vượt học phí tối đa, ngoài khu vực hoặc loại hình trường bạn chọn." },
-  { icon: LuListChecks, title: "Xếp hạng theo độ phù hợp", desc: "Ưu tiên Vừa sức, rồi An toàn, sau đó Thử sức; trong mỗi nhóm xếp theo điểm chuẩn." },
+  { icon: LuListChecks, title: "Xếp hạng theo độ phù hợp", desc: "Đối chiếu điểm theo phương thức xét tuyển, ngành quan tâm và lựa chọn khu vực để sắp xếp các chương trình phù hợp." },
 ];
 
 const levels = [
   { name: "An toàn", rule: "Điểm của bạn cao hơn điểm chuẩn gần nhất từ 1 điểm trở lên (thang 30).", cls: "border-success-100 bg-success-50 text-success-700" },
   { name: "Vừa sức", rule: "Chênh lệch trong khoảng −0,5 đến dưới +1 điểm (thang 30).", cls: "border-primary-200 bg-primary-50 text-primary-700" },
-  { name: "Thử sức", rule: "Điểm của bạn thấp hơn điểm chuẩn hơn 0,5 điểm (thang 30).", cls: "border-accent-200 bg-accent-50 text-accent-700" },
+  { name: "Thử sức", rule: "Điểm của bạn thấp hơn điểm chuẩn hơn 0,5 điểm (thang 30).", cls: "border-accent-200 bg-accent-50 text-accent-800" },
 ];
 
 export default function HowItWorksPage() {
@@ -33,8 +33,8 @@ export default function HowItWorksPage() {
         <div className="container-page pt-6 pb-14">
           <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Cách gợi ý & dữ liệu" }]} />
           <div className="mt-8 text-center">
-            <span className="inline-flex rounded-full bg-primary-600 px-3 py-1 text-[11px] font-bold tracking-wider text-white uppercase">Hệ thống gợi ý minh bạch</span>
-            <h1 className="mt-5 text-3xl font-bold tracking-tight md:text-4xl">Cách Trovio gợi ý cho bạn</h1>
+            <span className="inline-flex rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold tracking-wide text-white">Hệ thống gợi ý minh bạch</span>
+            <h1 className="mt-5 text-3xl md:text-4xl font-bold tracking-tight">Cách Trovio gợi ý cho bạn</h1>
             <p className="mx-auto mt-3 max-w-2xl text-slate-600">Nguồn dữ liệu, quy trình lọc và cách chúng tôi xếp loại mức độ phù hợp – để bạn tự kiểm chứng mọi gợi ý.</p>
           </div>
         </div>
@@ -61,7 +61,7 @@ export default function HowItWorksPage() {
           <ol className="mt-6 grid gap-5 md:grid-cols-3">
             {steps.map((s, i) => (
               <li key={s.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
-                <span className="rounded-full bg-primary-600 px-2.5 py-1 text-[11px] font-bold text-white">BƯỚC {i + 1}</span>
+                <span className="rounded-full bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white">BƯỚC {i + 1}</span>
                 <h3 className="mt-4 flex items-center gap-2 font-bold">
                   <s.icon className="size-5 text-primary-600" aria-hidden /> {s.title}
                 </h3>
@@ -87,7 +87,7 @@ export default function HowItWorksPage() {
           <SectionHeading title="Quy đổi theo phương thức xét tuyển" subtitle="Ngưỡng An toàn / Vừa sức và điểm ưu tiên được quy đổi theo tỉ lệ thang điểm của từng phương thức." />
           <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+              <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
                 <tr>
                   <th scope="col" className="px-4 py-3">Phương thức</th>
                   <th scope="col" className="px-4 py-3">Thang</th>
@@ -113,22 +113,21 @@ export default function HowItWorksPage() {
         </section>
 
         <section id="danh-cho-ban">
-          <SectionHeading title="Gợi ý “Dành cho bạn” được tính thế nào" subtitle="Mỗi chương trình nhận một điểm tổng hợp; hệ thống lấy 6 chương trình cao nhất, tối đa 2 chương trình cùng ngành hoặc cùng trường." />
-          <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <SectionHeading title="Gợi ý “Dành cho bạn” được tính thế nào" subtitle="Gợi ý dựa trên dữ liệu tuyển sinh và các lựa chọn bạn cung cấp. Mỗi gợi ý có phần giải thích để bạn đối chiếu trước khi quyết định." />
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
             {[
-              ["45%", "Sở thích", "Độ khớp giữa mã RIASEC của bạn và mã Holland của ngành."],
-              ["35%", "Khả năng trúng tuyển", "Vừa sức được ưu tiên nhất, rồi An toàn, sau đó Thử sức — theo đúng phương thức bạn nhập."],
-              ["10%", "Vị trí", "Trường cùng miền với tỉnh/thành trong hồ sơ của bạn."],
-              ["10%", "Nhóm ngành", "Thuộc nhóm ngành bạn chọn ở bước nhập điểm."],
-            ].map(([w, t, d]) => (
+              ["Điểm & phương thức", "Đối chiếu điểm của bạn với điểm chuẩn theo đúng phương thức và tổ hợp xét tuyển. Nhãn An toàn / Vừa sức / Thử sức chỉ mang tính tham khảo."],
+              ["Ngành quan tâm", "Các ngành và lĩnh vực bạn chủ động chọn giúp thu hẹp hướng tìm hiểu. Đây là lựa chọn bạn cung cấp, không lấy từ kết quả trắc nghiệm RIASEC này."],
+              ["Khu vực & ngân sách", "Các lựa chọn khu vực và giới hạn học phí giúp lọc chương trình trước khi xếp hạng."],
+            ].map(([t, d]) => (
               <Card key={t} className="p-5">
-                <p className="text-2xl font-extrabold text-primary-600">{w}</p>
-                <p className="mt-1 font-bold">{t}</p>
+                <h3 className="font-bold text-slate-900">{t}</h3>
                 <p className="mt-1 text-sm text-slate-600">{d}</p>
               </Card>
             ))}
           </div>
-          <p className="mt-3 text-sm text-slate-500">Chương trình vượt ngân sách, ngoài khu vực bạn chọn, hoặc không xét tổ hợp/phương thức của bạn sẽ bị loại trước khi xếp hạng.</p>
+          <p className="mt-3 text-sm text-slate-600">Chương trình vượt ngân sách, ngoài khu vực bạn chọn, hoặc không xét tổ hợp/phương thức của bạn sẽ bị loại trước khi xếp hạng.</p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600"><Link href="/trac-nghiem" className="font-semibold text-primary-700 underline underline-offset-4">Trắc nghiệm sở thích RIASEC</Link> chỉ hiển thị các ngành phù hợp ở trang kết quả trắc nghiệm. Câu trả lời và kết quả lưu riêng trên trình duyệt, không tham gia thuật toán gợi ý hay xếp hạng chương trình.</p>
         </section>
 
         <section id="kiem-tra-nguyen-vong">
@@ -155,9 +154,9 @@ export default function HowItWorksPage() {
               ["Phụ thuộc biến động thực tế", "Trường có thể thay đổi tổ hợp, phương thức, học phí sau khi dữ liệu được cập nhật. Luôn đối chiếu với cổng tuyển sinh chính thức."],
             ].map(([t, d]) => (
               <div key={t} className="flex gap-3 rounded-2xl border border-accent-200 bg-accent-50 p-5">
-                <LuTriangleAlert className="mt-0.5 size-5 shrink-0 text-accent-700" aria-hidden />
+                <LuTriangleAlert className="mt-0.5 size-5 shrink-0 text-accent-800" aria-hidden />
                 <div>
-                  <p className="font-bold text-accent-700">{t}</p>
+                  <p className="font-bold text-accent-800">{t}</p>
                   <p className="mt-1 text-sm text-slate-700">{d}</p>
                 </div>
               </div>
@@ -167,8 +166,8 @@ export default function HowItWorksPage() {
 
         <section className="flex flex-col items-start justify-between gap-6 rounded-3xl bg-white p-8 shadow-card md:flex-row md:items-center">
           <div>
-            <p className="text-xs font-bold tracking-wider text-success-700 uppercase">Cập nhật: 09/2026</p>
-            <h2 className="mt-2 text-xl font-bold">Chu kỳ cập nhật & rà soát sai sót</h2>
+            <p className="text-xs font-semibold tracking-wide text-success-700">Cập nhật: 09/2026</p>
+            <h2 className="mt-2 text-lg font-semibold">Chu kỳ cập nhật & rà soát sai sót</h2>
             <p className="mt-2 max-w-xl text-sm text-slate-600">Dữ liệu được rà soát theo mùa tuyển sinh và đối chiếu với nguồn chính thức của từng trường.</p>
           </div>
         </section>

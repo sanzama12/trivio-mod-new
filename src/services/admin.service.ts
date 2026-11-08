@@ -22,10 +22,15 @@ const ALT_KEYS: AltMethodKey[] = ["hocba"];
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
-function fmt(field: string, v: unknown): string {
+export function fmt(field: string, v: unknown): string {
   if (field === "cutoffs") return (v as Program["cutoffs"]).map((c) => `${c.year}: ${c.score}`).join("; ") || "—";
-  if (field === "altCutoffs") return (v as MethodCutoff[]).map((c) => `${ADMISSION_METHODS[c.method].short} ${c.year}: ${c.score}`).join("; ") || "—";
+  if (field === "altCutoffs") return (v as MethodCutoff[]).map((c) => `${(ADMISSION_METHODS[c.method]?.short ?? c.method)} ${c.year}: ${c.score}`).join("; ") || "—";
   return v == null || v === "" ? "—" : String(v);
+}
+
+/** Form chỉ quản lý các phương thức trong ALT_KEYS. */
+export function mergeEditableCutoffs(current: MethodCutoff[], edited: MethodCutoff[]): MethodCutoff[] {
+  return [...current.filter((c) => !ALT_KEYS.includes(c.method)), ...edited];
 }
 
 /** Kiểm tra & chuẩn hoá dữ liệu nhập. */
@@ -126,6 +131,7 @@ export const adminService = {
     if (!current) return { ok: false, field: "id", message: "Không tìm thấy chương trình." };
     const v = validateProgramEdit(input);
     if (!v.ok) return v;
+    if (v.patch.altCutoffs) v.patch.altCutoffs = mergeEditableCutoffs(current.altCutoffs, v.patch.altCutoffs);
     const tMin = v.patch.tuitionMin ?? current.tuitionMin;
     const tMax = v.patch.tuitionMax ?? current.tuitionMax;
     if (tMin > tMax) return { ok: false, field: "tuitionMax", message: "Học phí tối đa phải lớn hơn hoặc bằng học phí tối thiểu." };

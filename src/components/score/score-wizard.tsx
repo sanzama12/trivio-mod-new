@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { LuBookOpen, LuCalculator, LuClipboardList, LuMapPin, LuShieldCheck, LuTarget, LuWallet } from "react-icons/lu";
 import type { AdmissionMethodKey, Combo, MajorGroup, PriorityGroup, PriorityRegion, Region, SchoolType, Subject } from "@/domain/types";
-import { REGION_LABELS, SCHOOL_TYPE_LABELS, TUITION_RANGES, type TuitionRange } from "@/services/program.filters";
+import { REGION_LABELS, SCHOOL_TYPE_LABELS, TUITION_RANGES, serializeProgramFilters, type TuitionRange } from "@/services/program.filters";
 import {
   ADMISSION_METHODS,
   computeAdmissionScore,
@@ -33,7 +33,7 @@ function Pill({ active, children, onClick, disabled }: { active: boolean; childr
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "min-w-0 rounded-full border px-4 py-2 text-[13px] font-semibold break-words transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "min-w-0 rounded-full border px-4 py-2 text-sm font-semibold break-words transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         active
           ? "border-primary-600 bg-primary-600 text-white shadow-[inset_0_-3px_0_var(--color-accent-500)]"
           : "border-slate-300 bg-white text-slate-700 hover:border-primary-600 hover:text-primary-700",
@@ -47,15 +47,15 @@ function Pill({ active, children, onClick, disabled }: { active: boolean; childr
 function LedgerStep({ no, icon, title, desc }: { no: string; icon: ReactNode; title: string; desc: string }) {
   return (
     <div className="flex min-w-0 gap-3">
-      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-none border-b-4 border-accent-500 bg-primary-600 font-black text-white [&>svg]:size-4">
+      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-none border-b-4 border-accent-500 bg-primary-600 font-bold text-white [&>svg]:size-4">
         {no}
       </span>
       <div className="min-w-0 flex-1">
-        <h2 className="flex min-w-0 items-center gap-2 text-left text-lg font-black text-slate-900">
+        <h2 className="flex min-w-0 items-center gap-2 text-left text-lg font-semibold text-slate-900">
           <span aria-hidden className="text-primary-600 [&>svg]:size-5">{icon}</span>
           <span className="break-words">{title}</span>
         </h2>
-        <p className="mt-0.5 text-sm break-words text-slate-500">{desc}</p>
+        <p className="mt-0.5 text-sm break-words text-slate-600">{desc}</p>
       </div>
     </div>
   );
@@ -156,6 +156,12 @@ export function ScoreWizard({
   const filledSubjects = subjects.filter((s) => scores[s.id] != null && !invalid(s.id)).length;
 
   const finish = () => {
+    const firstInvalid = [...subjects].sort((a, b) => { const order = ["Toán", "Ngữ văn", "Tiếng Anh"]; const rank = (name: string) => { const i = order.indexOf(name); return i < 0 ? 3 : i; }; return rank(a.name) - rank(b.name); }).find((s) => invalid(s.id));
+    if (firstInvalid) {
+      setTouched((t) => ({ ...t, [firstInvalid.id]: true }));
+      document.getElementById(`sc-${firstInvalid.id}`)?.focus();
+      return;
+    }
     const usable = methodTotals.filter((row) => row.admission != null);
     const primary = usable[0];
     if (!primary?.admission) return;
@@ -175,7 +181,7 @@ export function ScoreWizard({
       updatedAt: new Date().toISOString(),
     });
     track("score_saved");
-    router.push("/chuong-trinh");
+    router.push(`/chuong-trinh${serializeProgramFilters({ score: primary.admission.total, method: primary.method, combos: pinned ? [pinned.code] : [], regions, budgetMax: budget && Number.isFinite(TUITION_RANGES[budget].max) ? TUITION_RANGES[budget].max : undefined, types, groups: groupIds })}`);
   };
 
   return (
@@ -185,7 +191,7 @@ export function ScoreWizard({
           <section>
             <LedgerStep no="1" icon={<LuCalculator />} title="Điểm các môn" desc="Nhập điểm thi hoặc điểm dự kiến, thang 10. Tổ hợp mạnh được tính từ những môn đã đủ." />
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {subjects.map((s) => (
+              {[...subjects].sort((a, b) => { const order = ["Toán", "Ngữ văn", "Tiếng Anh"]; const rank = (name: string) => { const i = order.indexOf(name); return i < 0 ? 3 : i; }; return rank(a.name) - rank(b.name); }).map((s) => (
                 <div key={s.id}>
                   <label htmlFor={`sc-${s.id}`} className="mb-1.5 block text-sm font-semibold text-slate-700">
                     {s.name}
@@ -204,7 +210,7 @@ export function ScoreWizard({
                       invalid(s.id) ? "border-danger-500 focus:ring-danger-100" : "border-slate-300 focus:border-primary-600 focus:ring-primary-100",
                     )}
                   />
-                  {invalid(s.id) && touched[s.id] && (
+                  {invalid(s.id) && (
                     <p id={`sc-${s.id}-err`} className="mt-1 text-xs font-medium text-danger-700">
                       Điểm phải từ 0 đến 10.
                     </p>
@@ -212,7 +218,7 @@ export function ScoreWizard({
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-xs text-slate-500">Đã nhập {filledSubjects}/{subjects.length} môn.</p>
+            <p className="mt-2 text-xs text-slate-600">Đã nhập {filledSubjects}/{subjects.length} môn.</p>
           </section>
 
           <section>
@@ -232,7 +238,7 @@ export function ScoreWizard({
                 })}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-slate-500">Nhập đủ 3 môn của một tổ hợp để xem tổ hợp mạnh.</p>
+              <p className="mt-4 text-sm text-slate-600">Nhập đủ 3 môn của một tổ hợp để xem tổ hợp mạnh.</p>
             )}
           </section>
 
@@ -293,12 +299,12 @@ export function ScoreWizard({
                           <dd>
                             +{row.admission.priorityApplied.toFixed(2)}
                             {row.admission.reduced && row.admission.priorityPoints > 0 && (
-                              <span className="ml-1 text-slate-500">(giảm vì điểm ≥ {PRIORITY_REDUCTION_THRESHOLD * cfg.factor})</span>
+                              <span className="ml-1 text-slate-600">(giảm vì điểm ≥ {PRIORITY_REDUCTION_THRESHOLD * cfg.factor})</span>
                             )}
                           </dd>
                         </div>
                       </dl>
-                      <p className="text-2xl font-extrabold text-primary-700">{formatMethodScore(row.admission.total, row.method)}</p>
+                      <p className="text-2xl font-bold text-primary-700">{formatMethodScore(row.admission.total, row.method)}</p>
                     </div>
                   );
                 })
@@ -389,25 +395,20 @@ export function ScoreWizard({
             )}
           </section>
 
-          <section>
-            <LedgerStep no="8" icon={<LuBookOpen />} title="Khám phá ngành" desc="Xem danh mục ngành và chương trình đang xét tuyển." />
-            <p className="mt-4 text-sm text-slate-600">
-              <Link href="/nganh" className="font-semibold text-primary-600 hover:underline">Xem danh mục ngành</Link> hoặc <Link href="/chuong-trinh" className="font-semibold text-primary-600 hover:underline">tìm chương trình</Link> phù hợp với tổ hợp đã nhập.
-            </p>
-          </section>
         </div>
 
-        <p className="mt-8 flex items-start gap-2 border-l-4 border-l-accent-500 bg-slate-50 px-4 py-3 text-xs break-words text-slate-500">
+        <p className="mt-8 flex items-start gap-2 border-l-4 border-l-accent-500 bg-slate-50 px-4 py-3 text-xs break-words text-slate-600">
           <LuShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
           Hồ sơ lưu trên trình duyệt và đồng bộ vào tài khoản khi đăng nhập, chỉ để gợi ý chương trình — không chia sẻ với bên thứ ba.
         </p>
 
         <div className="mt-6 flex flex-col gap-3 border-t-2 border-dashed border-slate-200 pt-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">{canSave ? "Đủ dữ liệu để gợi ý." : "Cần ít nhất một tổ hợp đủ 3 môn."}</p>
-          <Button onClick={finish} disabled={!canSave}>
+          <p aria-live="polite" className="text-sm text-slate-600">{subjects.some((s) => invalid(s.id)) ? "Vui lòng sửa điểm không hợp lệ trước khi lưu." : canSave ? "Đủ dữ liệu để gợi ý." : "Cần ít nhất một tổ hợp đủ 3 môn."}</p>
+          <Button onClick={finish} disabled={!canSave && !subjects.some((s) => invalid(s.id))}>
             Lưu và xem gợi ý
           </Button>
         </div>
+        <p className="mt-4 text-sm"><Link href="/nganh" className="font-semibold text-primary-700 hover:underline">Xem danh mục ngành</Link></p>
       </div>
     </div>
   );

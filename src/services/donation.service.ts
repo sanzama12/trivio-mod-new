@@ -1,5 +1,5 @@
 import { repositories, type DonationRecord, type DonationStats } from "@database/repositories";
-import { buildVnpayPaymentUrl, verifyVnpayCallback } from "./vnpay.service";
+import { buildVnpayPaymentUrl, describeVnpayResponse, isVnpayConfigured, verifyVnpayCallback, type VerifyVnpayResult } from "./vnpay.service";
 import { emailError } from "@/lib/email-validation";
 
 export interface CreateDonationInput {
@@ -22,6 +22,33 @@ export class DonationValidationError extends Error {
     super(message);
     this.name = "DonationValidationError";
   }
+}
+
+/** Cổng thanh toán chưa được cấu hình (thiếu VNPAY_TMN_CODE / VNPAY_HASH_SECRET). */
+export class DonationUnavailableError extends Error {
+  constructor() {
+    super("Cổng thanh toán đang tạm ngưng. Bạn vui lòng thử lại sau.");
+    this.name = "DonationUnavailableError";
+  }
+}
+
+/** Trạng thái đơn theo kết quả VNPay: người dùng tự huỷ (24) tách riêng khỏi lỗi thanh toán. */
+function statusFromResult(v: VerifyVnpayResult): "success" | "failed" | "cancelled" {
+  if (v.isSuccess) return "success";
+  return v.responseCode === "24" ? "cancelled" : "failed";
+}
+
+/** Thông tin công khai của một giao dịch để hiển thị biên lai (không lộ email, IP). */
+export interface DonationReceipt {
+  txnRef: string;
+  status: DonationRecord["status"];
+  amount: number;
+  donorName: string;
+  bankCode: string | null;
+  transactionNo: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  reason: string | null;
 }
 
 // In-memory cache để loại bỏ query chậm trên trang chủ và API public
@@ -48,6 +75,8 @@ export const donationService = {
     input: CreateDonationInput,
     clientIp?: string | null
   ): Promise<CreateDonationResult> {
+    if (!isVnpayConfigured()) throw new DonationUnavailableError();
+
     const rawAmount = Number(input.amount);
     if (!Number.isFinite(rawAmount) || rawAmount < 10000) {
       throw new DonationValidationError("Số tiền ủng hộ tối thiểu là 10.000 VNĐ.");
@@ -80,7 +109,8 @@ export const donationService = {
 
     // Tạo mã tham chiếu giao dịch độc nhất: TROVIO_TIME_RANDOM
     const txnRef = `TROVIO_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const orderInfo = `Ung ho Trieu Nu Cuoi TriOVO - ${donorName}`;
+    // VNPay yêu cầu nội dung không dấu, không ký tự đặc biệt; không đưa tên người ủng hộ vào để tránh lộ thông tin.
+    const orderInfo = `Ung ho Trovio ${txnRef}`;
 
     // Lưu bản ghi trạng thái pending vào cơ sở dữ liệu
     const donation = await repositories.donations.create({
@@ -136,10 +166,15 @@ export const donationService = {
       };
     }
 
-    // Cập nhật trạng thái nếu đơn vẫn đang pending
+    if (Math.round(existing.amount) !== verified.amount) {
+      return { success: false, message: "Số tiền giao dịch không khớp với đơn ủng hộ.", donation: existing };
+    }
+
+    // IPN là nguồn xác nhận chính. Return URL chỉ cập nhật khi đơn vẫn pending
+    // (khi chạy local, VNPay không gọi được IPN tới localhost).
     if (existing.status === "pending") {
       const updated = await repositories.donations.updatePaymentResult(verified.txnRef, {
-        status: verified.isSuccess ? "success" : "failed",
+        status: statusFromResult(verified),
         transactionNo: verified.transactionNo,
         bankCode: verified.bankCode,
         cardType: verified.cardType,
@@ -154,7 +189,7 @@ export const donationService = {
         success: verified.isSuccess,
         message: verified.isSuccess
           ? "Thanh toán ủng hộ thành công! Chân thành cảm ơn tấm lòng hảo tâm của bạn."
-          : `Giao dịch chưa hoàn tất (Mã lỗi: ${verified.responseCode}).`,
+          : describeVnpayResponse(verified.responseCode),
         donation: updated ?? existing,
       };
     }
@@ -164,7 +199,7 @@ export const donationService = {
       message:
         existing.status === "success"
           ? "Giao dịch đã được ghi nhận thành công trước đó."
-          : `Giao dịch không thành công (Mã phản hồi: ${existing.vnpResponseCode || "không xác định"}).`,
+          : describeVnpayResponse(existing.vnpResponseCode),
       donation: existing,
     };
   },
@@ -196,19 +231,39 @@ export const donationService = {
       return { RspCode: "02", Message: "Order already confirmed" };
     }
 
-    await repositories.donations.updatePaymentResult(verified.txnRef, {
-      status: verified.isSuccess ? "success" : "failed",
+    const updated = await repositories.donations.updatePaymentResult(verified.txnRef, {
+      status: statusFromResult(verified),
       transactionNo: verified.transactionNo,
       bankCode: verified.bankCode,
       cardType: verified.cardType,
       payDate: verified.payDate,
       responseCode: verified.responseCode,
     });
+    // Return URL vừa cập nhật trước (chạy song song) → coi như đã xác nhận.
+    if (!updated) return { RspCode: "02", Message: "Order already confirmed" };
 
     // Cập nhật doanh thu ngay tức thì
     invalidateDonationCache();
 
     return { RspCode: "00", Message: "Confirm Success" };
+  },
+
+  /** Biên lai công khai của một giao dịch, đọc từ database (không tin tham số trên URL). */
+  async getReceipt(txnRef: string): Promise<DonationReceipt | null> {
+    if (!/^TROVIO_[A-Z0-9_]{5,60}$/.test(txnRef)) return null;
+    const d = await repositories.donations.getByTxnRef(txnRef);
+    if (!d) return null;
+    return {
+      txnRef: d.vnpTxnRef,
+      status: d.status,
+      amount: d.amount,
+      donorName: d.donorName,
+      bankCode: d.vnpBankCode,
+      transactionNo: d.vnpTransactionNo,
+      paidAt: d.paidAt,
+      createdAt: d.createdAt,
+      reason: d.status === "success" || d.status === "pending" ? null : describeVnpayResponse(d.vnpResponseCode),
+    };
   },
 
   /**

@@ -37,7 +37,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
       <div className="container-page pt-6 pb-16">
         <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Danh mục trường" }]} />
         <div className="mt-8">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">Danh mục trường</h1>
+          <h1 className="text-slate-900 text-3xl md:text-4xl font-bold tracking-tight">Danh mục trường</h1>
           <p className="mt-3 max-w-2xl text-slate-600">Toàn bộ trường đang có trong hệ thống. Trường mới hiện ở đây sau khi dữ liệu được nhập.</p>
           <form action="/truong" role="search" className="mt-6 flex max-w-xl flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center">
             <label htmlFor="school-q" className="sr-only">
@@ -56,7 +56,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
             </button>
           </form>
           <nav aria-label="Lọc theo miền" className="mt-4 flex flex-wrap gap-2">
-            <Link href={href({ region: undefined })} className={cn("rounded-full px-3 py-1.5 text-[13px] font-semibold", !region ? "bg-primary-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200")}>
+            <Link href={href({ region: undefined })} className={cn("inline-flex h-9 items-center rounded-full border px-4 text-sm font-semibold", !region ? "bg-primary-600 text-white border-primary-600" : "bg-white text-slate-700 border-slate-300")}>
               Tất cả
             </Link>
             {REGIONS.map((r) => (
@@ -64,7 +64,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
                 key={r}
                 href={href({ region: region === r ? undefined : r })}
                 aria-current={region === r ? "true" : undefined}
-                className={cn("rounded-full px-3 py-1.5 text-[13px] font-semibold", region === r ? "bg-primary-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200")}
+                className={cn("inline-flex h-9 items-center rounded-full border px-4 text-sm font-semibold", region === r ? "bg-primary-600 text-white border-primary-600" : "bg-white text-slate-700 border-slate-300")}
               >
                 {REGION_LABELS[r]}
               </Link>
@@ -78,7 +78,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
             subtitle={q || region ? "Đúng bộ lọc đang chọn." : "Không lọc — đây là toàn bộ danh mục."}
             action={
               <div className="flex items-center gap-3">
-                <OpenCompareButton />
+                <OpenCompareButton kind="school" />
                 {q || region ? (
                   <Link href="/truong" className="text-sm font-semibold text-primary-600 hover:underline">
                     Xoá lọc

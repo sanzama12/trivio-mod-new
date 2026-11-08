@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   LuArrowUpRight,
@@ -9,20 +11,22 @@ import {
 } from "react-icons/lu";
 import type { ProgramView } from "@/services/program.service";
 import { formatTuition } from "@/lib/format";
-import { ADMISSION_METHODS, formatMethodScore } from "@/services/scoring.service";
+import { ADMISSION_METHODS, formatMethodScore, evaluateProgramFit } from "@/services/scoring.service";
 import { REGION_LABELS, SCHOOL_TYPE_LABELS } from "@/services/program.filters";
 import { CompareButton, SaveButton } from "./program-actions";
 import { FitBadge } from "./fit-badge";
 import { SchoolLogo } from "@/components/school/school-logo";
 import { cn } from "@/lib/cn";
+import { useTrovio } from "@/stores/trovio-store";
+import { ButtonLink } from "@/components/ui/button";
 
 export function SchoolCode({ code, size = "md" }: { code: string; size?: "md" | "lg" }) {
   return (
     <span
       className={
         size === "lg"
-          ? "flex size-16 shrink-0 items-center justify-center rounded-2xl bg-white text-lg font-extrabold text-primary-700 shadow-sm"
-          : "flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-[13px] font-extrabold text-primary-700"
+          ? "flex size-16 shrink-0 items-center justify-center rounded-2xl bg-white text-lg font-bold text-primary-700 shadow-sm"
+          : "flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-semibold text-primary-700"
       }
     >
       {code}
@@ -31,7 +35,10 @@ export function SchoolCode({ code, size = "md" }: { code: string; size?: "md" | 
 }
 
 export function ProgramCard({ view }: { view: ProgramView }) {
-  const { program, school, latestCutoff, fit, cutoffMethod = "thpt" } = view;
+  const { program, school, latestCutoff, cutoffMethod = "thpt" } = view;
+  const { profile, hydrated } = useTrovio();
+  const evaluation = hydrated && profile ? evaluateProgramFit(profile, program) : null;
+  const fit = hydrated && profile ? evaluation?.fit ?? null : view.fit;
   const methodTag = cutoffMethod !== "thpt" ? ` ${ADMISSION_METHODS[cutoffMethod].short}` : "";
   const schoolType = SCHOOL_TYPE_LABELS[school.type] || "Công lập";
 
@@ -43,7 +50,7 @@ export function ProgramCard({ view }: { view: ProgramView }) {
           <SchoolLogo school={school} size="md" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-2">
-              <h3 className="text-lg font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-primary-800 md:text-xl">
+              <h3 className="text-lg font-semibold tracking-tight text-slate-900 transition-colors group-hover:text-primary-800">
                 <Link href={`/chuong-trinh/${program.slug}`} className="hover:underline">
                   {school.name}
                 </Link>
@@ -62,12 +69,12 @@ export function ProgramCard({ view }: { view: ProgramView }) {
             </p>
 
             {school.highlight ? (
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-600">
                 Thế mạnh: {school.highlight}
               </p>
             ) : null}
 
-            <p className="mt-0.5 text-xs font-medium text-slate-500">
+            <p className="mt-0.5 text-xs font-medium text-slate-600">
               {school.city || "Toàn quốc"} · {schoolType}
             </p>
           </div>
@@ -76,7 +83,7 @@ export function ProgramCard({ view }: { view: ProgramView }) {
         {/* Nút mũi tên mở chi tiết ↗ */}
         <Link
           href={`/chuong-trinh/${program.slug}`}
-          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-primary-700"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary-700"
           title="Xem chi tiết"
           aria-label={`Xem chi tiết ${program.name}`}
         >
@@ -85,17 +92,17 @@ export function ProgramCard({ view }: { view: ProgramView }) {
       </div>
 
       {/* 2. Khối thông số ở giữa: thiết kế rộng chia cột có vạch ngăn cách */}
-      <div className="mt-5 grid grid-cols-1 gap-4 rounded-xl bg-[#fafaf7] p-4 sm:grid-cols-2 md:grid-cols-[130px_1px_1fr_1fr] md:items-center md:gap-5">
+      <div className="mt-5 grid grid-cols-1 gap-4 rounded-xl bg-paper-50 p-4 sm:grid-cols-2 md:grid-cols-[130px_1px_1fr_1fr] md:items-center md:gap-5">
         {/* Cột 1: Khu vực & Loại hình */}
         <div className="space-y-2">
           <div>
-            <p className="text-xs font-medium text-slate-500">Khu vực</p>
+            <p className="text-xs font-medium text-slate-600">Khu vực</p>
             <p className="text-sm font-bold text-slate-900 md:text-base">
               {school.city || "Toàn quốc"}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500">Loại hình</p>
+            <p className="text-xs font-medium text-slate-600">Loại hình</p>
             <p className="text-sm font-bold text-slate-900 md:text-base">
               {schoolType}
             </p>
@@ -112,20 +119,20 @@ export function ProgramCard({ view }: { view: ProgramView }) {
               <LuGraduationCap className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Ngành đào tạo</p>
-              <p className="text-sm font-bold text-slate-900 truncate" title={program.name}>
+              <p className="text-xs font-medium text-slate-600">Ngành đào tạo</p>
+              <p className="text-sm font-semibold text-slate-900 truncate" title={program.name}>
                 {program.name}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-700">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-800">
               <LuCoins className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Học phí/năm</p>
-              <p className="text-sm font-bold text-slate-900 truncate">
+              <p className="text-xs font-medium text-slate-600">Học phí/năm</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">
                 {formatTuition(program.tuitionMin, program.tuitionMax)}
               </p>
             </div>
@@ -135,16 +142,16 @@ export function ProgramCard({ view }: { view: ProgramView }) {
         {/* Cột 3: Điểm THPT & Tổ hợp / Ngành nổi bật */}
         <div className="space-y-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
               <LuTrendingUp className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Điểm 2026 THPT</p>
-              <p className="text-sm font-bold text-slate-900 truncate">
+              <p className="text-xs font-medium text-slate-600">Điểm 2026 THPT</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">
                 {latestCutoff != null ? (
-                  <span className="text-primary-700 font-extrabold">{formatMethodScore(latestCutoff, cutoffMethod)} điểm{methodTag}</span>
+                  <span className="text-primary-700 font-bold">{formatMethodScore(latestCutoff, cutoffMethod)} điểm{methodTag}</span>
                 ) : (
-                  <span className="text-slate-400 font-normal">Chưa có</span>
+                  <span className="text-slate-600 font-normal">Chưa có</span>
                 )}
               </p>
             </div>
@@ -155,8 +162,8 @@ export function ProgramCard({ view }: { view: ProgramView }) {
               <LuBookOpen className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Tổ hợp môn</p>
-              <p className="text-sm font-bold text-slate-900 truncate" title={program.combos.join(", ")}>
+              <p className="text-xs font-medium text-slate-600">Tổ hợp môn</p>
+              <p className="text-sm font-semibold text-slate-900 truncate" title={program.combos.join(", ")}>
                 {program.combos.length > 0 ? program.combos.join(", ") : "Theo đề án"}
               </p>
             </div>
@@ -168,25 +175,25 @@ export function ProgramCard({ view }: { view: ProgramView }) {
       {program.cutoffs && program.cutoffs.length > 0 && (
         <div className="mt-3.5 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50/80 px-3.5 py-2.5 text-xs border border-slate-200/60">
           <span className="flex items-center gap-1 font-semibold text-slate-600">
-            <LuHistory className="size-3.5 text-slate-400" />
+            <LuHistory className="size-3.5 text-slate-600" />
             Điểm chuẩn lịch sử:
           </span>
           <div className="flex flex-wrap items-center gap-1.5">
             {program.cutoffs.map((c) => {
-              const userScore = fit && latestCutoff != null ? Math.round((latestCutoff + fit.diff) * 100) / 100 : null;
+              const userScore = evaluation && evaluation.method === "thpt" ? evaluation.total : !profile && fit && latestCutoff != null && cutoffMethod === "thpt" ? Math.round((latestCutoff + fit.diff) * 100) / 100 : null;
               const diff = userScore != null ? Math.round((userScore - c.score) * 100) / 100 : null;
               return (
                 <span
                   key={c.year}
                   className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 border border-slate-200 text-slate-700 shadow-2xs font-medium"
                 >
-                  <span className="text-slate-500">{c.year}:</span>
+                  <span className="text-slate-600">{c.year}:</span>
                   <span className="font-bold text-slate-900">{c.score.toFixed(2)}</span>
                   {diff != null && (
                     <span
                       title={`Điểm dự kiến chênh ${diff >= 0 ? "+" : ""}${diff.toFixed(2)} so với năm ${c.year}`}
                       className={cn(
-                        "text-[11px] font-bold",
+                        "text-xs font-semibold",
                         diff >= 0 ? "text-emerald-700" : "text-amber-700"
                       )}
                     >
@@ -201,13 +208,16 @@ export function ProgramCard({ view }: { view: ProgramView }) {
       )}
 
       {/* 3. Chân thẻ (Thanh nút thao tác dưới đáy: So sánh & Yêu thích) */}
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3.5">
-        <div className="flex items-center gap-2.5">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <CompareButton id={program.id} variant="pill" />
           {fit && <FitBadge fit={fit} />}
+          {evaluation && <span className="text-xs text-slate-600">{ADMISSION_METHODS[evaluation.method].short} · {evaluation.combo} · {formatMethodScore(evaluation.total, evaluation.method)} điểm</span>}
+          {hydrated && !profile && fit && latestCutoff != null && <span className="text-xs text-slate-600">{ADMISSION_METHODS[cutoffMethod].short} · {formatMethodScore(latestCutoff + fit.diff, cutoffMethod)} điểm nhập thủ công</span>}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3">
           <SaveButton id={program.id} variant="text" />
+          <ButtonLink href={`/chuong-trinh/${program.slug}`} size="sm">Xem chi tiết</ButtonLink>
         </div>
       </div>
     </div>

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import type { School } from "@/domain/types";
+import { SchoolLogo } from "@/components/school/school-logo";
 import { useState } from "react";
-import { LuArrowDown, LuArrowUp, LuBookmark, LuCloud, LuCloudOff, LuImage, LuListChecks, LuLock, LuPrinter, LuShare2, LuTrash2, LuTriangleAlert, LuWallet, LuX } from "react-icons/lu";
-import { ADMISSION_METHODS, cutoffFor, fitForProfile, formatMethodScore, profileMethod } from "@/services/scoring.service";
+import { LuHeart, LuArrowDown, LuArrowUp, LuBookmark, LuCloud, LuCloudOff, LuImage, LuListChecks, LuLock, LuPrinter, LuShare2, LuTrash2, LuTriangleAlert, LuWallet, LuX } from "react-icons/lu";
+import { ADMISSION_METHODS, cutoffFor, evaluateProgramFit, fitForProfile, formatMethodScore, profileMethod } from "@/services/scoring.service";
 import type { StrategyItem } from "@/services/wishlist-strategy";
 import type { ProgramView } from "@/services/program.service";
 import { formatTuition } from "@/lib/format";
@@ -25,7 +27,7 @@ import { CompareButton } from "./program-actions";
 import { SchoolCode } from "./program-card";
 import { useProgramViews } from "./use-program-views";
 
-export function SavedView() {
+export function SavedView({ schools }: { schools: School[] }) {
   const store = useTrovio();
   const toast = useToast();
   const { requireLogin } = useLoginGate();
@@ -35,20 +37,22 @@ export function SavedView() {
   const [shareOpen, setShareOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
 
-  const allIds = Array.from(new Set([...store.saved, ...store.wishlist.map((w) => w.id)]));
+  const allIds = Array.from(new Set([...store.saved.filter((id) => !id.startsWith("school:")), ...store.wishlist.map((w) => w.id)]));
   const views = useProgramViews(allIds, store.hydrated);
   const byId = new Map((views ?? []).map((v) => [v.program.id, v]));
   const method = profileMethod(store.profile);
   const fitOf = (v: ProgramView) => (store.profile ? fitForProfile(store.profile, v.program).fit : null);
   /** Điểm chuẩn hiển thị theo phương thức của hồ sơ điểm (mặc định điểm thi THPT). */
   const cutoffText = (v: ProgramView) => {
-    const c = cutoffFor(v.program, method);
-    if (c) return `${formatMethodScore(c.score, method)}${method !== "thpt" ? ` ${ADMISSION_METHODS[method].short}` : ""}`;
-    return method === "thpt" ? "Chưa có dữ liệu chính thức" : `Không xét ${ADMISSION_METHODS[method].short}`;
+    const chosen = store.profile ? evaluateProgramFit(store.profile, v.program)?.method ?? method : method;
+    const c = cutoffFor(v.program, chosen);
+    if (c) return `${formatMethodScore(c.score, chosen)}${chosen !== "thpt" ? ` ${ADMISSION_METHODS[chosen].short}` : ""}`;
+    return chosen === "thpt" ? "Chưa có dữ liệu chính thức" : `Không xét ${ADMISSION_METHODS[chosen].short}`;
   };
   const toStrategy = (v: ProgramView): StrategyItem => ({ id: v.program.id, label: `${v.program.name} – ${v.school.shortName}`, program: v.program });
 
   const savedViews = store.saved.map((id) => byId.get(id)).filter((v): v is ProgramView => !!v);
+  const savedSchools = schools.filter((s) => store.saved.includes(`school:${s.id}`));
   const wishViews = store.wishlist.map((w) => ({ w, v: byId.get(w.id) })).filter((x): x is { w: (typeof store.wishlist)[number]; v: ProgramView } => !!x.v);
 
   const plainText = `Nguyện vọng dự kiến của tôi (Trovio):\n${wishViews.map(({ v }, i) => `NV${i + 1}: ${v.program.name} – ${v.school.name}`).join("\n") || "Danh sách trống"}`;
@@ -64,27 +68,27 @@ export function SavedView() {
     <div>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-[28px]">Lựa chọn của tôi</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý các chương trình đã lưu và lập danh sách nguyện vọng dự kiến.</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Đã lưu & nguyện vọng</h1>
+          <p className="mt-1 text-sm text-slate-600">Quản lý các chương trình đã lưu và lập danh sách nguyện vọng dự kiến.</p>
           {store.hydrated && <SyncHint />}
         </div>
-        <div className="flex flex-wrap gap-2" data-print-hide>
-          <Button variant="outline" size="sm" onClick={exportPdf}>
+        {wishViews.length > 0 && <div className="flex flex-wrap gap-2" data-print-hide>
+          <Button variant="outline" size="sm" onClick={exportPdf} disabled={wishViews.length === 0}>
             <LuPrinter className="size-4" aria-hidden /> Xuất PDF
           </Button>
-          <Button variant="ghost" size="sm" onClick={shareList}>
+          <Button variant="ghost" size="sm" onClick={shareList} disabled={wishViews.length === 0}>
             <LuShare2 className="size-4" aria-hidden /> Chia sẻ với phụ huynh
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setCardOpen(true)} disabled={wishViews.length === 0} title={wishViews.length === 0 ? "Thêm nguyện vọng trước khi tạo thẻ" : undefined}>
             <LuImage className="size-4" aria-hidden /> Tạo thẻ chia sẻ
           </Button>
-        </div>
+        </div>}
       </div>
 
       <div role="tablist" className="mt-6 flex gap-6 border-b border-slate-200" data-print-hide>
         {(
           [
-            ["saved", `Đã lưu (${store.hydrated ? store.saved.length : 0})`],
+            ["saved", `Đã lưu (${store.hydrated ? savedViews.length + savedSchools.length : 0})`],
             ["wish", `Nguyện vọng dự kiến (${store.hydrated ? store.wishlist.length : 0})`],
           ] as const
         ).map(([k, label]) => (
@@ -94,7 +98,7 @@ export function SavedView() {
             type="button"
             aria-selected={tab === k}
             onClick={() => setTab(k)}
-            className={cn("-mb-px border-b-2 py-3 text-sm", tab === k ? "border-primary-600 font-semibold text-primary-700" : "border-transparent text-slate-500 hover:text-slate-800")}
+            className={cn("-mb-px border-b-2 py-3 text-sm", tab === k ? "border-primary-600 font-semibold text-primary-700" : "border-transparent text-slate-600 hover:text-slate-800")}
           >
             {label}
           </button>
@@ -121,14 +125,15 @@ export function SavedView() {
       )}
 
       {!store.profile && store.hydrated && allIds.length > 0 && (
-        <p className="mt-4 text-sm text-slate-500" data-print-hide>
+        <p className="mt-4 text-sm text-slate-600" data-print-hide>
           <Link href="/diem-cua-toi" className="font-semibold text-primary-600 hover:underline">
-            Nhập điểm của bạn
+            Nhập điểm
           </Link>{" "}
           để xem mức An toàn / Vừa sức / Thử sức cho từng lựa chọn.
         </p>
       )}
 
+      {tab === "saved" && savedSchools.length > 0 && <section className="mt-6"><h2 className="mb-3 text-lg font-bold">Trường đã lưu</h2><div className="grid gap-3 sm:grid-cols-2">{savedSchools.map((school) => <Card key={school.id} className="flex items-center gap-3 p-4"><SchoolLogo school={school} size="sm"/><Link href={`/truong/${school.slug}`} className="min-w-0 flex-1 font-semibold hover:underline">{school.name}</Link><Button variant="ghost" size="sm" onClick={() => store.toggleSaved(`school:${school.id}`)}>Bỏ lưu</Button></Card>)}</div></section>}
       <div className="mt-6">
         {!loading && store.profile && (tab === "saved" ? savedViews.length > 0 : !!store.user && wishViews.length > 0) && (
           <WhatIfSimulator items={(tab === "saved" ? savedViews : wishViews.map((x) => x.v)).map(toStrategy)} profile={store.profile} />
@@ -136,12 +141,12 @@ export function SavedView() {
         {loading ? (
           <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
         ) : tab === "saved" ? (
-          savedViews.length === 0 ? (
+          savedViews.length === 0 && savedSchools.length > 0 ? null : savedViews.length === 0 ? (
             <Card>
-              <EmptyState
+              <EmptyState headingAs="h2"
                 icon={<LuBookmark />}
                 title="Chưa có chương trình nào được lưu"
-                description="Khi tìm thấy chương trình phù hợp, bấm nút ♡ để lưu vào đây và bắt đầu lập kế hoạch tuyển sinh."
+                description={<>Khi tìm thấy chương trình phù hợp, bấm nút ♡ Lưu vào đây và bắt đầu lập kế hoạch tuyển sinh.</>}
               >
                 <Link href="/chuong-trinh" className={buttonClass()}>
                   Tìm chương trình →
@@ -163,11 +168,11 @@ export function SavedView() {
                         <Link href={`/chuong-trinh/${v.program.slug}`} className="font-bold text-slate-900 hover:text-primary-700">
                           {v.program.name}
                         </Link>
-                        <p className="truncate text-[13px] text-primary-600">{v.school.name}</p>
+                        <p className="truncate text-sm text-primary-600">{v.school.name}</p>
                       </div>
                       <FitBadge fit={fitOf(v)} />
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[13px]">
+                    <div className="mt-3 flex flex-wrap gap-2 text-sm">
                       <span className="rounded-md bg-primary-50 px-2 py-1 font-semibold text-primary-700">
                         {cutoffText(v)}{cutoffFor(v.program, method) ? " điểm" : ""}
                       </span>
@@ -214,19 +219,19 @@ export function SavedView() {
         ) : (
           <>
             {banner && (
-              <div className="mb-4 flex items-start gap-3 rounded-xl border border-accent-200 bg-accent-50 p-4 text-sm text-accent-700">
+              <div className="mb-4 flex items-start gap-3 rounded-xl border border-accent-200 bg-accent-50 p-4 text-sm text-accent-800">
                 <LuTriangleAlert className="mt-0.5 size-5 shrink-0" aria-hidden />
                 <p className="flex-1">
                   Đây là danh sách <strong>kế hoạch cá nhân</strong>, không phải đăng ký tuyển sinh chính thức. Hãy đăng ký nguyện vọng trên Cổng tuyển sinh của Bộ GD&ĐT.
                 </p>
-                <button type="button" onClick={() => setBanner(false)} className="rounded p-1 hover:bg-accent-100" aria-label="Ẩn thông báo" data-print-hide>
+                <button type="button" onClick={() => setBanner(false)} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded p-1 hover:bg-accent-100" aria-label="Ẩn thông báo" data-print-hide>
                   <LuX className="size-4" />
                 </button>
               </div>
             )}
             {!store.user ? (
               <Card>
-                <EmptyState
+                <EmptyState headingAs="h2"
                   icon={<LuLock />}
                   title="Đăng nhập để lập nguyện vọng dự kiến"
                   description="Sắp xếp thứ tự nguyện vọng, thêm ghi chú, xuất PDF và chia sẻ — lưu theo tài khoản nên dùng được trên mọi thiết bị. Chương trình bạn đã lưu trên máy này sẽ được giữ nguyên."
@@ -238,7 +243,7 @@ export function SavedView() {
               </Card>
             ) : wishViews.length === 0 ? (
               <Card>
-                <EmptyState
+                <EmptyState headingAs="h2"
                   icon={<LuListChecks />}
                   title="Chưa có nguyện vọng dự kiến"
                   description="Thêm chương trình từ danh sách đã lưu hoặc từ trang chi tiết, sau đó sắp xếp thứ tự ưu tiên."
@@ -253,7 +258,7 @@ export function SavedView() {
               <StrategyPanel items={wishViews.map(({ v }) => toStrategy(v))} profile={store.profile} onReorder={store.reorderWishlist} />
               <Card className="overflow-x-auto">
                 <table className="w-full min-w-[860px] text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                  <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
                     <tr>
                       <th scope="col" className="px-4 py-3">Thứ tự</th>
                       <th scope="col" className="px-4 py-3">Chương trình</th>
@@ -270,19 +275,19 @@ export function SavedView() {
                     {wishViews.map(({ w, v }, i) => (
                       <tr key={w.id}>
                         <td className="px-4 py-3">
-                          <span className="rounded-md bg-primary-600 px-2 py-1 text-xs font-bold text-white">NV{i + 1}</span>
+                          <span className="rounded-md bg-primary-600 px-2 py-1 text-xs font-semibold text-white">NV{i + 1}</span>
                         </td>
                         <td className="px-4 py-3">
                           <Link href={`/chuong-trinh/${v.program.slug}`} className="font-semibold text-slate-900 hover:text-primary-700">
                             {v.program.name}
                           </Link>
-                          <span className="block text-xs text-slate-500">{v.school.shortName}</span>
+                          <span className="block text-xs text-slate-600">{v.school.shortName}</span>
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-primary-700">{cutoffFor(v.program, method) ? cutoffText(v) : <span className="text-xs font-normal text-slate-500">{cutoffText(v)}</span>}</td>
+                        <td className="px-4 py-3 text-right font-bold text-primary-700">{cutoffFor(v.program, method) ? cutoffText(v) : <span className="text-xs font-normal text-slate-600">{cutoffText(v)}</span>}</td>
                         <td className="px-4 py-3 text-slate-700">{formatTuition(v.program.tuitionMin, v.program.tuitionMax)}</td>
                         <td className="px-4 py-3">
                           <FitBadge fit={fitOf(v)} />
-                          {!fitOf(v) && <span className="text-xs text-slate-500">—</span>}
+                          {!fitOf(v) && <span className="text-xs text-slate-600">—</span>}
                         </td>
                         <td className="px-4 py-3">
                           <label className="sr-only" htmlFor={`note-${w.id}`}>
@@ -293,7 +298,7 @@ export function SavedView() {
                             value={w.note}
                             onChange={(e) => store.setWishlistNote(w.id, e.target.value)}
                             placeholder="Thêm ghi chú…"
-                            className="h-9 w-full min-w-40 rounded-lg border border-transparent bg-slate-50 px-2.5 text-[13px] hover:border-slate-200 focus:border-primary-600 focus:bg-white focus:outline-none"
+                            className="h-9 w-full min-w-40 rounded-lg border border-transparent bg-slate-50 px-2.5 text-sm hover:border-slate-200 focus:border-primary-600 focus:bg-white focus:outline-none"
                           />
                         </td>
                         <td className="px-4 py-3" data-print-hide>
@@ -302,7 +307,7 @@ export function SavedView() {
                                 type="button"
                                 disabled={i === 0}
                                 onClick={() => store.moveWishlist(w.id, -1)}
-                                className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                                className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
                                 aria-label={`Đưa NV${i + 1} lên`}
                               >
                                 <LuArrowUp className="size-4" />
@@ -311,7 +316,7 @@ export function SavedView() {
                                 type="button"
                                 disabled={i === wishViews.length - 1}
                                 onClick={() => store.moveWishlist(w.id, 1)}
-                                className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                                className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30"
                                 aria-label={`Đưa NV${i + 1} xuống`}
                               >
                                 <LuArrowDown className="size-4" />
@@ -319,7 +324,7 @@ export function SavedView() {
                               <button
                                 type="button"
                                 onClick={() => setConfirmId(w.id)}
-                                className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-danger-50 hover:text-danger-700"
+                                className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-danger-50 hover:text-danger-700"
                                 aria-label={`Xoá NV${i + 1}`}
                               >
                                 <LuTrash2 className="size-4" />
@@ -358,7 +363,7 @@ export function SavedView() {
                 <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm" data-print-hide>
                   <span className="font-semibold text-slate-700">Tổng: {wishViews.length} nguyện vọng</span>
                   <button type="button" onClick={() => setTab("saved")} className="font-semibold text-primary-600 hover:underline">
-                    + Thêm từ danh sách đã lưu
+                    Thêm chương trình
                   </button>
                 </div>
               </Card>
@@ -378,7 +383,7 @@ function SyncHint() {
   const { requireLogin } = useLoginGate();
   if (!user) {
     return (
-      <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[13px] text-slate-500" data-print-hide>
+      <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-slate-600" data-print-hide>
         <LuCloudOff className="size-4" aria-hidden /> Đang lưu trên trình duyệt này.
         <button
           type="button"
@@ -391,7 +396,7 @@ function SyncHint() {
     );
   }
   return (
-    <p className={cn("mt-2 flex items-center gap-1.5 text-[13px]", sync === "error" ? "text-danger-700" : "text-slate-500")} data-print-hide>
+    <p className={cn("mt-2 flex items-center gap-1.5 text-sm", sync === "error" ? "text-danger-700" : "text-slate-600")} data-print-hide>
       <LuCloud className="size-4" aria-hidden />
       {sync === "syncing" ? "Đang đồng bộ…" : sync === "error" ? "Chưa đồng bộ được với tài khoản — tải lại trang để thử lại." : "Đã đồng bộ với tài khoản"}
     </p>

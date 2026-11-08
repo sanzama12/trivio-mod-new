@@ -104,12 +104,10 @@ export function ShareCardDialog({ initial, data, onClose }: { initial: ShareCard
     }
   };
 
-  /** C3 — rủ nhóm lớp: link /zalo mở thẻ "Mã sở thích của …" + nút "Làm trắc nghiệm giống …". */
+  /** Rủ nhóm lớp làm bài qua trang giới thiệu trắc nghiệm đang có trên hệ thống. */
   const shareToClass = async () => {
     if (!data.riasec) return;
-    const url = new URL("/zalo", window.location.origin);
-    url.searchParams.set("ma", data.riasec.code.join(""));
-    if (showName && data.name) url.searchParams.set("ten", data.name);
+    const url = new URL("/trac-nghiem", window.location.origin);
     const text = `Tớ ra mã sở thích ${data.riasec.code.join(" · ")} nè, rủ cả lớp làm trắc nghiệm chọn ngành đi!`;
     try {
       if (navigator.share) await navigator.share({ title: "Trovio", text, url: url.toString() });
@@ -156,10 +154,10 @@ export function ShareCardDialog({ initial, data, onClose }: { initial: ShareCard
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 id="share-card-title" className="text-xl font-bold text-slate-900">
+            <h2 id="share-card-title" className="text-lg font-semibold text-slate-900">
               Tạo thẻ chia sẻ
             </h2>
-            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Đóng">
+            <button type="button" onClick={onClose} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-600 hover:bg-slate-100" aria-label="Đóng">
               <LuX className="size-5" aria-hidden />
             </button>
           </div>
@@ -173,14 +171,14 @@ export function ShareCardDialog({ initial, data, onClose }: { initial: ShareCard
                 aria-selected={kind === t.k}
                 disabled={!t.ok}
                 onClick={() => setKind(t.k)}
-                className={cn("rounded-md px-3 py-2 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40", kind === t.k ? "bg-white text-slate-900 shadow-sm" : "text-slate-600")}
+                className={cn("rounded-md px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40", kind === t.k ? "bg-white text-slate-900 shadow-sm" : "text-slate-600")}
               >
                 {t.label}
               </button>
             ))}
           </div>
           <fieldset className="space-y-3">
-            <legend className="mb-2 text-[13px] font-semibold text-slate-700">Hiển thị trên thẻ</legend>
+            <legend className="mb-2 text-sm font-semibold text-slate-700">Hiển thị trên thẻ</legend>
             {data.name && <Toggle label="Tên gọi (chỉ tên, không họ)" checked={showName} onChange={setShowName} />}
             {kind === "riasec" ? (
               <Toggle label="Ngành hợp nhất" checked={showMajors} onChange={setShowMajors} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { LuBadgeCheck, LuBell, LuBellOff, LuCalendarPlus, LuDownload, LuExternalLink, LuMail, LuTriangleAlert } from "react-icons/lu";
 import type { TimelineEvent } from "@/domain/types";
@@ -67,7 +68,7 @@ export function TimelineView({
     <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_300px]">
       <div>
         {official ? (
-          <p className="mb-5 flex items-start gap-2 rounded-xl border border-success-100 bg-success-50 p-3.5 text-[13px] text-success-700">
+          <p className="mb-5 flex items-start gap-2 rounded-xl border border-success-100 bg-success-50 p-3.5 text-sm text-success-700">
             <LuBadgeCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
               <strong>Lịch chính thức.</strong> {note}{" "}
@@ -80,7 +81,7 @@ export function TimelineView({
             </span>
           </p>
         ) : (
-          <p className="mb-5 flex items-start gap-2 rounded-xl border border-accent-200 bg-accent-50 p-3.5 text-[13px] text-accent-700">
+          <p className="mb-5 flex items-start gap-2 rounded-xl border border-accent-200 bg-accent-50 p-3.5 text-sm text-accent-800">
             <LuTriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
               <strong>Lịch minh hoạ.</strong> {note}
@@ -103,28 +104,28 @@ export function TimelineView({
                   aria-hidden
                 />
                 <div className="flex flex-wrap items-center gap-2">
-                  <time dateTime={e.start} className="text-sm font-bold text-primary-700">
+                  <time dateTime={e.start} className="text-sm font-semibold text-primary-700">
                     {formatRange(e)}
                   </time>
                   <Badge tone={cat.tone}>{cat.label}</Badge>
                   {now && status === "ongoing" && <Badge tone="solid">Đang diễn ra</Badge>}
                   {now && status === "upcoming" && days != null && days <= 30 && <Badge tone="accent">Còn {days} ngày</Badge>}
-                  {now && status === "past" && <span className="text-xs text-slate-500">Đã qua</span>}
+                  {now && status === "past" && <span className="text-xs text-slate-600">Đã qua</span>}
                 </div>
-                <h2 className="mt-2 font-bold text-slate-900">{e.title}</h2>
+                <h2 className="mt-2 text-lg font-semibold text-slate-900">{e.title}</h2>
                 <p className="mt-1 text-sm text-slate-600">{e.desc}</p>
                 {status !== "past" && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" variant={on ? "secondary" : "outline"} onClick={() => toggle(e)} aria-pressed={on}>
                       {on ? <LuBellOff className="size-4" aria-hidden /> : <LuBell className="size-4" aria-hidden />} {on ? "Tắt nhắc" : "Nhắc tôi"}
                     </Button>
-                    <a href={googleCalendarUrl(e)} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-slate-600 hover:bg-slate-100">
+                    <a href={googleCalendarUrl(e, { official, sourceUrl })} target="_blank" rel="noopener noreferrer" className={buttonClass({ variant: "ghost", size: "sm" })}>
                       <LuCalendarPlus className="size-4" aria-hidden /> Google Calendar
                     </a>
                     <button
                       type="button"
-                      onClick={() => download(`${e.id}.ics`, buildIcs([e]))}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-slate-600 hover:bg-slate-100"
+                      onClick={() => download(`${e.id}.ics`, buildIcs([e], new Date(), { official, sourceUrl }))}
+                      className={buttonClass({ variant: "ghost", size: "sm" })}
                     >
                       <LuDownload className="size-4" aria-hidden /> Tải .ics
                     </button>
@@ -138,37 +139,37 @@ export function TimelineView({
 
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
-          <h2 className="flex items-center gap-2 font-bold text-slate-900">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
             <LuBell className="size-4 text-primary-600" aria-hidden /> Mốc bạn đang theo dõi
           </h2>
           {!hydrated ? (
             <div className="mt-3 h-16 animate-pulse rounded-lg bg-slate-100" />
           ) : reminded.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-500">Bấm “Nhắc tôi” ở từng mốc. Trovio hiện nhắc trên web khi còn 14 ngày.</p>
+            <p className="mt-2 text-sm text-slate-600">Bấm “Nhắc tôi” ở từng mốc. Trovio hiện nhắc trên web khi còn 14 ngày.</p>
           ) : (
             <>
               <ul className="mt-3 space-y-2">
                 {reminded.map((e) => (
                   <li key={e.id} className="text-sm">
                     <p className="font-semibold text-slate-800">{e.title}</p>
-                    <p className="text-xs text-slate-500">{formatRange(e)}</p>
+                    <p className="text-xs text-slate-600">{formatRange(e)}</p>
                   </li>
                 ))}
               </ul>
-              <Button size="sm" full className="mt-4" onClick={() => download("trovio-moc-tuyen-sinh.ics", buildIcs(reminded))}>
+              <Button size="sm" full className="mt-4" onClick={() => download("trovio-moc-tuyen-sinh.ics", buildIcs(reminded, new Date(), { official, sourceUrl }))}>
                 <LuDownload className="size-4" aria-hidden /> Thêm tất cả vào lịch (.ics)
               </Button>
-              <p className="mt-2 text-xs text-slate-500">File .ics mở được bằng Lịch iPhone, Google Calendar, Outlook — có báo trước 3 ngày và 1 ngày.</p>
+              <p className="mt-2 text-xs text-slate-600">File .ics mở được bằng Lịch iPhone, Google Calendar, Outlook — có báo trước 3 ngày và 1 ngày.</p>
             </>
           )}
-          {hydrated && !user && reminded.length > 0 && <p className="mt-3 text-xs text-slate-500">Đăng nhập để đồng bộ lịch nhắc sang thiết bị khác.</p>}
+          {hydrated && !user && reminded.length > 0 && <p className="mt-3 text-xs text-slate-600">Đăng nhập để đồng bộ lịch nhắc sang thiết bị khác.</p>}
         </div>
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
-          <h2 className="flex items-center gap-2 font-bold text-slate-900">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
             <LuMail className="size-4 text-primary-600" aria-hidden /> Nhắc qua email
           </h2>
           {emailOn === null ? (
-            <p className="mt-2 text-sm text-slate-500">Đăng nhập bằng tài khoản đã xác thực email để nhận email nhắc trước 7 ngày và 1 ngày cho các mốc đã bật “Nhắc tôi”.</p>
+            <p className="mt-2 text-sm text-slate-600">Đăng nhập bằng tài khoản đã xác thực email để nhận email nhắc trước 7 ngày và 1 ngày cho các mốc đã bật “Nhắc tôi”. <a href="/ho-so" className="font-semibold text-primary-700 underline">Xác thực email trong hồ sơ</a>.</p>
           ) : (
             <label className="mt-3 flex items-start gap-2.5 text-sm text-slate-700">
               <input
@@ -189,7 +190,7 @@ export function TimelineView({
               />
               <span>
                 Gửi email nhắc trước <strong>7 ngày</strong> và <strong>1 ngày</strong> cho các mốc bạn đã bật “Nhắc tôi”.
-                <span className="mt-1 block text-xs text-slate-500">Tắt bất cứ lúc nào tại đây. Nhắc qua Zalo chưa hỗ trợ.</span>
+                <span className="mt-1 block text-xs text-slate-600">Tắt bất cứ lúc nào tại đây. Nhắc qua Zalo chưa hỗ trợ.</span>
               </span>
             </label>
           )}

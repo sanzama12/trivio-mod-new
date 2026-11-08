@@ -11,11 +11,11 @@ export interface UseSchoolCompareOptions {
 }
 
 export function useSchoolCompare({ initialSchools = [] }: UseSchoolCompareOptions = {}) {
-  const { compare, isSaved, toggleSaved, hydrated } = useTrovio();
+  const { compareSchools, toggleSchoolCompare, clearSchoolCompare, isSaved, toggleSaved, hydrated } = useTrovio();
   const toast = useToast();
 
   // Selected school IDs (2-4 schools)
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedIds = compareSchools;
   const [items, setItems] = useState<SchoolCompareItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -28,25 +28,6 @@ export function useSchoolCompare({ initialSchools = [] }: UseSchoolCompareOption
 
   // Chart major filter
   const [selectedChartMajorId, setSelectedChartMajorId] = useState<string>("");
-
-  // Initialize selected school IDs from store or initialSchools
-  useEffect(() => {
-    if (!hydrated) return;
-
-    // Filter IDs from compare store that match school format
-    const fromStore = compare.filter((id) => !id.startsWith("prog_") && id.length < 25);
-
-    if (fromStore.length >= 2) {
-      setSelectedIds(fromStore.slice(0, MAX_COMPARE));
-    } else if (initialSchools.length >= 2) {
-      setSelectedIds(initialSchools.slice(0, 3).map((s) => s.id));
-    } else if (fromStore.length === 1 && initialSchools.length > 1) {
-      const remaining = initialSchools.filter((s) => s.id !== fromStore[0]);
-      setSelectedIds([fromStore[0], remaining[0].id]);
-    } else if (initialSchools.length >= 2) {
-      setSelectedIds(initialSchools.slice(0, 2).map((s) => s.id));
-    }
-  }, [hydrated, compare, initialSchools]);
 
   // Fetch school comparison details whenever selectedIds changes
   useEffect(() => {
@@ -117,13 +98,13 @@ export function useSchoolCompare({ initialSchools = [] }: UseSchoolCompareOption
       toast(`Chỉ có thể so sánh tối đa ${MAX_COMPARE} trường cùng lúc`, "warning");
       return;
     }
-    setSelectedIds((cur) => [...cur, school.id]);
+    toggleSchoolCompare(school.id);
     setIsAddOpen(false);
     toast(`Đã thêm ${school.shortName || school.name} vào so sánh`, "success");
   };
 
   const handleRemoveSchool = (schoolId: string, schoolName: string) => {
-    setSelectedIds((cur) => cur.filter((id) => id !== schoolId));
+    toggleSchoolCompare(schoolId);
     toast(`Đã bỏ ${schoolName} khỏi danh sách so sánh`, "info");
   };
 
@@ -133,7 +114,7 @@ export function useSchoolCompare({ initialSchools = [] }: UseSchoolCompareOption
   };
 
   const handleClearAll = () => {
-    setSelectedIds([]);
+    clearSchoolCompare();
     toast("Đã làm trống danh sách so sánh", "info");
   };
 
@@ -153,7 +134,6 @@ export function useSchoolCompare({ initialSchools = [] }: UseSchoolCompareOption
 
   return {
     selectedIds,
-    setSelectedIds,
     items,
     loading,
     searchQuery,

@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/button";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LuListFilter, LuX } from "react-icons/lu";
@@ -64,7 +65,8 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
     ...(draft.method && draft.method !== "thpt" ? [{ label: ADMISSION_METHODS[draft.method].short, clear: () => ({ method: undefined, score: undefined }) }] : []),
     ...(draft.score != null ? [{ label: `Điểm ${draft.score}`, clear: () => ({ score: undefined }) }] : []),
     ...(draft.combos ?? []).map((c) => ({ label: c, clear: (current: ProgramFilters) => ({ combos: (current.combos ?? []).filter((x) => x !== c) }) })),
-    ...(draft.tuition ? [{ label: TUITION_RANGES[draft.tuition].label, clear: () => ({ tuition: undefined }) }] : []),
+    ...(draft.tuition ? [{ label: TUITION_RANGES[draft.tuition].label, clear: () => ({ tuition: undefined, budgetMax: undefined }) }] : []),
+    ...(draft.budgetMax != null ? [{ label: `Ngân sách ≤ ${draft.budgetMax} triệu`, clear: () => ({ budgetMax: undefined }) }] : []),
     ...(draft.regions ?? []).map((r) => ({ label: REGION_LABELS[r], clear: (current: ProgramFilters) => ({ regions: (current.regions ?? []).filter((x) => x !== r) }) })),
     ...(draft.types ?? []).map((t) => ({ label: SCHOOL_TYPE_LABELS[t], clear: (current: ProgramFilters) => ({ types: (current.types ?? []).filter((x) => x !== t) }) })),
     ...(draft.majors?.length ? [{ label: `${draft.majors.length} ngành gợi ý`, clear: () => ({ majors: [] }) }] : []),
@@ -74,9 +76,9 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
   const visibleCombos = showAllCombos ? combos : combos.slice(0, 5);
 
   return (
-    <aside aria-label="Bộ lọc tìm kiếm" className={cn("min-w-0 rounded-xl border-2 border-slate-900 bg-white p-3 transition-opacity md:p-4", pending && "opacity-70")}>
+    <aside aria-label="Bộ lọc tìm kiếm" className={cn("min-w-0 transition-opacity lg:rounded-xl lg:border lg:border-slate-200 lg:bg-white lg:p-4 lg:shadow-card", pending && "opacity-70")}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-slate-900">Bộ lọc tìm kiếm</h2>
+        <h2 className="hidden text-base font-bold text-slate-900 lg:block">Bộ lọc tìm kiếm</h2>
         <div className="flex items-center gap-3">
           {chips.length > 0 && (
             <button
@@ -88,7 +90,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
                 setPending(true);
                 router.push(pathname, { scroll: false });
               }}
-              className="text-[13px] font-semibold text-primary-600 hover:underline"
+              className="hidden text-sm font-semibold text-primary-600 hover:underline lg:block"
             >
               Xoá bộ lọc
             </button>
@@ -97,7 +99,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-haspopup="dialog"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-[13px] font-semibold text-slate-700 lg:hidden"
+            className={buttonClass({ variant: "secondary", size: "sm", className: "lg:hidden" })}
           >
             <LuListFilter className="size-4" aria-hidden /> Bộ lọc{chips.length ? ` (${chips.length})` : ""}
           </button>
@@ -117,7 +119,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
         <ul className="mt-3 flex flex-wrap gap-1.5 lg:hidden" aria-label="Bộ lọc đang áp dụng">
           {chips.map((c) => (
             <li key={c.label}>
-              <button type="button" onClick={() => apply(c.clear(draftRef.current))} className="flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700" aria-label={`Bỏ lọc ${c.label}`}>
+              <button type="button" onClick={() => apply(c.clear(draftRef.current))} className="flex h-9 max-sm:h-11 items-center gap-1 rounded-full border border-primary-600 bg-primary-600 px-4 text-sm font-semibold text-white" aria-label={`Bỏ lọc ${c.label}`}>
                 {c.label} <LuX className="size-3" aria-hidden />
               </button>
             </li>
@@ -128,14 +130,14 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
       <div id="filter-body" className="mt-3 hidden min-w-0 flex-col gap-3 lg:flex">
         {chips.length > 0 && (
           <div className="min-w-0 basis-full">
-            <p className="mb-2 text-xs font-bold tracking-wider text-slate-500 uppercase">Bộ lọc đang áp dụng</p>
+            <p className="mb-2 text-xs font-semibold tracking-wide text-slate-600">Bộ lọc đang áp dụng</p>
             <div className="flex flex-wrap gap-2">
               {chips.map((c) => (
                 <button
                   key={c.label}
                   type="button"
                   onClick={() => apply(c.clear(draftRef.current))}
-                  className="flex min-w-0 items-center gap-1 rounded-full border border-slate-900 bg-white px-2.5 py-1 text-xs font-bold text-slate-900 hover:bg-slate-100"
+                  className="flex h-9 max-sm:h-11 min-w-0 items-center gap-1 rounded-full border border-primary-600 bg-primary-600 px-4 text-sm font-semibold text-white"
                   aria-label={`Bỏ lọc ${c.label}`}
                 >
                   <span className="truncate">{c.label}</span>
@@ -147,7 +149,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
         )}
 
         {/* 1. Điểm & Phương thức xét tuyển (Đưa lên đầu bộ lọc) */}
-        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <Label htmlFor="f-method">Phương thức xét tuyển</Label>
           <select
             id="f-method"
@@ -185,7 +187,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
               aria-describedby="f-score-hint"
             />
           </form>
-          <p id="f-score-hint" className={cn("mt-1.5 text-xs", scoreInvalid ? "text-danger-700" : "text-slate-500")}>
+          <p id="f-score-hint" className={cn("mt-1.5 text-xs", scoreInvalid ? "text-danger-700" : "text-slate-600")}>
             {scoreInvalid
               ? `Nhập điểm từ 0 đến ${cfg.max}.`
               : cfg.needsCombo
@@ -195,7 +197,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
         </div>
 
         {/* 2. Khối / Tổ hợp xét tuyển */}
-        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Khối / Tổ hợp xét tuyển</legend>
             <div className="space-y-2.5">
@@ -209,7 +211,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
               ))}
             </div>
             {combos.length > 5 && (
-              <button type="button" onClick={() => setShowAllCombos((v) => !v)} className="mt-3 text-[13px] font-semibold text-primary-600 hover:underline">
+              <button type="button" onClick={() => setShowAllCombos((v) => !v)} className="mt-3 text-sm font-semibold text-primary-600 hover:underline">
                 {showAllCombos ? "Thu gọn" : `Xem thêm ${combos.length - 5} tổ hợp`}
               </button>
             )}
@@ -218,7 +220,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
 
         {/* 3. Danh mục / Nhóm ngành */}
         {groups.length > 0 && (
-          <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-paper-50 p-3">
             <fieldset>
               <legend className="mb-3 text-sm font-semibold text-slate-700">Danh mục / Nhóm ngành</legend>
               <div className="space-y-2.5">
@@ -237,7 +239,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
         )}
 
         {/* 4. Khu vực địa lý */}
-        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Khu vực địa lý</legend>
             <div className="space-y-2.5">
@@ -249,20 +251,20 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
         </div>
 
         {/* 5. Học phí tối đa / năm */}
-        <div className="min-w-0 flex-1 basis-[200px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[200px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Học phí tối đa / năm</legend>
             <div className="space-y-2.5">
-              <Radio name="tuition" label="Không giới hạn" checked={!draft.tuition} onChange={() => apply({ tuition: undefined })} />
+              <Radio name="tuition" label="Không giới hạn" checked={!draft.tuition && draft.budgetMax == null} onChange={() => apply({ tuition: undefined, budgetMax: undefined })} />
               {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((k) => (
-                <Radio key={k} name="tuition" label={TUITION_RANGES[k].label} checked={draft.tuition === k} onChange={() => apply({ tuition: k })} />
+                <Radio key={k} name="tuition" label={TUITION_RANGES[k].label} checked={draft.tuition === k} onChange={() => apply({ tuition: k, budgetMax: undefined })} />
               ))}
             </div>
           </fieldset>
         </div>
 
         {/* 6. Loại hình trường */}
-        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Loại hình trường</legend>
             <div className="space-y-2.5">

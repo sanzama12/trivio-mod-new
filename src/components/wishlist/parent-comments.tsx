@@ -41,14 +41,14 @@ export function ParentComments({ programName }: { programName: (id: string) => s
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">
                   {c.name}
-                  {!c.read && <span className="ml-2 rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase">Mới</span>}
+                  {!c.read && <span className="ml-2 rounded-full bg-primary-600 px-2 py-0.5 text-xs font-semibold text-white">Mới</span>}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-600">
                   {formatDateVi(c.createdAt)}
                   {c.programId && programName(c.programId) ? ` · về “${programName(c.programId)}”` : ""}
                 </p>
               </div>
-              <button type="button" onClick={() => remove(c.id)} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-danger-50 hover:text-danger-700" aria-label={`Xoá góp ý của ${c.name}`}>
+              <button type="button" onClick={() => remove(c.id)} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-danger-50 hover:text-danger-700" aria-label={`Xoá góp ý của ${c.name}`}>
                 <LuTrash2 className="size-4" />
               </button>
             </div>

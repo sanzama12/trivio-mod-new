@@ -9,6 +9,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { LuArrowLeft, LuArrowRight, LuBotMessageSquare, LuX } from "react-icons/lu";
+import { readConsent } from "@/lib/consent";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
@@ -24,9 +25,9 @@ interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   { target: null, title: "Chào bạn, mình là trợ lý Trovio", body: "Mình sẽ chỉ bạn 5 chỗ quan trọng trong khoảng 1 phút. Bạn có thể bỏ qua bất cứ lúc nào." },
   { target: "search", title: "Tìm chương trình", body: "Gõ tên trường, ngành hoặc mã chương trình. Thử “Marketing Hà Nội” — Trovio hiện điểm chuẩn 3 năm, học phí và mức An toàn / Vừa sức / Thử sức với điểm của bạn." },
-  { target: "nav-quiz", title: "Trắc nghiệm sở thích", body: "7–10 phút, ra mã RIASEC 3 chữ cái và các nhóm ngành hợp với bạn. Trovio không dùng ngày sinh hay cung hoàng đạo." },
-  { target: "for-you", title: "Nhãn khả năng & gợi ý có lý do", body: "Mỗi gợi ý ghi rõ vì sao. Chưa có điểm hoặc chưa đủ 3 năm điểm chuẩn thì Trovio ghi “Chưa đủ dữ liệu” thay vì đoán." },
-  { target: "saved", title: "Lưu & lập nguyện vọng", body: "Bấm ♡ để lưu, rồi sắp xếp nguyện vọng, kiểm tra chiến lược và gửi link chỉ xem cho phụ huynh." },
+  { target: "nav-quiz", title: "Trắc nghiệm sở thích", body: "7–10 phút để khám phá mã RIASEC 3 chữ cái và các ngành đáng tìm hiểu. Kết quả chỉ lưu trên trình duyệt, không ảnh hưởng xếp hạng chương trình. Không hỏi ngày sinh hay cung hoàng đạo." },
+  { target: "for-you", title: "Nhãn khả năng & gợi ý có lý do", body: "Mỗi gợi ý ghi rõ vì sao. Nhãn được tính từ điểm của bạn và điểm chuẩn gần nhất theo phương thức xét tuyển phù hợp." },
+  { target: "saved", title: "Lưu & lập nguyện vọng", body: "Bấm biểu tượng trái tim để lưu, rồi sắp xếp nguyện vọng, kiểm tra chiến lược và gửi link chỉ xem cho phụ huynh." },
   { target: "chat", title: "Hỏi trợ lý bất cứ lúc nào", body: "Hỏi về ngành, điểm chuẩn và học phí. Câu trả lời luôn kèm nguồn. Chúc bạn chọn đúng ngành!" },
 ];
 
@@ -48,6 +49,8 @@ export function GuidedTour() {
 
   const close = useCallback(() => {
     setStep(null);
+    try { sessionStorage.setItem("trovio:tour-session", "done"); } catch {}
+    window.dispatchEvent(new Event("trovio:tour-changed"));
     try {
       window.localStorage.setItem(TOUR_DONE_KEY, new Date().toISOString());
     } catch {
@@ -55,29 +58,32 @@ export function GuidedTour() {
     }
   }, []);
 
-  // Tự mở lần đầu ở trang chủ, hoặc khi có ?tour=1, hoặc khi nơi khác phát sự kiện.
+  // Tour tự động chờ người dùng chọn cookie; mở chủ động vẫn hoạt động ngay.
   useEffect(() => {
-    const start = () => setStep(0);
-    window.addEventListener(TOUR_EVENT, start);
-    if (pathname === "/" && params.get("tour") === "1") {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+      if (timer) { clearTimeout(timer); timer = undefined; }
+      try { sessionStorage.setItem("trovio:tour-session", "running"); } catch {}
+      window.dispatchEvent(new Event("trovio:tour-changed"));
       setStep(0);
-      router.replace("/", { scroll: false });
-    } else if (pathname === "/") {
-      let seen = true;
+    };
+    const maybeStart = () => {
+      if (pathname !== "/" || readConsent() === null) return;
       try {
-        seen = !!window.localStorage.getItem(TOUR_DONE_KEY);
-      } catch {
-        /* storage bị chặn: không tự mở */
-      }
-      if (!seen) {
-        const t = setTimeout(start, 900);
-        return () => {
-          clearTimeout(t);
-          window.removeEventListener(TOUR_EVENT, start);
-        };
-      }
-    }
-    return () => window.removeEventListener(TOUR_EVENT, start);
+        if (!localStorage.getItem(TOUR_DONE_KEY) && !timer) timer = setTimeout(start, 900);
+      } catch { /* Không tự mở khi bộ nhớ bị chặn. */ }
+    };
+    window.addEventListener(TOUR_EVENT, start);
+    window.addEventListener("trovio:consent-changed", maybeStart);
+    if (pathname === "/" && params.get("tour") === "1") {
+      start();
+      router.replace("/", { scroll: false });
+    } else maybeStart();
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener(TOUR_EVENT, start);
+      window.removeEventListener("trovio:consent-changed", maybeStart);
+    };
   }, [pathname, params, router]);
 
   // Định vị vùng sáng quanh phần tử của bước hiện tại.
@@ -157,19 +163,19 @@ export function GuidedTour() {
             <LuBotMessageSquare className="size-[18px]" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-slate-900">Trợ lý Trovio</p>
+            <p className="text-sm font-semibold text-slate-900">Trợ lý Trovio</p>
             <p className="text-xs font-medium text-primary-600">
               Bước {step + 1}/{TOUR_STEPS.length} · {s.title}
             </p>
           </div>
-          <button type="button" onClick={close} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Đóng hướng dẫn">
+          <button type="button" onClick={close} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-600" aria-label="Đóng hướng dẫn">
             <LuX className="size-[18px]" aria-hidden />
           </button>
         </div>
         <h2 id="tour-title" className="sr-only">
           {s.title}
         </h2>
-        <p id="tour-body" className="mt-3 text-sm leading-relaxed text-slate-700">
+        <p id="tour-body" className="mt-3 text-sm leading-relaxed text-slate-700 max-w-prose">
           {s.body}
         </p>
         <div className="mt-3 flex gap-1.5" aria-hidden>
@@ -178,7 +184,7 @@ export function GuidedTour() {
           ))}
         </div>
         <div className="mt-4 flex items-center gap-2">
-          <button type="button" onClick={close} className="flex-1 text-left text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+          <button type="button" onClick={close} className="flex-1 text-left text-sm font-semibold text-slate-600 hover:text-slate-700">
             {last ? "" : "Bỏ qua hướng dẫn"}
           </button>
           {step > 0 && (

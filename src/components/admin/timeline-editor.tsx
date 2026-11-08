@@ -38,17 +38,18 @@ export function TimelineEditor({ initial }: { initial: Initial }) {
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    try {
     const res = await fetch("/api/admin/timeline", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ season, official, sourceUrl, note, events: rows.map((r) => ({ ...r, end: r.end || undefined })) }),
     });
     const d = await res.json().catch(() => ({}));
-    setBusy(false);
     if (!res.ok || !d.ok) return setError({ field: d.field, message: d.message ?? "Không lưu được." });
     setError(null);
     toast("Đã lưu lịch tuyển sinh", "success");
     router.refresh();
+    } catch { setError({ message: "Không thể kết nối, vui lòng thử lại." }); } finally { setBusy(false); }
   };
 
   const reset = async () => {

@@ -21,12 +21,14 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 import { Logo } from "./logo";
 
 const NAV = [
-  { href: "/chuong-trinh", label: "Tìm trường", match: ["/chuong-trinh", "/truong", "/diem-cua-toi"] },
+  { href: "/diem-cua-toi", label: "Nhập điểm", match: ["/diem-cua-toi"] },
+  { href: "/chuong-trinh", label: "Chương trình", match: ["/chuong-trinh"] },
+  { href: "/truong", label: "Trường", match: ["/truong"] },
   { href: "/nganh", label: "Khám phá ngành", match: ["/nganh"] },
+  { href: "/trac-nghiem", label: "Trắc nghiệm", match: ["/trac-nghiem"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
   { href: "/moc-tuyen-sinh", label: "Mốc tuyển sinh", match: ["/moc-tuyen-sinh"] },
-  { href: "/tin-tuc", label: "Tin tức", match: ["/tin-tuc"] },
-  { href: "/tai-lieu", label: "Tài liệu", match: ["/tai-lieu"] },
+  { href: "/tin-tuc", label: "Tài nguyên", match: ["/tin-tuc", "/tai-lieu"] },
 ];
 
 /** 0 = rộng rãi nhất … 4 = gọn nhất (chữ 13px); "mobile" = menu ☰. */
@@ -113,8 +115,8 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   const isActive = (m: string[]) => m.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const onSavedPage = pathname.startsWith("/da-luu");
   const mobile = mode === "mobile";
-  // Chưa đo (HTML từ server, trước khi JS chạy): dùng mức gọn (2) để không tràn ngang trên điện thoại lẫn màn 1280px.
-  const level = typeof mode === "number" ? mode : mode === null ? 2 : 1;
+  // Chưa đo (HTML từ server, trước khi JS chạy): dùng mức gọn nhất (4) cho menu có thêm Trắc nghiệm.
+  const level = typeof mode === "number" ? mode : mode === null ? 4 : 1;
   const compactRight = mobile || mode === null;
 
   const logout = async () => {
@@ -127,8 +129,8 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   const navVisible = mode === null ? "hidden xl:flex" : mobile ? "hidden" : "flex";
   const burgerVisible = mode === null ? "flex xl:hidden" : mobile ? "flex" : "hidden";
   // Thứ tự thu gọn: ưu tiên giữ cỡ chữ menu (dễ đọc) → rút gọn nút bên phải trước, rồi mới giảm chữ.
-  const navText = level <= 2 ? "text-[15px]" : level === 3 ? "text-sm" : "text-[13px]";
-  const navGap = level === 0 ? "gap-7" : level === 1 ? "gap-6" : level <= 3 ? "gap-5" : "gap-4";
+  const navText = level <= 2 ? "text-base" : level === 3 ? "text-sm" : "text-sm";
+  const navGap = level === 0 ? "gap-5" : level === 1 ? "gap-4" : level <= 3 ? "gap-3" : "gap-2";
   const savedLabel = level === 0 ? "full" : level === 1 ? "short" : "icon";
   const showName = level <= 1;
   const showTagline = level <= 3;
@@ -146,26 +148,12 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
           <div ref={leftRef} className={cn("flex shrink-0 items-center", level <= 1 ? "gap-10" : "gap-6")}>
             <Logo compact={!showTagline} taglineFromSm />
             <nav aria-label="Điều hướng chính" className={cn("items-center whitespace-nowrap", navVisible, navText, navGap)}>
-              {NAV.slice(0, 3).map((n) => (
+              {NAV.map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}
                   aria-current={isActive(n.match) ? "page" : undefined}
-                  data-tour={undefined}
-                  className={cn(
-                    "relative py-2 transition-colors",
-                    isActive(n.match) ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
-                  )}
-                >
-                  {n.label}
-                  {isActive(n.match) && <span aria-hidden className="absolute inset-x-0 -bottom-[22px] h-0.5 rounded-full bg-primary-600" />}
-                </Link>
-              ))}
-              {NAV.slice(3).map((n) => (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  aria-current={isActive(n.match) ? "page" : undefined}
+                  data-tour={n.href === "/trac-nghiem" ? "nav-quiz" : n.href === "/diem-cua-toi" ? "nav-score" : undefined}
                   className={cn(
                     "relative py-2 transition-colors",
                     isActive(n.match) ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
@@ -182,8 +170,8 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
             <Link
               href="/da-luu"
               data-tour="saved"
-              aria-label={savedLabel === "icon" || mobile ? `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}` : undefined}
-              title="Đã lưu & Nguyện vọng"
+              aria-label={savedLabel === "icon" || mobile ? `Đã lưu & nguyện vọng${count ? ` (${count})` : ""}` : undefined}
+              title="Đã lưu & nguyện vọng"
               className={cn(
                 "h-10 items-center gap-2 rounded-full border text-sm font-medium transition-colors",
                 compactRight ? "hidden sm:flex" : "flex",
@@ -192,10 +180,10 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
               )}
             >
               <LuHeart className="size-4 shrink-0" aria-hidden />
-              {!mobile && savedLabel === "full" && <span>Đã lưu & Nguyện vọng</span>}
+              {!mobile && savedLabel === "full" && <span>Đã lưu & nguyện vọng</span>}
               {!mobile && savedLabel === "short" && <span>Đã lưu</span>}
               {count > 0 && (
-                <span aria-hidden={savedLabel === "icon" || mobile} className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-[11px] font-bold text-slate-900">
+                <span aria-hidden={savedLabel === "icon" || mobile} className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-xs font-semibold text-slate-900">
                   {count}
                 </span>
               )}
@@ -215,17 +203,17 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                 >
                   <Avatar name={user.name} src={user.avatarUrl} className="size-8 text-xs" />
                   {showName && !mobile && <span className="max-w-[9rem] truncate text-sm font-semibold text-slate-900">{user.name}</span>}
-                  <LuChevronDown className="size-4 text-slate-500" aria-hidden />
+                  <LuChevronDown className="size-4 text-slate-600" aria-hidden />
                 </button>
                 {menu && (
                   <div role="menu" className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-elevated">
                     <p className="truncate px-4 pb-1 text-sm font-semibold text-slate-900">{user.name}</p>
-                    <p className="truncate px-4 pb-2 text-xs text-slate-500">{user.email}</p>
+                    <p className="truncate px-4 pb-2 text-xs text-slate-600">{user.email}</p>
                     <Link role="menuitem" href="/ho-so" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                       <LuUser className="size-4" aria-hidden /> Hồ sơ cá nhân
                     </Link>
                     <Link role="menuitem" href="/da-luu" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                      <LuBookmark className="size-4" aria-hidden /> Đã lưu & Nguyện vọng
+                      <LuBookmark className="size-4" aria-hidden /> Đã lưu & nguyện vọng
                     </Link>
                     <Link role="menuitem" href="/moc-tuyen-sinh" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                       <LuCalendarDays className="size-4" aria-hidden /> Mốc tuyển sinh
@@ -247,14 +235,14 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                 )}
               </div>
             ) : (
-              <Link href={`/dang-nhap?next=${encodeURIComponent(pathname)}`} className={buttonClass({ size: "sm", className: "h-10 px-3 sm:px-5" })}>
+              <Link href={`/dang-nhap?next=${encodeURIComponent(pathname)}`} className={buttonClass({ size: "sm", className: "px-3 sm:px-5" })}>
                 Đăng nhập
               </Link>
             )}
 
             <button
               type="button"
-              className={cn("size-10 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100", burgerVisible)}
+              className={cn("size-10 shrink-0 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100", burgerVisible)}
               aria-label={open ? "Đóng menu" : "Mở menu"}
               aria-expanded={open}
               aria-controls="menu-di-dong"
@@ -268,12 +256,13 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
         {open && (
           <nav id="menu-di-dong" aria-label="Menu di động" className="border-t border-slate-200 bg-white">
             <div className="container-page grid gap-1 py-2 sm:grid-cols-2">
-              {[...NAV, { href: "/da-luu", label: `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
+              {[...NAV, { href: "/da-luu", label: `Đã lưu & nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}
                   aria-current={isActive(n.match) ? "page" : undefined}
-                  className={cn("rounded-lg px-3 py-3 text-[15px]", isActive(n.match) ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50")}
+                  data-tour={n.href === "/trac-nghiem" ? "nav-quiz" : n.href === "/diem-cua-toi" ? "nav-score" : undefined}
+                  className={cn("rounded-lg px-3 py-3 text-base", isActive(n.match) ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50")}
                 >
                   {n.label}
                 </Link>

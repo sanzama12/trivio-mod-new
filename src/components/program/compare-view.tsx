@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { LuArrowLeftRight, LuPlus, LuX } from "react-icons/lu";
-import { ADMISSION_METHODS, cutoffFor, fitForProfile, formatMethodScore, profileScore } from "@/services/scoring.service";
+import { ADMISSION_METHODS, cutoffFor, evaluateProgramFit, fitForProfile, formatMethodScore, profileScore } from "@/services/scoring.service";
 import type { AltMethodKey } from "@/domain/types";
 import type { ProgramView } from "@/services/program.service";
 import { formatScore, formatTuition } from "@/lib/format";
@@ -43,14 +43,15 @@ export function CompareView() {
 
   const mine = profile ? profileScore(profile) : null;
   const altKeys = (["hocba"] as AltMethodKey[]).filter((k) => items.some((v) => cutoffFor(v.program, k)));
-  const cut = (v: ProgramView, i: number) => v.program.cutoffs[i];
+  const years = [...new Set(items.flatMap((v) => v.program.cutoffs.map((c) => c.year)))].sort((a, b) => b - a);
+  const cut = (v: ProgramView, year: number) => v.program.cutoffs.find((c) => c.year === year);
 
   const rows: Row[] = [
     { label: "Trường / Cơ sở", value: (v) => v.program.campus, raw: (v) => v.program.campus },
-    ...[0, 1, 2].map<Row>((i) => ({
-      label: `Điểm chuẩn ${2025 - i}`,
-      value: (v) => (cut(v, i) ? <strong className={i === 0 ? "text-primary-700" : ""}>{formatScore(cut(v, i).score)}</strong> : <span className="text-slate-400 italic">Chưa có dữ liệu chính thức</span>),
-      raw: (v) => String(cut(v, i)?.score ?? "-"),
+    ...years.map<Row>((year, i) => ({
+      label: `Điểm chuẩn ${year}`,
+      value: (v) => (cut(v, year) ? <strong className={i === 0 ? "text-primary-700" : ""}>{formatScore(cut(v, year)?.score)}</strong> : <span className="text-slate-600 italic">Chưa có</span>),
+      raw: (v) => String(cut(v, year)?.score ?? "-"),
     })),
     ...altKeys.map<Row>((k) => ({
       label: `Điểm chuẩn ${ADMISSION_METHODS[k].short}`,
@@ -61,7 +62,7 @@ export function CompareView() {
             {formatMethodScore(c.score, k)} ({c.year})
           </>
         ) : (
-          <span className="text-slate-500">Không xét</span>
+          <span className="text-slate-600">Không xét</span>
         );
       },
       raw: (v) => String(cutoffFor(v.program, k)?.score ?? "-"),
@@ -69,15 +70,16 @@ export function CompareView() {
     ...(mine && profile
       ? [
         {
-          label: `So với điểm của bạn (${formatMethodScore(mine.total, mine.method)} · ${ADMISSION_METHODS[mine.method].short})`,
+          label: "So với điểm phù hợp của bạn",
           value: (v: ProgramView) => {
+            const evaluation = evaluateProgramFit(profile, v.program);
             const { fit, reason } = fitForProfile(profile, v.program);
-            if (reason === "combo") return <span className="text-slate-500">Không xét {profile.combo}</span>;
-            if (!fit) return <span className="text-slate-500">Không xét {ADMISSION_METHODS[mine.method].short}</span>;
+            if (reason === "combo") return <span className="text-slate-600">Chưa có tổ hợp phù hợp với điểm đã nhập</span>;
+            if (!fit) return <span className="text-slate-600">Không xét {ADMISSION_METHODS[mine.method].short}</span>;
             return (
-              <span className={cn("font-semibold", fit.level === "an-toan" ? "text-success-700" : fit.level === "vua-suc" ? "text-primary-700" : "text-accent-700")}>
+              <span className={cn("font-semibold", fit.level === "an-toan" ? "text-success-700" : fit.level === "vua-suc" ? "text-primary-700" : "text-accent-800")}>
                 {fit.diff >= 0 ? "+" : ""}
-                {formatMethodScore(fit.diff, mine.method)} · {fit.label}
+                {formatMethodScore(fit.diff, evaluation?.method ?? mine.method)} · {fit.label} ({evaluation?.combo} · {evaluation && formatMethodScore(evaluation.total, evaluation.method)})
               </span>
             );
           },
@@ -155,7 +157,7 @@ export function CompareView() {
           </colgroup>
           <thead>
             <tr className="align-top">
-              <th scope="col" className="p-5 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
+              <th scope="col" className="p-5 text-left text-xs font-semibold tracking-wide text-slate-600">
                 Tiêu chí so sánh
               </th>
               {items.map((v, i) => {
@@ -170,11 +172,11 @@ export function CompareView() {
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="flex size-11 items-center justify-center rounded-xl bg-primary-50 text-xs font-extrabold text-primary-700">{v.school.code}</span>
+                      <span className="flex size-11 items-center justify-center rounded-xl bg-primary-50 text-xs font-semibold text-primary-700">{v.school.code}</span>
                       <button
                         type="button"
                         onClick={() => toggleCompare(v.program.id)}
-                        className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                        className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                         aria-label={`Bỏ ${v.program.name} khỏi so sánh`}
                       >
                         <LuX className="size-4" />
@@ -183,7 +185,7 @@ export function CompareView() {
                     <Link href={`/chuong-trinh/${v.program.slug}`} className="mt-3 block font-bold text-slate-900 hover:text-primary-700">
                       {v.program.name}
                     </Link>
-                    <span className="text-[13px] font-semibold text-primary-600">{v.school.shortName}</span>
+                    <span className="text-sm font-semibold text-primary-600">{v.school.shortName}</span>
                   </th>
                 );
               })}
@@ -191,7 +193,7 @@ export function CompareView() {
                 <th scope="col" className="border-l border-slate-100 p-5">
                   <Link
                     href="/chuong-trinh"
-                    className="flex h-full min-h-28 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-sm font-semibold text-slate-500 hover:border-primary-300 hover:text-primary-700"
+                    className="flex h-full min-h-28 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-sm font-semibold text-slate-600 hover:border-primary-300 hover:text-primary-700"
                   >
                     <LuPlus className="size-5" aria-hidden /> Thêm chương trình
                   </Link>
@@ -204,11 +206,11 @@ export function CompareView() {
               const differs = new Set(items.map(r.raw)).size > 1;
               return (
                 <tr key={r.label} className="border-t border-slate-100">
-                  <th scope="row" className="bg-slate-50/60 p-4 text-left text-[13px] font-semibold text-slate-700">
+                  <th scope="row" className="bg-slate-50/60 p-4 text-left text-sm font-semibold text-slate-700">
                     <div className="flex items-center justify-between gap-1.5">
                       <span>{r.label}</span>
                       {differs && (
-                        <span className="inline-flex items-center rounded-full bg-slate-200/90 px-2 py-0.5 text-[10px] font-extrabold text-slate-700">
+                        <span className="inline-flex items-center rounded-full bg-slate-200/90 px-2 py-0.5 text-xs font-semibold text-slate-700">
                           Khác biệt
                         </span>
                       )}
@@ -237,7 +239,7 @@ export function CompareView() {
             {items.map((v) => (
               <td key={v.program.id} className="space-y-2 border-l border-slate-100 p-4">
                 <WishlistButton id={v.program.id} />
-                <Link href={`/chuong-trinh/${v.program.slug}`} className="block text-center text-[13px] font-semibold text-primary-600 hover:underline">
+                <Link href={`/chuong-trinh/${v.program.slug}`} className="block text-center text-sm font-semibold text-primary-600 hover:underline">
                   Xem chi tiết →
                 </Link>
               </td>
@@ -247,7 +249,7 @@ export function CompareView() {
         </tbody>
       </table>
     </Card>
-      { visibleRows.length === 0 && <p className="mt-4 text-center text-sm text-slate-500">Các chương trình giống nhau ở mọi tiêu chí.</p> }
+      { visibleRows.length === 0 && <p className="mt-4 text-center text-sm text-slate-600">Các chương trình giống nhau ở mọi tiêu chí.</p> }
     </div >
   );
 }

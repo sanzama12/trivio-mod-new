@@ -22,7 +22,7 @@ export function MaterialEditor({initial,subjects}:{initial:Material|null;subject
       const form=new FormData();form.set('payload',JSON.stringify({id:saved?.id,version:saved?.version,data:{...data,status}}));if(file&&data.kind==='pdf')form.set('file',file);
       const response=await fetch('/api/admin/materials',{method:'POST',body:form});
       const result=await response.json().catch(()=>({ok:false,message:`Máy chủ trả mã ${response.status}. File có thể vượt giới hạn tải lên của máy chủ.`}));
-      if(!result.ok){setError(result.message??'Chưa lưu được tài liệu.');return;}
+      if(!response.ok||!result.ok){setError(result.message??'Chưa lưu được tài liệu.');return;}
       const item=result.item as Material;setSaved(item);setData(item);setFile(null);if(fileInput.current)fileInput.current.value='';
       setMessage(status==='published'?'Đã đăng tài liệu.':status==='archived'?'Đã gỡ tài liệu và khóa đường dẫn tải file.':'Đã lưu nháp.');
       if(!saved)router.replace(`/quan-tri/tai-lieu/${item.id}`);else router.refresh();

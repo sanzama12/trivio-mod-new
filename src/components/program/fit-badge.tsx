@@ -2,7 +2,7 @@ import { LuInfo } from "react-icons/lu";
 import type { FitInfo } from "@/services/scoring.service";
 import { Badge } from "@/components/ui/badge";
 
-const tone = { "an-toan": "solid", "vua-suc": "primary", "thu-suc": "accent" } as const;
+const tone = { "an-toan": "success", "vua-suc": "warning", "thu-suc": "danger" } as const;
 
 export function FitBadge({ fit }: { fit: FitInfo | null }) {
   if (!fit) return null;
@@ -20,7 +20,7 @@ export function FitGapBadge({ reason }: { reason: "no-score" | "few-years" }) {
   const hint =
     reason === "no-score"
       ? "Chưa có điểm của bạn — Trovio không gắn nhãn An toàn / Vừa sức / Thử sức khi chưa có điểm."
-      : "Chương trình chưa có đủ 3 năm điểm chuẩn — Trovio không gắn nhãn khi chưa đủ dữ liệu.";
+      : "Chưa có điểm chuẩn phù hợp để đối chiếu với hồ sơ của bạn.";
   return (
     <span
       title={hint}
@@ -34,6 +34,6 @@ export function FitGapBadge({ reason }: { reason: "no-score" | "few-years" }) {
 }
 
 export function CompetitionBadge({ level }: { level: "Cao" | "Trung bình" | "Thấp" }) {
-  const t = level === "Cao" ? "danger" : level === "Trung bình" ? "accent" : "success";
+  const t = level === "Cao" ? "danger" : level === "Trung bình" ? "warning" : "success";
   return <Badge tone={t}>Cạnh tranh {level.toLowerCase()}</Badge>;
 }

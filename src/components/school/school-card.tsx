@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/button";
 import Link from "next/link";
 import {
   LuArrowUpRight,
@@ -33,11 +34,11 @@ export function SchoolCard({
   const schoolType = SCHOOL_TYPE_LABELS[school.type] || "Công lập";
   const regionLabel = REGION_LABELS[school.region] || "Toàn quốc";
 
-  const { isSaved, toggleSaved, inCompare, toggleCompare, hydrated } = useTrovio();
+  const { isSaved, toggleSaved, compareSchools, toggleSchoolCompare, hydrated } = useTrovio();
   const toast = useToast();
 
   const isSchoolSaved = hydrated && isSaved(`school:${school.id}`);
-  const inCompareList = hydrated && inCompare(school.id);
+  const inCompareList = hydrated && compareSchools.includes(school.id);
 
   const handleToggleSave = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,7 +50,7 @@ export function SchoolCard({
   const handleToggleCompare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const r = toggleCompare(school.id);
+    const r = toggleSchoolCompare(school.id);
     if (r === "added") toast(`Đã thêm ${school.shortName || school.name} vào danh sách so sánh`, "success");
     else if (r === "removed") toast(`Đã bỏ ${school.shortName || school.name} khỏi so sánh`, "info");
     else if (r === "full") toast("Đã chọn tối đa 4 trường để so sánh. Vui lòng bỏ bớt một trường để thêm mới.", "warning");
@@ -62,19 +63,19 @@ export function SchoolCard({
         <div className="flex min-w-0 items-start gap-3.5 sm:gap-4">
           <SchoolLogo school={school} size="md" />
           <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-primary-800 md:text-xl">
+            <h3 className="text-lg font-semibold tracking-tight text-slate-900 transition-colors group-hover:text-primary-800">
               <Link href={`/truong/${school.slug}`} className="hover:underline">
                 {school.name}
               </Link>
             </h3>
 
             {school.highlight ? (
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-600">
                 Thế mạnh: {school.highlight}
               </p>
             ) : null}
 
-            <p className="mt-0.5 text-xs font-medium text-slate-500">
+            <p className="mt-0.5 text-xs font-medium text-slate-600">
               {school.city || "Toàn quốc"} · {schoolType}
               {school.code ? ` · Mã: ${school.code}` : ""}
             </p>
@@ -89,19 +90,19 @@ export function SchoolCard({
             title={isSchoolSaved ? "Bỏ lưu trường yêu thích" : "Lưu trường yêu thích"}
             aria-label={isSchoolSaved ? "Bỏ lưu trường yêu thích" : "Lưu trường yêu thích"}
             className={cn(
-              "flex size-9 items-center justify-center rounded-xl border transition-all cursor-pointer",
+              "inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-xl border transition-all cursor-pointer",
               isSchoolSaved
-                ? "border-rose-200 bg-rose-50 text-rose-500 shadow-xs"
-                : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:bg-slate-50 hover:text-rose-500"
+                ? "border-primary-200 bg-primary-50 text-primary-500 shadow-xs"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-primary-500"
             )}
           >
             <LuHeart className={cn("size-4.5 transition-transform", isSchoolSaved && "fill-current scale-110")} aria-hidden />
           </button>
           <Link
             href={`/truong/${school.slug}`}
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition-colors hover:bg-slate-50 hover:text-primary-700"
-            title="Xem chi tiết trường"
-            aria-label={`Xem chi tiết trường ${school.name}`}
+            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary-700"
+            title="Xem chi tiết"
+            aria-label={`Xem chi tiết ${school.name}`}
           >
             <LuArrowUpRight className="size-4.5" aria-hidden />
           </Link>
@@ -109,17 +110,17 @@ export function SchoolCard({
       </div>
 
       {/* 2. Khối thông số rộng nhiều cột */}
-      <div className="mt-5 grid grid-cols-1 gap-4 rounded-xl bg-[#fafaf7] p-4 sm:grid-cols-2 md:grid-cols-[130px_1px_1fr_1fr] md:items-center md:gap-5">
+      <div className="mt-5 grid grid-cols-1 gap-4 rounded-xl bg-paper-50 p-4 sm:grid-cols-2 md:grid-cols-[130px_1px_1fr_1fr] md:items-center md:gap-5">
         {/* Cột 1: Khu vực & Loại hình */}
         <div className="space-y-2">
           <div>
-            <p className="text-xs font-medium text-slate-500">Khu vực</p>
+            <p className="text-xs font-medium text-slate-600">Khu vực</p>
             <p className="text-sm font-bold text-slate-900 md:text-base">
               {school.city || regionLabel}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500">Loại hình</p>
+            <p className="text-xs font-medium text-slate-600">Loại hình</p>
             <p className="text-sm font-bold text-slate-900 md:text-base">
               {schoolType}
             </p>
@@ -136,20 +137,20 @@ export function SchoolCard({
               <LuGraduationCap className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Ngành đào tạo</p>
-              <p className="text-sm font-bold text-slate-900 truncate">
+              <p className="text-xs font-medium text-slate-600">Ngành đào tạo</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">
                 {programCount != null ? `${programCount} ngành` : "Đang cập nhật"}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-700">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-800">
               <LuCoins className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Học phí/năm</p>
-              <p className="text-sm font-bold text-slate-900 truncate">
+              <p className="text-xs font-medium text-slate-600">Học phí/năm</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">
                 {tuitionRange || "Theo đề án"}
               </p>
             </div>
@@ -159,16 +160,16 @@ export function SchoolCard({
         {/* Cột 3: Điểm THPT & Ngành nổi bật */}
         <div className="space-y-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
               <LuTrendingUp className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Điểm 2026 THPT</p>
-              <p className="text-sm font-bold text-slate-900 truncate">
+              <p className="text-xs font-medium text-slate-600">Điểm 2026 THPT</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">
                 {cutoffRange ? (
-                  <span className="text-primary-700 font-extrabold">{cutoffRange}</span>
+                  <span className="text-primary-700 font-bold">{cutoffRange}</span>
                 ) : (
-                  <span className="text-slate-400 font-normal">Chưa công bố</span>
+                  <span className="text-slate-600 font-normal">Chưa công bố</span>
                 )}
               </p>
             </div>
@@ -179,8 +180,8 @@ export function SchoolCard({
               <LuBookOpen className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500">Ngành nổi bật</p>
-              <p className="text-sm font-bold text-slate-900 truncate" title={featuredMajor || school.shortName}>
+              <p className="text-xs font-medium text-slate-600">Ngành nổi bật</p>
+              <p className="text-sm font-semibold text-slate-900 truncate" title={featuredMajor || school.shortName}>
                 {featuredMajor || "Đa dạng lựa chọn"}
               </p>
             </div>
@@ -194,29 +195,24 @@ export function SchoolCard({
           <button
             type="button"
             onClick={handleToggleCompare}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
-              inCompareList
-                ? "border-primary-600 bg-primary-600 text-white shadow-xs"
-                : "border-slate-300 bg-white text-slate-700 hover:border-primary-400 hover:bg-slate-50"
-            )}
+            className={buttonClass({ variant: "secondary", size: "sm" })}
           >
             <LuScale className="size-3.5" aria-hidden />
-            <span>{inCompareList ? "Đang so sánh" : "Thêm so sánh"}</span>
+            <span>{inCompareList ? "Đang so sánh" : "Thêm vào so sánh"}</span>
           </button>
           <Link
             href={`/chuong-trinh?q=${encodeURIComponent(school.code || school.name)}`}
-            className="inline-flex items-center gap-1.5 rounded-full border border-teal-700 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 transition-all hover:bg-teal-100 cursor-pointer"
+            className={buttonClass({ variant: "secondary", size: "sm" })}
           >
             <LuBookOpen className="size-3.5" aria-hidden />
-            <span>Xem các ngành đào tạo</span>
+            <span>Xem ngành đào tạo</span>
           </Link>
         </div>
         <Link
           href={`/truong/${school.slug}`}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:bg-[#00629B]"
+          className={buttonClass({ size: "sm" })}
         >
-          <span>Xem chi tiết trường</span>
+          <span>Xem chi tiết</span>
           <LuArrowUpRight className="size-4" aria-hidden />
         </Link>
       </div>

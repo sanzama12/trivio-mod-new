@@ -255,8 +255,10 @@ export const catalogAdminService = {
     const years = n(input.durationYears) ?? 4;
     if (!Number.isFinite(years) || years < 2 || years > 7) return { ok: false, status: 400, field: "durationYears", message: "Thời gian đào tạo 2–7 năm." };
     const cutoffs: Program["cutoffs"] = [];
-    for (const y of [2025, 2024, 2023]) {
-      const v = n((input.cutoffs as Record<string, unknown> | undefined)?.[y]);
+    const cutoffInput = input.cutoffs && typeof input.cutoffs === "object" && !Array.isArray(input.cutoffs) ? input.cutoffs as Record<string, unknown> : {};
+    const cutoffYears = Object.keys(cutoffInput).filter((y) => /^20\d{2}$/.test(y)).map(Number).filter((y) => y >= 2000 && y <= new Date().getFullYear() + 1).sort((a, b) => b - a).slice(0, 10);
+    for (const y of cutoffYears) {
+      const v = n(cutoffInput[y]);
       if (v == null) continue;
       if (!Number.isFinite(v) || v < 0 || v > 30) return { ok: false, status: 400, field: "cutoffs", message: `Điểm chuẩn ${y} phải từ 0 đến 30.` };
       cutoffs.push({ year: y, score: Math.round(v * 100) / 100 });

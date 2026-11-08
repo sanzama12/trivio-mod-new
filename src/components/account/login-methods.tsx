@@ -33,38 +33,42 @@ export function LoginMethods({ user, googleConfigured, error }: { user: PublicUs
   const submitPassword = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    try {
     const res = await fetch("/api/account/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     const data = await res.json();
-    setBusy(false);
-    if (!data.ok) return setPwError({ field: data.field, message: data.message });
+    if (!res.ok || !data.ok) return setPwError({ field: data.field, message: data.message ?? "Không lưu được mật khẩu." });
     toast(user.hasPassword ? "Đã đổi mật khẩu" : "Đã tạo mật khẩu — bạn có thể đăng nhập bằng email", "success");
     setPwOpen(false);
     setForm({ current: "", password: "", confirm: "" });
     router.refresh();
+    } catch { setPwError({ message: "Không thể kết nối, vui lòng thử lại." }); } finally { setBusy(false); }
   };
 
   const signOutOthers = async () => {
     setBusy(true);
+    try {
     const res = await fetch("/api/account/sessions", { method: "DELETE" });
-    setBusy(false);
     toast(res.ok ? "Đã đăng xuất khỏi mọi thiết bị khác" : "Không thực hiện được, vui lòng thử lại", res.ok ? "success" : "warning");
+    } catch { setPwError({ message: "Không thể kết nối, vui lòng thử lại." }); } finally { setBusy(false); }
   };
 
   const unlinkGoogle = async () => {
     setBusy(true);
+    try {
     const res = await fetch("/api/account/google", { method: "DELETE" });
     const data = await res.json();
-    setBusy(false);
-    if (!data.ok) return toast(data.message, "warning");
+    if (!res.ok || !data.ok) return setPwError({ message: data.message ?? "Không gỡ được liên kết." });
     toast("Đã gỡ liên kết Google", "info");
     router.refresh();
+    } catch { setPwError({ message: "Không thể kết nối, vui lòng thử lại." }); } finally { setBusy(false); }
   };
 
   return (
     <Card id="dang-nhap" className="scroll-mt-24 p-6">
-      <h2 className="text-lg font-bold">Phương thức đăng nhập</h2>
-      <p className="mt-1 text-sm text-slate-500">Bạn cần giữ ít nhất một cách đăng nhập. Cả hai cách dùng chung email {user.email}.</p>
+      <h2 className="text-lg font-semibold">Phương thức đăng nhập</h2>
+      <p className="mt-1 text-sm text-slate-600">Bạn cần giữ ít nhất một cách đăng nhập. Cả hai cách dùng chung email {user.email}.</p>
 
+      {!pwOpen && pwError && <FieldError>{pwError.message}</FieldError>}
       {oauthError && (
         <div role="alert" className="mt-4 flex gap-2 rounded-lg border border-danger-100 bg-danger-50 p-3 text-sm text-danger-700">
           <LuCircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden /> {oauthError}
@@ -78,7 +82,7 @@ export function LoginMethods({ user, googleConfigured, error }: { user: PublicUs
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-slate-900">Google</p>
-            <p className="text-[13px] text-slate-500">{user.hasGoogle ? "Đã liên kết" : "Đăng nhập 1 chạm, không cần nhớ mật khẩu"}</p>
+            <p className="text-sm text-slate-600">{user.hasGoogle ? "Đã liên kết" : "Đăng nhập 1 chạm, không cần nhớ mật khẩu"}</p>
           </div>
           {user.hasGoogle ? (
             <Button
@@ -95,7 +99,7 @@ export function LoginMethods({ user, googleConfigured, error }: { user: PublicUs
               <GoogleButton next="/ho-so" mode="link" label="Liên kết Google" />
             </div>
           ) : (
-            <span className="text-xs text-slate-500">Chưa cấu hình trên máy chủ</span>
+            <span className="text-xs text-slate-600">Chưa cấu hình trên máy chủ</span>
           )}
         </li>
 
@@ -106,7 +110,7 @@ export function LoginMethods({ user, googleConfigured, error }: { user: PublicUs
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-slate-900">Email & mật khẩu</p>
-              <p className="text-[13px] text-slate-500">{user.hasPassword ? "Đã đặt mật khẩu" : "Chưa có mật khẩu — tạo để đăng nhập khi không dùng Google"}</p>
+              <p className="text-sm text-slate-600">{user.hasPassword ? "Đã đặt mật khẩu" : "Chưa có mật khẩu — tạo để đăng nhập khi không dùng Google"}</p>
             </div>
             {!pwOpen && (
               <Button variant="outline" size="sm" onClick={() => setPwOpen(true)}>
@@ -148,7 +152,7 @@ export function LoginMethods({ user, googleConfigured, error }: { user: PublicUs
         </li>
       </ul>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-4">
-        <p className="text-[13px] text-slate-600">Quên đăng xuất trên máy tính trường hoặc máy người khác?</p>
+        <p className="text-sm text-slate-600">Quên đăng xuất trên máy tính trường hoặc máy người khác?</p>
         <Button variant="outline" size="sm" onClick={signOutOthers} disabled={busy} className="bg-white">
           Đăng xuất khỏi thiết bị khác
         </Button>

@@ -12,12 +12,12 @@ export default function SurveyPage() {
     <div className="container-page py-8">
       <div className="mx-auto max-w-3xl">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Khảo sát trải nghiệm" }]} />
-      <h1 className="mt-6 text-2xl font-bold tracking-tight md:text-[28px]">Bạn thấy Trovio dễ dùng đến đâu?</h1>
-      <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
+      <h1 className="mt-6 text-3xl md:text-4xl font-bold tracking-tight">Bạn thấy Trovio dễ dùng đến đâu?</h1>
+      <p className="mt-2 text-base leading-relaxed text-slate-600 max-w-prose">
         10 câu ngắn, khoảng 2 phút. Với mỗi câu, chọn mức độ đồng ý từ <strong>1 (Rất không đồng ý)</strong> đến <strong>5 (Rất đồng ý)</strong>. Hãy trả lời theo cảm nhận đầu tiên,
         không có đáp án đúng hay sai.
       </p>
-      <p className="mt-3 flex items-start gap-2 rounded-lg bg-slate-100 px-3 py-2 text-[13px] text-slate-600">
+      <p className="mt-3 flex items-start gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
         <LuShieldCheck className="mt-0.5 size-4 shrink-0 text-success-700" aria-hidden />
         Phiếu ẩn danh: không gắn với tài khoản, không lưu địa chỉ IP.
       </p>
