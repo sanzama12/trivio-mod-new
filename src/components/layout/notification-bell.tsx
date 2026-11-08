@@ -8,7 +8,7 @@ import type { AppNotification } from "@/domain/types";
 import { cn } from "@/lib/cn";
 
 const ICON = {
-  reminder: { Icon: LuCalendarClock, cls: "text-accent-700 bg-accent-50" },
+  reminder: { Icon: LuCalendarClock, cls: "text-accent-800 bg-accent-50" },
   supplementary: { Icon: LuRoute, cls: "text-primary-700 bg-primary-50" },
   "qa-answer": { Icon: LuMessageCircleQuestion, cls: "text-success-700 bg-success-50" },
   "school-submission": { Icon: LuSchool, cls: "text-primary-700 bg-primary-50" },
@@ -85,7 +85,7 @@ export function NotificationBell() {
       >
         <LuBell className="size-[18px]" aria-hidden />
         {unread > 0 && (
-          <span aria-hidden className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger-700 px-1 text-[11px] font-bold text-white">
+          <span aria-hidden className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger-700 px-1 text-xs font-semibold text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -93,7 +93,7 @@ export function NotificationBell() {
       {open && (
         <div id={panelId} role="region" aria-label="Thông báo" className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-elevated">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-bold text-slate-900">Thông báo</p>
+            <p className="text-sm font-semibold text-slate-900">Thông báo</p>
             {unread > 0 && (
               <button type="button" onClick={markAll} className="text-xs font-semibold text-primary-700 hover:underline">
                 Đánh dấu đã đọc tất cả
@@ -101,7 +101,7 @@ export function NotificationBell() {
             )}
           </div>
           {items.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-slate-500">Chưa có thông báo nào.</p>
+            <p className="px-4 py-8 text-center text-sm text-slate-600">Chưa có thông báo nào.</p>
           ) : (
             <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
               {items.map((n) => {
@@ -113,8 +113,8 @@ export function NotificationBell() {
                     </span>
                     <span className="min-w-0 flex-1 whitespace-normal">
                       <span className={cn("block text-sm", n.read ? "text-slate-700" : "font-semibold text-slate-900")}>{n.title}</span>
-                      <span className="mt-0.5 block text-[13px] text-slate-600">{n.body}</span>
-                      <span className="mt-1 block text-xs text-slate-500">
+                      <span className="mt-0.5 block text-sm text-slate-600">{n.body}</span>
+                      <span className="mt-1 block text-xs text-slate-600">
                         {ago(n.createdAt)}
                         {!n.read && <span className="sr-only"> · chưa đọc</span>}
                       </span>

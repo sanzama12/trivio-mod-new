@@ -3,14 +3,14 @@
 import { useId, useState } from "react";
 import { LuArrowRight, LuSlidersHorizontal } from "react-icons/lu";
 import type { FitLevel, StoredProfile } from "@/domain/types";
-import { ADMISSION_METHODS, FIT_LABELS, formatMethodScore, profileScore } from "@/services/scoring.service";
+import { ADMISSION_METHODS, FIT_LABELS, formatMethodScore, profileScore, evaluateProgramFit } from "@/services/scoring.service";
 import { simulateDelta, type StrategyItem } from "@/services/wishlist-strategy";
 import { cn } from "@/lib/cn";
 
 const LEVEL_CLASS: Record<FitLevel, string> = {
   "an-toan": "bg-success-50 text-success-700",
   "vua-suc": "bg-primary-50 text-primary-700",
-  "thu-suc": "bg-accent-50 text-accent-700",
+  "thu-suc": "bg-accent-50 text-accent-800",
 };
 
 function Level({ level }: { level: FitLevel | null }) {
@@ -36,18 +36,18 @@ export function WhatIfSimulator({ items, profile }: { items: StrategyItem[]; pro
     <section aria-labelledby={`${id}-title`} className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-card md:p-5" data-print-hide>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-accent-50 text-accent-800">
             <LuSlidersHorizontal className="size-5" aria-hidden />
           </span>
           <div>
             <h2 id={`${id}-title`} className="font-bold text-slate-900">
               Nếu điểm của mình thay đổi…
             </h2>
-            <p className="text-[13px] text-slate-500">Kéo để xem chương trình nào chuyển giữa An toàn, Vừa sức và Thử sức.</p>
+            <p className="text-sm text-slate-600">Kéo để xem chương trình nào chuyển giữa An toàn, Vừa sức và Thử sức.</p>
           </div>
         </div>
         <p className="text-right text-sm">
-          <span className="text-slate-500">{cfg.short}: </span>
+          <span className="text-slate-600">Hồ sơ tham chiếu · {cfg.short}{profile.combo ? ` · ${profile.combo}` : ""}: </span>
           <strong className="text-slate-900">{formatMethodScore(now.total, now.method)}</strong>
           {delta !== 0 && (
             <>
@@ -60,7 +60,7 @@ export function WhatIfSimulator({ items, profile }: { items: StrategyItem[]; pro
       </div>
 
       <div className="mt-4 flex items-center gap-3">
-        <span className="w-12 text-right text-xs text-slate-500">−{formatMethodScore(range, now.method)}</span>
+        <span className="w-12 text-right text-xs text-slate-600">−{formatMethodScore(range, now.method)}</span>
         <input
           id={`${id}-range`}
           type="range"
@@ -73,20 +73,20 @@ export function WhatIfSimulator({ items, profile }: { items: StrategyItem[]; pro
           aria-valuetext={`${delta >= 0 ? "cộng" : "trừ"} ${Math.abs(delta)} điểm`}
           className="h-2 flex-1 cursor-pointer accent-primary-600"
         />
-        <span className="w-12 text-xs text-slate-500">+{formatMethodScore(range, now.method)}</span>
-        <button type="button" onClick={() => setDelta(0)} disabled={delta === 0} className="text-[13px] font-semibold text-primary-600 hover:underline disabled:text-slate-300 disabled:no-underline">
+        <span className="w-12 text-xs text-slate-600">+{formatMethodScore(range, now.method)}</span>
+        <button type="button" onClick={() => setDelta(0)} disabled={delta === 0} className="text-sm font-semibold text-primary-600 hover:underline disabled:text-slate-300 disabled:no-underline">
           Đặt lại
         </button>
       </div>
       <p className="mt-1 text-center text-sm font-semibold text-slate-700" aria-live="polite">
-        {delta === 0 ? "Điểm hiện tại" : `${delta > 0 ? "+" : "−"}${formatMethodScore(Math.abs(delta), now.method)} điểm`}
+        {delta === 0 ? "Hồ sơ tham chiếu hiện tại" : `${delta > 0 ? "+" : "−"}${formatMethodScore(Math.abs(delta), now.method)} điểm`}
       </p>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 text-center text-[13px] min-[400px]:grid-cols-3">
+      <div className="mt-3 grid grid-cols-1 gap-2 text-center text-sm min-[400px]:grid-cols-3">
         {(["thu-suc", "vua-suc", "an-toan"] as FitLevel[]).map((l) => (
           <div key={l} className={cn("rounded-xl px-2 py-2", LEVEL_CLASS[l])}>
             <p className="font-semibold">{FIT_LABELS[l]}</p>
-            <p className="text-base font-extrabold">
+            <p className="text-base font-semibold">
               {count("before", l)}
               {delta !== 0 && count("before", l) !== count("after", l) && <span> → {count("after", l)}</span>}
             </p>
@@ -94,10 +94,21 @@ export function WhatIfSimulator({ items, profile }: { items: StrategyItem[]; pro
         ))}
       </div>
 
+
+      <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
+        {items.map((item) => {
+          const evaluated = evaluateProgramFit(profile, item.program, delta);
+          return <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
+            <span>{item.label}</span>
+            {evaluated ? <span>{ADMISSION_METHODS[evaluated.method].short} · {evaluated.combo} · {formatMethodScore(evaluated.total, evaluated.method)} điểm <Level level={evaluated.fit.level} /></span> : <Level level={null} />}
+          </li>;
+        })}
+      </ul>
+
       {delta !== 0 && (
         <div className="mt-4">
           {changed.length === 0 ? (
-            <p className="text-[13px] text-slate-500">Không chương trình nào đổi mức với mức thay đổi này.</p>
+            <p className="text-sm text-slate-600">Không chương trình nào đổi mức với mức thay đổi này.</p>
           ) : (
             <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
               {changed.map((x) => (

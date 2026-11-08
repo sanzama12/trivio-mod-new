@@ -15,7 +15,7 @@ export function FaqSearch({ groups }: { groups: FaqGroup[] }) {
 
   return (
     <div>
-      <div className="mx-auto flex max-w-xl items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
+      {groups.some((g) => g.items.length > 0) && <><div className="mx-auto flex max-w-xl items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-elevated">
         <LuSearch className="ml-3 size-5 text-slate-400" aria-hidden />
         <label htmlFor="faq-q" className="sr-only">
           Tìm câu hỏi
@@ -28,9 +28,9 @@ export function FaqSearch({ groups }: { groups: FaqGroup[] }) {
           className="h-11 min-w-0 flex-1 bg-transparent focus:outline-none"
         />
       </div>
-      <p className="mt-3 text-center text-sm text-slate-500" aria-live="polite">
+      <p className="mt-3 text-center text-sm text-slate-600" aria-live="polite">
         {q ? `${total} câu hỏi phù hợp` : " "}
-      </p>
+      </p></>}
 
       <div className="mt-8 space-y-8">
         {filtered.map((g) => (
@@ -43,13 +43,13 @@ export function FaqSearch({ groups }: { groups: FaqGroup[] }) {
                     {i.q}
                     <LuChevronDown className="size-5 shrink-0 text-slate-400 transition group-open:rotate-180" aria-hidden />
                   </summary>
-                  <p className="px-4 pb-4 text-sm leading-relaxed text-slate-600">{i.a}</p>
+                  <p className="px-4 pb-4 text-sm leading-relaxed text-slate-600 max-w-prose">{i.a}</p>
                 </details>
               ))}
             </div>
           </section>
         ))}
-        {total === 0 && <p className="text-center text-sm text-slate-500">Không tìm thấy câu hỏi phù hợp. Hãy liên hệ đội hỗ trợ bên dưới.</p>}
+        {total === 0 && <p className="text-center text-sm text-slate-600">{groups.some((g) => g.items.length > 0) ? "Không tìm thấy câu hỏi phù hợp. Hãy liên hệ đội hỗ trợ bên dưới." : "FAQ đang được biên soạn."}</p>}
       </div>
     </div>
   );

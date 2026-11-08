@@ -7,6 +7,7 @@ import { combos } from "@/domain/admission-reference";
 import {
   ADMISSION_METHODS,
   computeFit,
+  evaluateProgramFit,
   cutoffFor,
   formatMethodScore,
   listScoresForProgram,
@@ -16,11 +17,11 @@ import { useTrovio } from "@/stores/trovio-store";
 import { cn } from "@/lib/cn";
 import { buttonClass } from "@/components/ui/button";
 
-const FIT_TEXT = { "an-toan": "text-success-700", "vua-suc": "text-primary-700", "thu-suc": "text-accent-700" } as const;
+const FIT_TEXT = { "an-toan": "text-success-700", "vua-suc": "text-amber-800", "thu-suc": "text-danger-700" } as const;
 const BOX = {
   success: "border-success-100 bg-success-50",
-  primary: "border-primary-200 bg-primary-50",
-  accent: "border-accent-200 bg-accent-50",
+  warning: "border-amber-200 bg-amber-50",
+  danger: "border-danger-100 bg-danger-50",
   slate: "border-slate-200 bg-white",
 } as const;
 
@@ -41,44 +42,38 @@ export function FitPanel({ program }: { program: Pick<Program, "cutoffs" | "altC
   if (!profile) {
     return (
       <div className="rounded-2xl border border-primary-200 bg-primary-50 p-5">
-        <p className="flex items-center gap-2 text-sm font-bold text-primary-800">
+        <p className="flex items-center gap-2 text-sm font-semibold text-primary-800">
           <LuCalculator className="size-4" aria-hidden /> Bạn có khả năng đỗ không?
         </p>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-primary-900/80">
+        <p className="mt-1.5 text-sm leading-relaxed text-primary-900/80 max-w-prose">
           Nhập điểm ({accepted.map((k) => ADMISSION_METHODS[k].short).join(", ")}) và khu vực ưu tiên để so với điểm chuẩn gần nhất.
         </p>
         <Link href="/diem-cua-toi" className={buttonClass({ size: "sm", className: "mt-4" })}>
-          Nhập điểm của tôi
+          Nhập điểm
         </Link>
       </div>
     );
   }
 
   const rows = listScoresForProgram(profile, program, combos);
-  const best = rows[0]
-    ? rows.reduce((a, b) => {
-        const fa = computeFit(a.total, program, a.method);
-        const fb = computeFit(b.total, program, b.method);
-        return (fb?.diff ?? -Infinity) > (fa?.diff ?? -Infinity) ? b : a;
-      })
-    : null;
-  const bestFit = best ? computeFit(best.total, program, best.method) : null;
-  const tone = !bestFit ? "slate" : bestFit.level === "an-toan" ? "success" : bestFit.level === "vua-suc" ? "primary" : "accent";
+  const best = evaluateProgramFit(profile, program);
+  const bestFit = best?.fit ?? null;
+  const tone = !bestFit ? "slate" : bestFit.level === "an-toan" ? "success" : bestFit.level === "vua-suc" ? "warning" : "danger";
   const extra = (program.methods ?? []).filter((m) => !m.key || !accepted.includes(m.key));
 
   return (
     <div className={cn("rounded-2xl border p-5", BOX[tone])}>
-      <p className="text-xs font-semibold text-slate-500 uppercase">
+      <p className="text-xs font-semibold text-slate-600">
         Điểm của bạn{best ? ` (${ADMISSION_METHODS[best.method].short}${best.combo ? ` · ${best.combo}` : ""})` : ""}
       </p>
       {best ? (
-        <p className="mt-1 text-3xl font-extrabold text-slate-900">{formatMethodScore(best.total, best.method)}</p>
+        <p className="mt-1 text-3xl font-bold text-slate-900">{formatMethodScore(best.total, best.method)}</p>
       ) : (
         <p className="mt-1 text-sm font-semibold text-slate-700">Chưa khớp phương thức đã nhập với chương trình này.</p>
       )}
-      {bestFit ? <p className={cn("mt-2 text-sm font-bold", FIT_TEXT[bestFit.level])}>{bestFit.label}</p> : null}
+      {bestFit ? <p className={cn("mt-2 text-sm font-semibold", FIT_TEXT[bestFit.level])}>{bestFit.label}</p> : null}
 
-      <ul className="mt-3 space-y-1.5 text-[13px] text-slate-700">
+      <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
         {accepted.map((k) => {
           const cut = cutoffFor(program, k)!;
           const row = rows.find((r) => r.method === k);
@@ -88,7 +83,7 @@ export function FitPanel({ program }: { program: Pick<Program, "cutoffs" | "altC
                 <span className="font-semibold">{ADMISSION_METHODS[k].short}</span>
                 {row?.combo ? ` · ${row.combo}` : ""}
                 {row ? ` · ${formatMethodScore(row.total, k)}` : " · chưa nhập"}
-                <span className="text-slate-500">
+                <span className="text-slate-600">
                   {" "}
                   (chuẩn {cut.year}: {formatMethodScore(cut.score, k)}
                   )
@@ -104,7 +99,7 @@ export function FitPanel({ program }: { program: Pick<Program, "cutoffs" | "altC
         ))}
       </ul>
 
-      <Link href="/diem-cua-toi" className="mt-3 inline-block text-[13px] font-semibold text-primary-600 hover:underline">
+      <Link href="/diem-cua-toi" className="mt-3 inline-block text-sm font-semibold text-primary-600 hover:underline">
         Cập nhật điểm
       </Link>
     </div>

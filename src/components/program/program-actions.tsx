@@ -32,13 +32,10 @@ export function SaveButton({ id, variant = "icon" }: { id: string; variant?: "ic
         type="button"
         onClick={onClick}
         aria-pressed={saved}
-        className={cn(
-          "inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer",
-          saved ? "text-danger-600 font-bold" : "text-slate-600 hover:text-danger-600"
-        )}
+        className={buttonClass({ variant: "ghost", size: "sm" })}
       >
-        <LuHeart className={cn("size-4 transition-transform", saved && "fill-current text-danger-500")} aria-hidden />
-        <span>{saved ? "Đã yêu thích" : "Yêu thích"}</span>
+        <LuHeart className={cn("size-4 transition-transform", saved && "fill-current text-primary-600")} aria-hidden />
+        <span>{saved ? "Đã lưu" : "Lưu"}</span>
       </button>
     );
   }
@@ -47,7 +44,7 @@ export function SaveButton({ id, variant = "icon" }: { id: string; variant?: "ic
     return (
       <button type="button" onClick={onClick} aria-pressed={saved} className={buttonClass({ variant: "outline", full: true })}>
         <LuHeart className={cn("size-4", saved && "fill-current")} aria-hidden />
-        {saved ? "Đã lưu chương trình" : "Lưu chương trình học"}
+        {saved ? "Đã lưu" : "Lưu"}
       </button>
     );
   }
@@ -59,8 +56,8 @@ export function SaveButton({ id, variant = "icon" }: { id: string; variant?: "ic
       aria-label={saved ? "Bỏ lưu chương trình" : "Lưu chương trình"}
       title={saved ? "Bỏ lưu" : "Lưu"}
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
-        saved ? "border-danger-100 bg-danger-50 text-danger-500" : "border-slate-200 text-slate-500 hover:border-danger-100 hover:text-danger-500",
+        "inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 max-sm:size-11 rounded-lg border transition-colors",
+        saved ? "border-primary-200 bg-primary-50 text-primary-700" : "border-slate-200 text-slate-600 hover:border-primary-300 hover:text-primary-700",
       )}
     >
       <LuHeart className={cn("size-4", saved && "fill-current")} aria-hidden />
@@ -84,15 +81,10 @@ export function CompareButton({ id, full = false, variant = "default" }: { id: s
         type="button"
         onClick={onClick}
         aria-pressed={active}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border cursor-pointer",
-          active
-            ? "border-teal-700 bg-teal-50 text-teal-800 shadow-sm"
-            : "border-slate-300 bg-white text-slate-700 hover:border-teal-600 hover:text-teal-700 hover:bg-teal-50/50"
-        )}
+        className={buttonClass({ variant: "secondary", size: "sm" })}
       >
         <LuScale className="size-3.5" aria-hidden />
-        <span>{active ? "Đang so sánh" : "So sánh"}</span>
+        <span>{active ? "Đang so sánh" : "Thêm vào so sánh"}</span>
       </button>
     );
   }
@@ -105,7 +97,7 @@ export function CompareButton({ id, full = false, variant = "default" }: { id: s
       className={buttonClass({ variant: active ? "secondary" : "outline", size: full ? "md" : "sm", full })}
     >
       {active ? <LuCheck className="size-4" aria-hidden /> : <LuArrowLeftRight className="size-4" aria-hidden />}
-      {active ? "Đang so sánh" : full ? "So sánh chương trình này" : "Thêm so sánh"}
+      {active ? "Đang so sánh" : "Thêm vào so sánh"}
     </button>
   );
 }
@@ -140,7 +132,7 @@ export function WishlistButton({ id }: { id: string }) {
       className={buttonClass({ variant: active ? "secondary" : "primary", full: true })}
     >
       <LuListChecks className="size-4" aria-hidden />
-      {active ? "Đã có trong nguyện vọng" : "Thêm vào nguyện vọng"}
+      {active ? "Đã thêm nguyện vọng" : "Thêm vào nguyện vọng"}
     </button>
   );
 }
@@ -167,18 +159,18 @@ export function CompareBar() {
     <>
       {visible ? (
         <div data-print-hide className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-white py-2.5 pr-2.5 pl-4 shadow-elevated">
+          <div className="flex items-center gap-3 rounded-2xl border border-primary-200 bg-white py-2.5 pr-2.5 pl-4 shadow-elevated">
             <div className="flex items-center gap-2">
-              <span className="flex size-2 rounded-full bg-teal-600 animate-pulse" />
+              <span className="flex size-2 rounded-full bg-primary-600 animate-pulse" />
               <span className="text-sm font-semibold text-slate-800">
-                Đang chọn <span className="font-bold text-teal-800">{compare.length}/{MAX_COMPARE}</span> chương trình
+                Đang chọn <span className="font-bold text-primary-800">{compare.length}/{MAX_COMPARE}</span> chương trình
               </span>
             </div>
 
             <button
               type="button"
               onClick={clearCompare}
-              className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+              className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
               aria-label="Bỏ chọn tất cả"
               title="Xóa danh sách so sánh"
             >
@@ -188,10 +180,10 @@ export function CompareBar() {
             <button
               type="button"
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-teal-800 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white shadow-xs transition-colors hover:bg-teal-900 cursor-pointer"
+              className={buttonClass({ size: "sm" })}
             >
               <LuScale className="size-4" />
-              <span>So sánh ngay</span>
+              <span>So sánh ({compare.length})</span>
             </button>
           </div>
         </div>
@@ -203,29 +195,20 @@ export function CompareBar() {
 }
 
 /** Nút mở bảng so sánh đặt tại các trang tìm trường, danh mục trường... */
-export function OpenCompareButton({ className }: { className?: string }) {
-  const { compare, hydrated } = useTrovio();
+export function OpenCompareButton({ className, kind = "program" }: { className?: string; kind?: "program" | "school" }) {
+  const { compare, compareSchools, hydrated } = useTrovio();
   const [open, setOpen] = useState(false);
-  const count = hydrated ? compare.length : 0;
+  const count = hydrated ? (kind === "school" ? compareSchools.length : compare.length) : 0;
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-stone-800 shadow-xs hover:bg-stone-50 transition-colors cursor-pointer",
-          count > 0 && "border-teal-600 bg-teal-50/60 text-teal-900",
-          className
-        )}
+        onClick={() => kind === "school" ? window.location.assign("/so-sanh?tab=truong") : setOpen(true)}
+        className={cn(buttonClass({ variant: "secondary" }), count === 0 && "max-sm:hidden!", className)}
       >
-        <LuScale className="size-4 text-teal-700" />
-        <span>Bảng so sánh</span>
-        {count > 0 ? (
-          <span className="flex size-5 items-center justify-center rounded-full bg-teal-700 text-[10px] font-black text-white">
-            {count}
-          </span>
-        ) : null}
+        <LuScale className="size-4 text-primary-700" />
+        <span>So sánh ({count})</span>
       </button>
 
       <CompareModal open={open} onClose={() => setOpen(false)} />

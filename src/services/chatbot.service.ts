@@ -111,13 +111,19 @@ async function knowledge(): Promise<Knowledge> {
   }
   const schoolIndex: [string, string][] = [];
   for (const s of schools) {
-    schoolIndex.push([norm(s.name).trim(), s.id], [norm(s.shortName).trim(), s.id]);
+    for (const name of [s.name, s.shortName, s.code]) {
+      const full = norm(name ?? "").trim();
+      const short = full.replace(/^(?:truong )?(?:dai hoc|dh)\s+/, "");
+      if (full) schoolIndex.push([full, s.id]);
+      if (short && short !== full) schoolIndex.push([short, s.id]);
+    }
     for (const a of SCHOOL_ALIASES[s.id] ?? []) schoolIndex.push([a, s.id]);
   }
   // Từ khoá quản trị viên thêm ở /quan-tri/chatbot.
   for (const a of Array.isArray(custom) ? custom : []) (a.kind === "major" ? majorIndex : schoolIndex).push([a.alias, a.targetId]);
   const byLen = (a: [string, string], b: [string, string]) => b[0].length - a[0].length;
-  return { majors, schools, programs, majorIndex: majorIndex.sort(byLen), schoolIndex: schoolIndex.sort(byLen) };
+  const ambiguous = new Set(schoolIndex.filter(([alias, id]) => schoolIndex.some(([other, otherId]) => alias === other && id !== otherId)).map(([alias]) => alias));
+  return { majors, schools, programs, majorIndex: majorIndex.sort(byLen), schoolIndex: schoolIndex.filter(([alias]) => !ambiguous.has(alias)).sort(byLen) };
 }
 
 /**
@@ -226,13 +232,19 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   // Thực thể nêu trong câu hỏi; nếu không có thì dùng ngữ cảnh của câu trước (câu hỏi nối tiếp).
   const explicitMajor = findEntity(n, k.majorIndex, q);
   const explicitSchool = findEntity(n, k.schoolIndex, q);
-  let ctxMajor = typeof ctxIn.majorId === "string" && k.majors.some((m) => m.id === ctxIn.majorId) ? ctxIn.majorId : null;
-  let ctxSchool = typeof ctxIn.schoolId === "string" && k.schools.some((s) => s.id === ctxIn.schoolId) ? ctxIn.schoolId : null;
-  if (!ctxMajor && !ctxSchool) {
+  const contextual = has(n, ["nganh nay", "nganh do", "truong nay", "truong do", "chuong trinh nay", "chuong trinh do", "tuyen sinh", "hoc phi", "diem chuan", "xet tuyen", "to hop", "hoc bong", "hoc gi", "co hoi viec lam"]);
+  let ctxMajor = contextual && typeof ctxIn.majorId === "string" && k.majors.some((m) => m.id === ctxIn.majorId) ? ctxIn.majorId : null;
+  let ctxSchool = contextual && typeof ctxIn.schoolId === "string" && k.schools.some((s) => s.id === ctxIn.schoolId) ? ctxIn.schoolId : null;
+  if (contextual && !ctxMajor && !ctxSchool) {
     // Chưa có ngữ cảnh hội thoại → dùng trang đang xem ("ngành này học gì?" trên trang ngành).
-    const page = typeof ctxIn.page === "string" ? /^\/(nganh|truong)\/([a-z0-9-]{1,100})\/?$/.exec(ctxIn.page) : null;
+    const page = typeof ctxIn.page === "string" ? /^\/(nganh|truong|chuong-trinh)\/([a-z0-9-]{1,100})\/?$/.exec(ctxIn.page) : null;
     if (page?.[1] === "nganh") ctxMajor = k.majors.find((m) => m.slug === page[2])?.id ?? null;
     if (page?.[1] === "truong") ctxSchool = k.schools.find((s) => s.slug === page[2])?.id ?? null;
+    if (page?.[1] === "chuong-trinh") {
+      const program = k.programs.find((p) => p.slug === page[2]);
+      ctxMajor = has(n, ["truong nay"]) && !has(n, ["nganh nay", "chuong trinh nay"]) ? null : program?.majorId ?? null;
+      ctxSchool = program?.schoolId ?? null;
+    }
   }
   // Hỏi ngành mới → bỏ ngữ cảnh trường cũ (và ngược lại) để không trộn nhầm.
   const majorId = explicitMajor ?? (explicitSchool ? null : ctxMajor);
@@ -477,7 +489,9 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   }
 
   // --- 4. Câu hỏi theo thực thể ---
-  const programsOf = (mid?: string | null, sid?: string | null) => programsOfAll(k, mid, sid);
+  const pageProgram = typeof ctxIn.page === "string" ? k.programs.find((p) => ctxIn.page === `/chuong-trinh/${p.slug}`) : undefined;
+  const usePageProgram = !!pageProgram && !explicitMajor && !explicitSchool && has(n, ["nganh nay", "chuong trinh nay"]);
+  const programsOf = (mid?: string | null, sid?: string | null) => programsOfAll(k, mid, sid).filter((p) => !usePageProgram || p.id === pageProgram?.id);
   const schoolName = (id: string) => k.schools.find((s) => s.id === id)?.shortName ?? id;
 
   if (has(n, I.cutoff) || (has(n, I.methods) && (major || school))) {

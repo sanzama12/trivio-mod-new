@@ -49,7 +49,7 @@ export function StrategyPanel({
             <h2 id="strategy-title" className="font-bold text-slate-900">
               Kiểm tra chiến lược nguyện vọng
             </h2>
-            <p className="text-[13px] text-slate-500">
+            <p className="text-sm text-slate-600">
               {open ? SUMMARY[report.status] : "Rà thứ tự, mức an toàn, tổ hợp và học phí trước khi đăng ký chính thức."}
             </p>
           </div>
@@ -62,10 +62,10 @@ export function StrategyPanel({
       {open && (
         <div id="strategy-body" className="mt-4 space-y-3" aria-live="polite">
           {report.status !== "incomplete" && (
-            <div className="flex flex-wrap gap-2 text-[13px]">
+            <div className="flex flex-wrap gap-2 text-sm">
               {(
                 [
-                  ["thu-suc", "Thử sức", "bg-accent-50 text-accent-700"],
+                  ["thu-suc", "Thử sức", "bg-accent-50 text-accent-800"],
                   ["vua-suc", "Vừa sức", "bg-primary-50 text-primary-700"],
                   ["an-toan", "An toàn", "bg-success-50 text-success-700"],
                   ["unknown", "Không xét được", "bg-slate-100 text-slate-600"],
@@ -87,7 +87,7 @@ export function StrategyPanel({
                   <st.icon className={cn("mt-0.5 size-5 shrink-0", st.iconClass)} aria-hidden />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900">{c.title}</p>
-                    <p className="mt-0.5 text-[13px] leading-relaxed text-slate-600">{c.detail}</p>
+                    <p className="mt-0.5 text-sm leading-relaxed text-slate-600 max-w-prose">{c.detail}</p>
                     {c.id === "order" && report.suggestedOrder && (
                       <Button
                         size="sm"
@@ -106,7 +106,7 @@ export function StrategyPanel({
               );
             })}
           </ul>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-600">
             Đánh giá chỉ dùng điểm chuẩn hiện có và mang tính tham khảo. Mỗi thí sinh chỉ trúng tuyển nguyện vọng có thứ tự cao nhất mà mình đủ điều kiện.
           </p>
         </div>

@@ -7,6 +7,7 @@
  * - Client chỉ hiển thị; link được lọc lại bằng safeChatHref (chỉ "/…" hoặc https).
  * - Hội thoại chỉ giữ trong bộ nhớ trang (không lưu trình duyệt); server lưu nhật ký đã che email/số điện thoại.
  */
+import { buttonClass } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
@@ -42,7 +43,7 @@ type Msg =
 
 const MAX_MESSAGES = 40;
 const GUEST_HISTORY_KEY = "trovio:chat-history:v1";
-const HIDDEN_ON: string[] = [];
+const HIDDEN_ON: string[] = ["/trac-nghiem/lam-bai"];
 const STARTERS = ["Giới thiệu ngành Marketing", "Điểm chuẩn ngành Công nghệ thông tin", "Học phí ngành Kế toán", "Tôi nên học ngành gì?"];
 /** Sự kiện để nơi khác mở khung chat, VD: window.dispatchEvent(new CustomEvent("trovio:open-chat", { detail: "Câu hỏi" })). */
 export const OPEN_CHAT_EVENT = "trovio:open-chat";
@@ -90,7 +91,7 @@ export function ChatWidget() {
 
   // Sang trang ngành/trường khác → bỏ ngữ cảnh hội thoại cũ để server dùng ngữ cảnh của trang đang xem.
   useEffect(() => {
-    if (/^\/(nganh|truong)\/[^/]+/.test(pathname)) setCtx({});
+    if (/^\/(nganh|truong|chuong-trinh)\/[^/]+/.test(pathname)) setCtx({});
   }, [pathname]);
 
   const returnFocus = useRef(false);
@@ -252,10 +253,7 @@ export function ChatWidget() {
           onClick={() => setOpen(true)}
           aria-expanded={false}
           aria-controls={panelId}
-          className={cn(
-            "fixed right-4 z-30 flex items-center gap-2 rounded-full bg-primary-600 py-3 pr-4 pl-3.5 text-sm font-semibold text-white shadow-elevated transition hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 md:right-6",
-            compareVisible ? "bottom-24" : "bottom-4 md:bottom-6",
-          )}
+          className={cn(buttonClass({ className: "fixed right-4 z-30 shadow-elevated md:right-6" }), compareVisible ? "bottom-24" : "bottom-4 md:bottom-6")}
         >
           <LuBotMessageSquare className="size-5" aria-hidden />
           <span className="hidden sm:inline">Hỏi trợ lý</span>
@@ -289,15 +287,15 @@ export function ChatWidget() {
                 Trả lời từ dữ liệu Trovio, luôn kèm nguồn
               </p>
             </div>
-            <button type="button" onClick={() => void openHistory()} className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-white" aria-label="Xem lịch sử trò chuyện" title="Lịch sử trò chuyện">
+            <button type="button" onClick={() => void openHistory()} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-white" aria-label="Xem lịch sử trò chuyện" title="Lịch sử trò chuyện">
               <LuHistory className="size-4" />
             </button>
             {messages.length > 0 && (
-              <button type="button" onClick={reset} className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-white" aria-label="Bắt đầu cuộc trò chuyện mới" title="Cuộc trò chuyện mới">
+              <button type="button" onClick={reset} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-white" aria-label="Bắt đầu cuộc trò chuyện mới" title="Cuộc trò chuyện mới">
                 <LuRotateCcw className="size-4" />
               </button>
             )}
-            <button type="button" onClick={close} className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-white" aria-label="Đóng trợ lý">
+            <button type="button" onClick={close} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 hover:bg-white" aria-label="Đóng trợ lý">
               <LuX className="size-4" />
             </button>
           </header>
@@ -306,20 +304,20 @@ export function ChatWidget() {
             {historyOpen ? (
               <div>
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <div><h3 className="font-bold text-slate-900">Lịch sử trò chuyện</h3><p className="text-xs text-slate-500">{user ? "Đồng bộ theo tài khoản" : "Lưu trên trình duyệt này"}</p></div>
-                  <button type="button" onClick={reset} className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold text-white">Cuộc trò chuyện mới</button>
+                  <div><h3 className="font-bold text-slate-900">Lịch sử trò chuyện</h3><p className="text-xs text-slate-600">{user ? "Đồng bộ theo tài khoản" : "Lưu trên trình duyệt này"}</p></div>
+                  <button type="button" onClick={reset} className={buttonClass({ size: "sm" })}>Cuộc trò chuyện mới</button>
                 </div>
-                {historyLoading ? <p className="py-8 text-center text-sm text-slate-500">Đang tải lịch sử…</p> : history.length ? <ul className="space-y-2">
+                {historyLoading ? <p className="py-8 text-center text-sm text-slate-600">Đang tải lịch sử…</p> : history.length ? <ul className="space-y-2">
                   {history.map((conversation) => <li key={conversation.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
-                    <button type="button" onClick={() => selectHistory(conversation)} className="min-w-0 flex-1 rounded-lg px-2 py-1 text-left hover:bg-primary-50"><span className="block truncate text-sm font-semibold text-slate-900">{conversation.title}</span><span className="text-xs text-slate-500">{new Date(conversation.updatedAt).toLocaleString("vi-VN")} · {Math.ceil(conversation.messages.length / 2)} lượt hỏi</span></button>
-                    <button type="button" onClick={() => void deleteHistory(conversation.id)} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-danger-600 hover:bg-danger-50" aria-label={`Xóa hội thoại ${conversation.title}`}><LuTrash2 className="size-4" /></button>
+                    <button type="button" onClick={() => selectHistory(conversation)} className="min-w-0 flex-1 rounded-lg px-2 py-1 text-left hover:bg-primary-50"><span className="block truncate text-sm font-semibold text-slate-900">{conversation.title}</span><span className="text-xs text-slate-600">{new Date(conversation.updatedAt).toLocaleString("vi-VN")} · {Math.ceil(conversation.messages.length / 2)} lượt hỏi</span></button>
+                    <button type="button" onClick={() => void deleteHistory(conversation.id)} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-danger-600 hover:bg-danger-50" aria-label={`Xóa hội thoại ${conversation.title}`}><LuTrash2 className="size-4" /></button>
                   </li>)}
-                </ul> : <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center"><LuHistory className="mx-auto size-8 text-slate-400" /><p className="mt-2 text-sm font-semibold text-slate-700">Chưa có lịch sử trò chuyện</p></div>}
+                </ul> : <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center"><LuHistory className="mx-auto size-8 text-slate-600" /><p className="mt-2 text-sm font-semibold text-slate-700">Chưa có lịch sử trò chuyện</p></div>}
               </div>
             ) : <>
             <div className="rounded-xl border border-accent-200 bg-accent-50 p-3 text-xs leading-relaxed text-slate-700">
               <p className="flex gap-1.5">
-                <LuInfo className="mt-0.5 size-3.5 shrink-0 text-accent-700" aria-hidden />
+                <LuInfo className="mt-0.5 size-3.5 shrink-0 text-accent-800" aria-hidden />
                 <span>
                   Trợ lý <b>không dự đoán điểm chuẩn</b> và không cam kết khả năng đỗ. Thông tin tuyển sinh chính thức: đề án tuyển sinh của trường và cổng thông tin của Bộ GD&amp;ĐT. Không nhập thông tin cá nhân (SĐT, CCCD…).
                 </span>
@@ -389,13 +387,13 @@ export function ChatWidget() {
               <button
                 type="submit"
                 disabled={busy || input.trim().length < 2}
-                className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className={buttonClass({ size: "icon" })}
                 aria-label="Gửi câu hỏi"
               >
                 <LuSendHorizontal className="size-5" />
               </button>
             </div>
-            <p className="mt-1.5 flex justify-between text-[11px] text-slate-500">
+            <p className="mt-1.5 flex justify-between text-xs text-slate-600">
               <span>Enter để gửi · Shift+Enter xuống dòng</span>
               <span aria-live="off">
                 {input.length}/{MAX_QUESTION}
@@ -447,7 +445,7 @@ function BotMessage({
   return (
     <div className="max-w-[92%]">
       <div className={cn("rounded-2xl rounded-bl-md border px-3.5 py-2.5 text-sm text-slate-800", KIND_STYLE[answer.kind] ?? KIND_STYLE.answer)}>
-        {answer.kind === "refusal" && <p className="mb-1 text-xs font-semibold text-accent-700">Ngoài phạm vi hỗ trợ</p>}
+        {answer.kind === "refusal" && <p className="mb-1 text-xs font-semibold text-accent-800">Ngoài phạm vi hỗ trợ</p>}
         <p className="whitespace-pre-wrap">{answer.text}</p>
 
         {answer.items.length > 0 && (
@@ -458,7 +456,7 @@ function BotMessage({
                 <>
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium text-slate-900">{it.title}</span>
-                    {it.meta && <span className="block text-xs text-slate-500">{it.meta}</span>}
+                    {it.meta && <span className="block text-xs text-slate-600">{it.meta}</span>}
                   </span>
                   {href && <LuChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />}
                 </>
@@ -487,25 +485,25 @@ function BotMessage({
 
         {answer.note && (
           <p className="mt-2 flex gap-1.5 rounded-lg bg-accent-50 px-2.5 py-1.5 text-xs text-slate-700">
-            <LuInfo className="mt-0.5 size-3.5 shrink-0 text-accent-700" aria-hidden />
+            <LuInfo className="mt-0.5 size-3.5 shrink-0 text-accent-800" aria-hidden />
             <span>{answer.note}</span>
           </p>
         )}
 
         {sources.length > 0 && (
           <div className="mt-2">
-            <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Nguồn & xem thêm</p>
+            <p className="text-xs font-semibold tracking-wide text-slate-600">Nguồn & xem thêm</p>
             <ul className="mt-1 flex flex-wrap gap-1.5">
               {sources.map((s, i) => (
                 <li key={i}>
                   {s.external ? (
-                    <a href={s.href!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-primary-700 hover:bg-primary-50">
+                    <a href={s.href!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary-700 hover:underline">
                       {s.label}
                       <LuExternalLink className="size-3" aria-hidden />
                       <span className="sr-only">(mở tab mới)</span>
                     </a>
                   ) : (
-                    <Link href={s.href!} className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-primary-700 hover:bg-primary-50">
+                    <Link href={s.href!} className="inline-flex items-center text-sm text-primary-700 hover:underline">
                       {s.label}
                     </Link>
                   )}
@@ -516,14 +514,14 @@ function BotMessage({
         )}
       </div>
 
-      <div className="mt-1 flex items-center gap-1 pl-1 text-xs text-slate-500">
+      <div className="mt-1 flex items-center gap-1 pl-1 text-xs text-slate-600">
         {feedback === undefined ? (
           <>
             <span className="mr-1">Câu trả lời có ích?</span>
-            <button type="button" onClick={() => onFeedback(true)} className="flex size-7 items-center justify-center rounded-md hover:bg-slate-100" aria-label="Có ích">
+            <button type="button" onClick={() => onFeedback(true)} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-md hover:bg-slate-100" aria-label="Có ích">
               <LuThumbsUp className="size-3.5" />
             </button>
-            <button type="button" onClick={() => onFeedback(false)} className="flex size-7 items-center justify-center rounded-md hover:bg-slate-100" aria-label="Chưa đúng hoặc chưa có ích">
+            <button type="button" onClick={() => onFeedback(false)} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-md hover:bg-slate-100" aria-label="Chưa đúng hoặc chưa có ích">
               <LuThumbsDown className="size-3.5" />
             </button>
           </>
@@ -561,8 +559,8 @@ function ChatCompareButton({ id, name }: { id: string; name: string }) {
         else toast(r === "added" ? "Đã thêm vào so sánh" : "Đã bỏ khỏi so sánh", "info");
       }}
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
-        active ? "border-primary-200 bg-primary-50 text-primary-700" : "border-slate-200 text-slate-500 hover:border-primary-200 hover:text-primary-700",
+        "inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg border transition-colors",
+        active ? "border-primary-200 bg-primary-50 text-primary-700" : "border-slate-200 text-slate-600 hover:border-primary-200 hover:text-primary-700",
       )}
     >
       {active ? <LuCheck className="size-4" aria-hidden /> : <LuArrowLeftRight className="size-4" aria-hidden />}

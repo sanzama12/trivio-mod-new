@@ -113,10 +113,13 @@ export const postgresDonationsRepository = {
            vnp_transaction_no = COALESCE($2, vnp_transaction_no),
            vnp_bank_code = COALESCE($3, vnp_bank_code),
            vnp_card_type = COALESCE($4, vnp_card_type),
-           vnp_pay_date = CASE WHEN $5 IS NOT NULL THEN TO_TIMESTAMP($5, 'YYYYMMDDHH24MISS') ELSE vnp_pay_date END,
+           -- vnp_PayDate là giờ Việt Nam (GMT+7), không phụ thuộc múi giờ máy chủ.
+           vnp_pay_date = CASE WHEN $5::text IS NOT NULL
+             THEN (TO_TIMESTAMP($5::text, 'YYYYMMDDHH24MISS')::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+             ELSE vnp_pay_date END,
            vnp_response_code = COALESCE($6, vnp_response_code),
            paid_at = CASE WHEN $1 = 'success' THEN COALESCE(paid_at, now()) ELSE paid_at END
-       WHERE vnp_txn_ref = $7
+       WHERE vnp_txn_ref = $7 AND status = 'pending'
        RETURNING ${cols}`,
       [
         result.status,

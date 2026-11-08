@@ -4,6 +4,7 @@
  * M-S02 — Bộ lọc dạng bottom sheet trên điện thoại (theo Figma "Bộ lọc (Overlay bottom sheet)").
  * Mọi lựa chọn hợp lệ được áp dụng ngay lên URL và danh sách kết quả.
  */
+import { buttonClass } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import type { Combo, MajorGroup, Region, SchoolType, Subject } from "@/domain/types";
 import { ADMISSION_METHODS } from "@/services/scoring.service";
@@ -12,7 +13,7 @@ import { useModal } from "@/components/ui/use-modal";
 import { cn } from "@/lib/cn";
 import { apiRequest } from "@/lib/api-client";
 
-const chip = (on: boolean) => cn("rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors", on ? "border-primary-600 bg-primary-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-primary-300");
+const chip = (on: boolean) => cn("inline-flex h-9 max-sm:h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors", on ? "border-primary-600 bg-primary-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-primary-300");
 const SHORT_TUITION: Record<TuitionRange, string> = { "duoi-15": "Dưới 15 triệu", "15-30": "15–30 triệu", "30-50": "30–50 triệu", "tren-50": "Trên 50 triệu" };
 
 export function MobileFilterSheet({ open, onClose, filters, combos, subjects, groups, onChange }: { open: boolean; onClose: () => void; filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; groups: MajorGroup[]; onChange: (f: ProgramFilters) => void }) {
@@ -70,7 +71,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
       <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="sheet-title" className="absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-3xl bg-white shadow-elevated">
         <span className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-slate-300" aria-hidden />
         <div className="flex items-center justify-between px-5 pt-3 pb-2">
-          <h2 id="sheet-title" className="text-xl font-bold text-slate-900">
+          <h2 id="sheet-title" className="text-lg font-semibold text-slate-900">
             Bộ lọc
           </h2>
           <button type="button" className="text-sm font-semibold text-primary-600" onClick={() => (applyDraft(clearAll), setScore(""))}>
@@ -80,21 +81,21 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
         <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-4">
           {/* 1. Điểm xét tuyển */}
           <div>
-            <label htmlFor="sheet-score" className="text-[15px] font-semibold text-slate-900">
+            <label htmlFor="sheet-score" className="text-base font-semibold text-slate-900">
               {method === "thpt" ? "Điểm thi tốt nghiệp THPT" : `Điểm ${ADMISSION_METHODS[method].short}`}
             </label>
             <div className={cn("mt-2 flex h-12 items-center rounded-xl border px-4", invalid ? "border-danger-500" : "border-slate-300 focus-within:border-primary-600")}>
               <input id="sheet-score" inputMode="decimal" value={score} onChange={(e) => setScoreDraft(e.target.value)} placeholder="26.5" className="w-20 bg-transparent text-base font-semibold text-slate-900 outline-none" aria-invalid={invalid || undefined} aria-describedby="sheet-score-hint" />
-              <span className="shrink-0 text-base text-slate-500">/ {max} điểm</span>
+              <span className="shrink-0 text-base text-slate-600">/ {max} điểm</span>
             </div>
-            <p id="sheet-score-hint" className={cn("mt-1.5 text-[13px]", invalid ? "text-danger-700" : "text-slate-500")}>
+            <p id="sheet-score-hint" className={cn("mt-1.5 text-sm", invalid ? "text-danger-700" : "text-slate-600")}>
               {invalid ? `Điểm phải từ 0 đến ${max}.` : method === "thpt" ? "Tổng điểm 3 môn theo tổ hợp xét tuyển" : ADMISSION_METHODS[method].label}
             </p>
           </div>
 
           {/* 2. Khối / Tổ hợp xét tuyển */}
           <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Khối / Tổ hợp xét tuyển</legend>
+            <legend className="text-base font-semibold text-slate-900">Khối / Tổ hợp xét tuyển</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {shown.map((c) => {
                 const on = !!draft.combos?.includes(c.code);
@@ -115,7 +116,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
           {/* 3. Danh mục / Nhóm ngành */}
           {groups.length > 0 && (
           <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Danh mục / Nhóm ngành</legend>
+            <legend className="text-base font-semibold text-slate-900">Danh mục / Nhóm ngành</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {groups.map((g) => {
                 const on = !!draft.groups?.includes(g.id);
@@ -124,7 +125,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
                     key={g.id}
                     type="button"
                     aria-pressed={on}
-                    className={cn(chip(on), "max-w-full min-h-10 whitespace-normal text-left")}
+                    className={cn(chip(on), "max-w-full h-auto min-h-9 max-sm:min-h-11 whitespace-normal py-2 text-left")}
                     onClick={() => {
                       const next = toggle(draft.groups, g.id);
                       applyDraft({ ...draft, groups: next });
@@ -140,7 +141,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
 
           {/* 4. Khu vực địa lý */}
           <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Khu vực địa lý</legend>
+            <legend className="text-base font-semibold text-slate-900">Khu vực địa lý</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {(Object.keys(REGION_LABELS) as Region[]).map((r) => {
                 const on = !!draft.regions?.includes(r);
@@ -155,17 +156,19 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
 
           {/* 5. Học phí tối đa / năm */}
           <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Học phí tối đa / năm</legend>
+            <legend className="text-base font-semibold text-slate-900">Học phí tối đa / năm</legend>
             <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" aria-pressed={!draft.tuition && draft.budgetMax == null} className={chip(!draft.tuition && draft.budgetMax == null)} onClick={() => applyDraft({ ...draft, tuition: undefined, budgetMax: undefined })}>Không giới hạn</button>
+              {draft.budgetMax != null && <button type="button" className={chip(true)} aria-label={`Bỏ ngân sách tối đa ${draft.budgetMax} triệu`} onClick={() => applyDraft({ ...draft, budgetMax: undefined })}>Ngân sách ≤ {draft.budgetMax} triệu ×</button>}
               {(Object.keys(TUITION_RANGES) as TuitionRange[]).map((t) => (
-                <button key={t} type="button" aria-pressed={draft.tuition === t} className={chip(draft.tuition === t)} onClick={() => applyDraft({ ...draft, tuition: draft.tuition === t ? undefined : t })}>
+                <button key={t} type="button" aria-pressed={draft.tuition === t} className={chip(draft.tuition === t)} onClick={() => applyDraft({ ...draft, tuition: draft.tuition === t ? undefined : t, budgetMax: undefined })}>
                   {SHORT_TUITION[t]}
                 </button>
               ))}
             </div>
           </fieldset>
           <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Loại hình</legend>
+            <legend className="text-base font-semibold text-slate-900">Loại hình</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" aria-pressed={!draft.types?.length} className={chip(!draft.types?.length)} onClick={() => applyDraft({ ...draft, types: [] })}>
                 Tất cả
@@ -182,7 +185,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
           </fieldset>
         </div>
         <div className="border-t border-slate-100 px-5 py-4">
-          <button type="button" className="h-12 w-full rounded-xl bg-primary-600 text-base font-semibold text-white hover:bg-primary-700" onClick={onClose}>
+          <button type="button" className={buttonClass({ full: true, size: "lg" })} onClick={onClose}>
             {count == null ? "Đóng" : `Đóng · ${count.toLocaleString("vi-VN")} kết quả`}
           </button>
         </div>

@@ -12,7 +12,8 @@ import { useToast } from "@/components/ui/toast";
 import { AuditLog } from "./audit-log";
 
 const ALT: AltMethodKey[] = ["hocba"];
-const YEARS = [2025, 2024, 2023];
+const currentYear = new Date().getFullYear();
+const YEARS = [currentYear, currentYear - 1, currentYear - 2];
 
 interface Initial {
   cutoffs: CutoffScore[];
@@ -37,7 +38,7 @@ export function ProgramEditor({ id, initial, edited, history }: { id: string; in
     Object.fromEntries(
       ALT.map((k) => {
         const c = initial.altCutoffs.find((a) => a.method === k);
-        return [k, { year: str(c?.year ?? 2025), score: str(c?.score) }];
+        return [k, { year: str(c?.year ?? currentYear), score: str(c?.score) }];
       }),
     ) as Record<AltMethodKey, { year: string; score: string }>,
   );
@@ -56,6 +57,7 @@ export function ProgramEditor({ id, initial, edited, history }: { id: string; in
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    try {
     const res = await fetch(`/api/admin/programs/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -69,40 +71,42 @@ export function ProgramEditor({ id, initial, edited, history }: { id: string; in
       }),
     });
     const d = await res.json().catch(() => ({}));
-    setBusy(false);
     if (!res.ok || !d.ok) return setError({ field: d.field ?? "", message: d.message ?? "Không lưu được, vui lòng thử lại." });
     setError(null);
     toast(d.changes ? `Đã lưu ${d.changes} thay đổi` : "Không có gì thay đổi", d.changes ? "success" : "info");
     router.refresh();
+    } catch { setError({ field: "", message: "Không thể kết nối, vui lòng thử lại." }); } finally { setBusy(false); }
   };
 
   const action = async (method: "POST" | "DELETE") => {
     setBusy(true);
+    try {
     const res = await fetch(`/api/admin/programs/${encodeURIComponent(id)}`, {
       method,
       headers: { "Content-Type": "application/json" },
       body: method === "POST" ? JSON.stringify({ action: "verify" }) : undefined,
     });
-    setBusy(false);
     setConfirmReset(false);
     if (!res.ok) return toast("Thao tác không thành công", "warning");
     toast(method === "POST" ? "Đã đánh dấu kiểm tra với nguồn" : "Đã khôi phục dữ liệu gốc", "success");
     router.refresh();
+    } catch { setError({ field: "", message: "Không thể kết nối, vui lòng thử lại." }); } finally { setBusy(false); }
   };
 
   const schoolVerify = async (verified: boolean) => {
     setBusy(true);
+    try {
     const res = await fetch(`/api/admin/programs/${encodeURIComponent(id)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "school-verify", verified, note: vNote }),
     });
     const d = await res.json().catch(() => ({}));
-    setBusy(false);
     if (!res.ok || !d.ok) return setVError(d.message ?? "Thao tác không thành công");
     setVError(null);
     toast(verified ? "Đã gắn huy hiệu “Trường đã xác nhận”" : "Đã gỡ huy hiệu xác nhận", "success");
     router.refresh();
+    } catch { setVError("Không thể kết nối, vui lòng thử lại."); } finally { setBusy(false); }
   };
 
   const errFor = (f: string) => (error?.field === f ? error.message : undefined);

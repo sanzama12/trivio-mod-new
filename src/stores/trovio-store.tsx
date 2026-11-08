@@ -10,6 +10,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Goal, RecommendationPreferences, StoredProfile, UserData, WishlistItem } from "@/domain/types";
+import { mergeGuestJourney } from "@/lib/journey";
 import { track } from "@/lib/track";
 import { useToast } from "@/components/ui/toast";
 
@@ -36,6 +37,7 @@ interface State {
   saved: string[];
   wishlist: WishlistItem[];
   compare: string[];
+  compareSchools: string[] | null;
   profile: StoredProfile | null;
   /** id các mốc tuyển sinh đã bật "Nhắc tôi". */
   reminders: string[];
@@ -48,10 +50,14 @@ interface State {
   owner: string | null;
 }
 
-const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, reminders: [], goal: null, preferences: null, owner: null };
+const initialState: State = { saved: [], wishlist: [], compare: [], compareSchools: [], profile: null, reminders: [], goal: null, preferences: null, owner: null };
 
-interface Store extends Omit<State, "owner"> {
+interface Store extends Omit<State, "owner" | "compareSchools"> {
+  compareSchools: string[];
+  toggleSchoolCompare: (id: string) => "added" | "removed" | "full";
+  clearSchoolCompare: () => void;
   hydrated: boolean;
+  journeyReady: boolean;
   user: SessionUser | null;
   sync: SyncStatus;
   isSaved: (id: string) => boolean;
@@ -101,6 +107,7 @@ function load(): State {
       saved: Array.isArray(s.saved) ? s.saved : [],
       wishlist: Array.isArray(s.wishlist) ? s.wishlist : [],
       compare: Array.isArray(s.compare) ? s.compare : [],
+      compareSchools: Array.isArray(parsed.compareSchools) ? parsed.compareSchools : null,
       reminders: Array.isArray(s.reminders) ? s.reminders : [],
       goal: s.goal && typeof s.goal === "object" ? s.goal : null,
       preferences: s.preferences && typeof s.preferences === "object" ? s.preferences : null,
@@ -201,9 +208,12 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       .then(({ data, added }: { data: UserData; added: number }) => {
         if (inflight.current !== uid) return; // đã đăng xuất/đổi tài khoản trong lúc chờ
         inflight.current = null;
+        if (local.owner === null) mergeGuestJourney(uid);
         syncedFor.current = uid;
         update((s) => ({
           ...initialState,
+          compare: s.compare,
+          compareSchools: s.compareSchools,
           saved: data.saved,
           wishlist: data.wishlist,
           profile: data.profile,
@@ -247,16 +257,41 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
     return () => window.removeEventListener("pagehide", flush);
   }, []);
 
+  useEffect(() => {
+    if (!hydrated || state.compareSchools !== null) return;
+    const legacy = state.compare;
+    if (!legacy.length) { update((s) => ({ ...s, compareSchools: s.compareSchools ?? [] })); return; }
+    const controller = new AbortController();
+    fetch(`/api/schools/compare-migration?ids=${encodeURIComponent(legacy.join(","))}`, { signal: controller.signal })
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data: { schools: string[]; programs: string[] }) => update((s) => {
+        if (s.compareSchools !== null) return s;
+        const schoolIds = new Set(data.schools);
+        const programIds = new Set(data.programs);
+        return { ...s, compareSchools: s.compare.filter((id) => schoolIds.has(id)), compare: s.compare.filter((id) => !schoolIds.has(id) || programIds.has(id)) };
+      })).catch(() => undefined);
+    return () => controller.abort();
+  }, [hydrated, state.compareSchools, state.compare, update]);
+
   const store = useMemo<Store>(
     () => ({
       saved: state.saved,
       wishlist: state.wishlist,
       compare: state.compare,
+      compareSchools: state.compareSchools ?? [],
+      toggleSchoolCompare: (id) => {
+        const current = state.compareSchools ?? [];
+        if (current.includes(id)) { update((s) => ({ ...s, compareSchools: (s.compareSchools ?? []).filter((x) => x !== id) })); return "removed"; }
+        if (current.length >= MAX_COMPARE) return "full";
+        update((s) => ({ ...s, compareSchools: [...(s.compareSchools ?? []), id] })); return "added";
+      },
+      clearSchoolCompare: () => update((s) => ({ ...s, compareSchools: [] })),
       profile: state.profile,
       reminders: state.reminders,
       goal: state.goal,
       preferences: state.preferences,
       hydrated,
+      journeyReady: hydrated && state.owner === uid && (!uid || sync === "synced"),
       user,
       sync,
       isSaved: (id) => state.saved.includes(id),

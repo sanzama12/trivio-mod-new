@@ -29,7 +29,8 @@ export interface ProgramItem {
 }
 
 const TYPES = ["Chính quy", "Chất lượng cao", "Tiên tiến", "Quốc tế"] as const;
-const blank = { schoolId: "", majorId: "", name: "", admissionCode: "", trainingType: "Chính quy", combos: [] as string[], quota: "", tuitionMin: "", tuitionMax: "", durationYears: "4", c2025: "", c2024: "", c2023: "", source: "" };
+const currentYear = new Date().getFullYear();
+const blank = { schoolId: "", majorId: "", name: "", admissionCode: "", trainingType: "Chính quy", combos: [] as string[], quota: "", tuitionMin: "", tuitionMax: "", durationYears: "4", c0: "", c1: "", c2: "", source: "" };
 type Form = typeof blank;
 
 export function ProgramManager({ rows, schools, majors, combos, initialQuery }: { rows: ProgramItem[]; schools: { id: string; name: string }[]; majors: { id: string; name: string; code: string }[]; combos: string[]; initialQuery: string }) {
@@ -50,7 +51,7 @@ export function ProgramManager({ rows, schools, majors, combos, initialQuery }: 
 
   const save = async () => {
     if (!form) return;
-    const res = await post("/api/admin/catalog", { entity: "program", action: "save", data: { ...form, cutoffs: { 2025: form.c2025, 2024: form.c2024, 2023: form.c2023 } } }, { success: "Đã thêm chương trình." });
+    const res = await post("/api/admin/catalog", { entity: "program", action: "save", data: { ...form, cutoffs: { [currentYear]: form.c0, [currentYear - 1]: form.c1, [currentYear - 2]: form.c2 } } }, { success: "Đã thêm chương trình." });
     if (res.ok) setForm(null);
     else setErr({ field: res.field, message: res.message });
   };
@@ -266,9 +267,9 @@ export function ProgramManager({ rows, schools, majors, combos, initialQuery }: 
             <fieldset>
               <legend className="text-sm font-semibold text-slate-800">Điểm chuẩn THPT (thang 30)</legend>
               <div className="mt-1.5 grid grid-cols-3 gap-3">
-                {(["c2025", "c2024", "c2023"] as const).map((k) => (
+                {(["c0", "c1", "c2"] as const).map((k, i) => (
                   <label key={k} className="text-xs text-slate-500">
-                    {k.slice(1)}
+                    {currentYear - i}
                     <input inputMode="decimal" className={cn(inputCls, "mt-1", bad("cutoffs"))} value={form[k]} onChange={(e) => set(k, e.target.value)} />
                   </label>
                 ))}

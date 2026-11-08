@@ -21,7 +21,7 @@ export function useAdminPost() {
           toast("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.", "warning");
           return { ok: false, message: "Phiên đã hết." };
         }
-        if (!data.ok) {
+        if (!res.ok || !data.ok) {
           if (!data.field) toast(data.message ?? "Không thực hiện được thao tác.", "warning");
           return data;
         }

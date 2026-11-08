@@ -14,13 +14,12 @@ const font = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Trovio – Tìm đúng trường, chọn đúng ngành", template: "%s · Trovio" },
   description: "Cổng định hướng đại học: tra cứu chương trình đào tạo, so sánh điểm chuẩn, học phí và trắc nghiệm sở thích nghề nghiệp RIASEC.",
   icons: { icon: "/logo-mark.svg" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#4F46E5",
+  themeColor: "#2547d0",
   width: "device-width",
   initialScale: 1,
 };

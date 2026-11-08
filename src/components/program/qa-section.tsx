@@ -50,7 +50,7 @@ function ago(iso: string) {
   return d <= 30 ? `${d} ngày trước` : dateVi(iso);
 }
 
-/** Hỏi đáp người dùng: tài khoản đã xác thực được đóng góp, Admin kiểm duyệt. */
+/** Hỏi đáp người dùng: tài khoản đã xác thực được đóng góp, quản trị viên kiểm duyệt. */
 export function QaSection({ programId, schoolName }: { programId: string; schoolName: string }) {
   const toast = useToast();
   const [data, setData] = useState<QaState | null>(null);
@@ -97,11 +97,11 @@ export function QaSection({ programId, schoolName }: { programId: string; school
     <Card id="hoi-sinh-vien" className="scroll-mt-24 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 sm:flex-1">
-          <h2 className="flex items-center gap-2 text-lg font-bold">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
             <LuMessageCircleQuestion className="size-5 text-primary-600" aria-hidden /> Hỏi đáp & đánh giá
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Chia sẻ trải nghiệm về {schoolName}. Người dùng đã xác thực có thể trả lời; Admin duyệt nội dung trước khi hiển thị.
+          <p className="mt-1 text-sm text-slate-600">
+            Chia sẻ trải nghiệm về {schoolName}. Người dùng đã xác thực có thể trả lời; quản trị viên duyệt nội dung trước khi hiển thị.
           </p>
         </div>
         <Button size="sm" className="shrink-0 self-start" onClick={() => document.getElementById("qa-text")?.focus()}>
@@ -110,7 +110,7 @@ export function QaSection({ programId, schoolName }: { programId: string; school
       </div>
 
       <div className="mt-5 space-y-4">
-        {!data && !failed && <p className="text-sm text-slate-500">Đang tải câu hỏi…</p>}
+        {!data && !failed && <p className="text-sm text-slate-600">Đang tải câu hỏi…</p>}
         {failed && (
           <p className="text-sm text-danger-700">
             Không tải được hỏi đáp.{" "}
@@ -129,7 +129,7 @@ export function QaSection({ programId, schoolName }: { programId: string; school
           <div key={q.id} className="rounded-xl border border-dashed border-slate-300 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="accent">Đang chờ duyệt</Badge>
-              <span className="text-xs text-slate-500">Chỉ bạn thấy câu hỏi này · {dateVi(q.createdAt)}</span>
+              <span className="text-xs text-slate-600">Chỉ bạn thấy câu hỏi này · {dateVi(q.createdAt)}</span>
             </div>
             <p className="mt-2 text-sm text-slate-800">{q.text}</p>
           </div>
@@ -149,10 +149,10 @@ export function QaSection({ programId, schoolName }: { programId: string; school
           aria-invalid={!!error || undefined}
           aria-describedby="qa-hint"
           placeholder="VD: Năm nhất học có nặng không? Có nhiều cơ hội thực tập không?"
-          className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none"
+          className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-600 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none"
         />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <p id="qa-hint" className="text-xs text-slate-500">
+          <p id="qa-hint" className="text-xs text-slate-600">
             Câu hỏi hiện ẩn danh. Không ghi số điện thoại, email hay link (hệ thống sẽ tự che). {text.length}/{QA_MAX}
           </p>
           <Button type="submit" size="sm" disabled={sending}>
@@ -160,20 +160,20 @@ export function QaSection({ programId, schoolName }: { programId: string; school
           </Button>
         </div>
         {error && (
-          <p role="alert" className="mt-2 text-[13px] font-medium text-danger-700">
+          <p role="alert" className="mt-2 text-sm font-medium text-danger-700">
             {error}
           </p>
         )}
       </form>
 
       {data && !data.canAnswer && (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-slate-600">
           {data.loggedIn ? (
             <>Xác thực email và sử dụng tài khoản đang hoạt động để trả lời.</>
           ) : (
             <>
               <Link href="/dang-ky" className="font-semibold text-primary-700 hover:underline">
-                Đăng ký tài khoản User
+                Đăng ký tài khoản
               </Link>{" "}
               để trả lời câu hỏi.
             </>
@@ -197,7 +197,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
     if (action === "helpful") setVotes({ ...votes, [a.id]: { ...cur, helpful: json.helpful, voted: json.votedHelpful } });
     else {
       setVotes({ ...votes, [a.id]: { ...cur, reported: true } });
-      toast(json.hidden ? "Câu trả lời đã được ẩn để kiểm duyệt lại. Cảm ơn bạn!" : "Đã báo cáo — Admin sẽ xem lại.", "info");
+      toast(json.hidden ? "Câu trả lời đã được ẩn để kiểm duyệt lại. Cảm ơn bạn!" : "Đã báo cáo — quản trị viên sẽ xem lại.", "info");
       if (json.hidden) onAnswered();
     }
   }
@@ -229,7 +229,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
   return (
     <article className="rounded-xl bg-slate-50 p-4">
       <p className="font-semibold text-slate-900">{q.text}</p>
-      <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
         Học sinh lớp 12 · ẩn danh · {ago(q.createdAt)}
         {q.demo && <Badge tone="slate">Minh hoạ</Badge>}
       </p>
@@ -242,11 +242,11 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold text-slate-900">{a.displayName}</span>
                   <Badge tone="success" title={`Đã xác thực bằng email @${a.schoolDomain}`}>
-                      <LuShieldCheck className="size-3.5" aria-hidden /> User · đã xác thực
+                      <LuShieldCheck className="size-3.5" aria-hidden /> Tài khoản · đã xác thực
                   </Badge>
                 </div>
-                <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-slate-700">{a.text}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+                <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-slate-700 max-w-prose">{a.text}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-600">
                   <span>@{a.schoolDomain}</span>
                   <span aria-hidden>·</span>
                   {(() => {
@@ -273,7 +273,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-[13px] text-slate-500">Chưa có câu trả lời.</p>
+        <p className="mt-2 text-sm text-slate-600">Chưa có câu trả lời.</p>
       )}
       {canAnswer &&
         (open ? (
@@ -287,7 +287,7 @@ function QuestionItem({ q, canAnswer, loggedIn, onAnswered }: { q: Question; can
               className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none"
             />
             {error && (
-              <p role="alert" className="mt-1 text-[13px] font-medium text-danger-700">
+              <p role="alert" className="mt-1 text-sm font-medium text-danger-700">
                 {error}
               </p>
             )}

@@ -70,6 +70,7 @@ function applyFilters(views: ProgramView[], f: ProgramFilters): ProgramView[] {
     if (f.q && !matchesQuery(f.q, program.name, major.name, school.name, school.shortName, school.code, program.admissionCode)) return false;
     if (f.combos?.length && !program.combos.some((c) => f.combos!.includes(c))) return false;
     if (f.tuition && !inTuitionRange(program, f.tuition)) return false;
+    if (f.budgetMax != null && (!hasTuitionData(program.tuitionMin, program.tuitionMax) || program.tuitionMin > f.budgetMax)) return false;
     if (f.regions?.length && !f.regions.includes(school.region)) return false;
     if (f.types?.length && !f.types.includes(school.type)) return false;
     if (f.groups?.length && !f.groups.includes(major.groupId)) return false;

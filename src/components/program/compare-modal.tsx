@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LuArrowLeftRight, LuScale, LuTrash2, LuX } from "react-icons/lu";
@@ -49,19 +50,19 @@ export function CompareModal({ open, onClose }: CompareModalProps) {
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
 
       {/* Cửa sổ bảng so sánh */}
-      <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-3xl border border-stone-200 bg-white p-5 sm:p-7 shadow-2xl">
+      <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 shadow-2xl">
         {/* Header Modal */}
-        <div className="flex items-center justify-between border-b border-stone-200 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800 shadow-xs">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-800 shadow-xs">
               <LuScale className="size-5" />
             </div>
             <div>
-              <h2 id="compare-modal-title" className="text-lg sm:text-xl font-bold tracking-tight text-stone-900">
+              <h2 id="compare-modal-title" className="text-lg font-semibold tracking-tight text-slate-900">
                 Bảng so sánh chương trình đào tạo
               </h2>
-              <p className="text-xs text-stone-500">
-                Đang đối chiếu <strong className="text-stone-900">{compare.length}/{MAX_COMPARE}</strong> chương trình cạnh nhau
+              <p className="text-xs text-slate-600">
+                Đang đối chiếu <strong className="text-slate-900">{compare.length}/{MAX_COMPARE}</strong> chương trình cạnh nhau
               </p>
             </div>
           </div>
@@ -71,7 +72,7 @@ export function CompareModal({ open, onClose }: CompareModalProps) {
               <button
                 type="button"
                 onClick={clearCompare}
-                className="hidden sm:inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold text-stone-500 hover:bg-stone-100 hover:text-stone-800 transition-colors cursor-pointer"
+                className={buttonClass({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}
               >
                 <LuTrash2 className="size-3.5" />
                 <span>Xóa tất cả</span>
@@ -82,7 +83,7 @@ export function CompareModal({ open, onClose }: CompareModalProps) {
               type="button"
               onClick={onClose}
               aria-label="Đóng bảng so sánh"
-              className="flex size-9 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors cursor-pointer"
+              className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
             >
               <LuX className="size-5" />
             </button>
@@ -95,7 +96,7 @@ export function CompareModal({ open, onClose }: CompareModalProps) {
         </div>
 
         {/* Footer Modal */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3 text-xs text-stone-500">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
           <Link
             href="/so-sanh"
             onClick={onClose}
@@ -107,7 +108,7 @@ export function CompareModal({ open, onClose }: CompareModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-stone-900 px-4 py-2 font-bold text-white shadow-xs hover:bg-stone-800 transition-colors cursor-pointer"
+            className={buttonClass({  })}
           >
             Đóng bảng so sánh
           </button>

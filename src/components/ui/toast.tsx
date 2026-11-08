@@ -7,6 +7,7 @@
  * - Thanh tiến trình (Progress runner) mượt mà phản hồi thời gian tự biến mất, tự dừng khi rê chuột (pause on hover).
  * - Hoàn toàn tương thích ngược: toast(msg, tone?, { action?, duration?, description? }).
  */
+import { buttonClass } from "@/components/ui/button";
 import {
   createContext,
   useCallback,
@@ -138,7 +139,7 @@ function ToastItem({
         {/* Nội dung thông báo */}
         <div className="min-w-0 flex-1">
           {toast.title && (
-            <p className="mb-0.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <p className="mb-0.5 text-xs font-semibold tracking-wide text-slate-600">
               {toast.title}
             </p>
           )}
@@ -146,7 +147,7 @@ function ToastItem({
             {toast.message}
           </p>
           {toast.description && (
-            <p className="mt-0.5 text-xs leading-normal text-slate-500">
+            <p className="mt-0.5 text-xs leading-normal text-slate-600">
               {toast.description}
             </p>
           )}
@@ -156,7 +157,7 @@ function ToastItem({
         {toast.action && (
           <button
             type="button"
-            className="shrink-0 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 active:scale-95 cursor-pointer"
+            className={buttonClass({ variant: "secondary", size: "sm" })}
             onClick={() => {
               toast.action?.onClick();
               triggerClose();
@@ -170,7 +171,7 @@ function ToastItem({
         <button
           type="button"
           onClick={triggerClose}
-          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+          className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
           aria-label="Đóng thông báo"
         >
           <LuX className="size-4" aria-hidden />

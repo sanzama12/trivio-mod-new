@@ -19,9 +19,9 @@ export function FinanceBlock({ school }: { school: Pick<School, "scholarships"> 
         <p className="flex items-center gap-2 font-semibold text-slate-900">
           <LuAward className="size-4 text-primary-600" aria-hidden /> Học bổng
         </p>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">{scholarships}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600 max-w-prose">{scholarships}</p>
       </div>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-slate-600">
         Trovio không tự suy diễn miễn giảm học phí, vay vốn hoặc ký túc xá khi chưa có dữ liệu riêng của trường.
       </p>
     </section>

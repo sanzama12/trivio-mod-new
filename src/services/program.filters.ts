@@ -15,6 +15,7 @@ export interface ProgramFilters {
   score?: number;
   combos?: string[];
   tuition?: TuitionRange;
+  budgetMax?: number;
   regions?: Region[];
   types?: SchoolType[];
   groups?: string[];
@@ -68,9 +69,10 @@ export function parseProgramFilters(params: RawParams): ProgramFilters {
   return {
     q: one(params.q)?.trim().slice(0, 100) || undefined,
     method,
-    score: Number.isFinite(scoreRaw) && scoreRaw > 0 && scoreRaw <= max ? scoreRaw : undefined,
+    score: one(params.score) !== undefined && one(params.score) !== "" && Number.isFinite(scoreRaw) && scoreRaw >= 0 && scoreRaw <= max ? scoreRaw : undefined,
     combos: list(params.combos),
     tuition: tuition && tuition in TUITION_RANGES ? tuition : undefined,
+    budgetMax: Number(one(params.budgetMax)) > 0 && Number(one(params.budgetMax)) < 10000 ? Number(one(params.budgetMax)) : undefined,
     regions: list(params.regions).filter((r): r is Region => r in REGION_LABELS),
     types: list(params.types).filter((t): t is SchoolType => t in SCHOOL_TYPE_LABELS),
     groups: list(params.groups),
@@ -88,6 +90,7 @@ export function serializeProgramFilters(f: ProgramFilters): string {
   if (f.score != null) sp.set("score", String(f.score));
   if (f.combos?.length) sp.set("combos", f.combos.join(","));
   if (f.tuition) sp.set("tuition", f.tuition);
+  if (f.budgetMax != null && Number.isFinite(f.budgetMax)) sp.set("budgetMax", String(f.budgetMax));
   if (f.regions?.length) sp.set("regions", f.regions.join(","));
   if (f.types?.length) sp.set("types", f.types.join(","));
   if (f.groups?.length) sp.set("groups", f.groups.join(","));
@@ -100,5 +103,5 @@ export function serializeProgramFilters(f: ProgramFilters): string {
 }
 
 export function hasActiveFilters(f: ProgramFilters): boolean {
-  return Boolean(f.q || (f.method && f.method !== "thpt") || f.score != null || f.combos?.length || f.tuition || f.regions?.length || f.types?.length || f.groups?.length || f.majors?.length);
+  return Boolean(f.q || (f.method && f.method !== "thpt") || f.score != null || f.combos?.length || f.tuition || f.budgetMax || f.regions?.length || f.types?.length || f.groups?.length || f.majors?.length);
 }

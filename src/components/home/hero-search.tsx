@@ -89,14 +89,14 @@ const QUICK_FILTERS = [
     title: "Xét tuyển học bạ THPT",
     subtitle: "Các chương trình mở đợt xét học bạ sớm",
     href: "/chuong-trinh?method=hocba",
-    tone: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
+    tone: "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100",
   },
   {
     icon: LuCompass,
     title: "Khám phá ngành học",
     subtitle: "Xem danh mục ngành và chương trình đào tạo",
     href: "/nganh",
-    tone: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100",
+    tone: "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100",
   },
 ];
 
@@ -223,7 +223,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
             inputRef.current?.focus();
           }}
           aria-label="Mở danh mục có sẵn"
-          className="ml-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-primary-600 transition"
+          className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center ml-2 size-10 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-primary-600 transition"
         >
           <LuSearch className="size-5" aria-hidden />
         </button>
@@ -244,14 +244,14 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
           onFocus={() => setIsOpen(true)}
           placeholder="Nhập tên trường hoặc ngành…"
           autoComplete="off"
-          className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          className="h-11 min-w-0 flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-600 focus:outline-none"
         />
 
         {query && (
           <button
             type="button"
             onClick={handleClear}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition"
+            className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center size-10 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition"
             aria-label="Xoá từ khoá"
           >
             <LuX className="size-4" />
@@ -264,7 +264,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
             setIsOpen((prev) => !prev);
             inputRef.current?.focus();
           }}
-          className="hidden sm:flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+          className="hidden sm:flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition"
           title="Xem danh mục có sẵn"
         >
           <span>Danh mục</span>
@@ -284,13 +284,13 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
             <div className="p-4 divide-y divide-slate-100">
               {searchResults.totalMatches === 0 ? (
                 <div className="py-8 text-center">
-                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-600">
                     <LuSearch className="size-6" />
                   </div>
                   <p className="mt-3 text-sm font-semibold text-slate-800">
                     Không tìm thấy gợi ý cho &quot;{query}&quot;
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-600">
                     Thử tên viết tắt hoặc mã ngành, ví dụ: NEU, CNTT, Marketing.
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-1.5">
@@ -314,7 +314,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                   {/* Matching Major Groups */}
                   {searchResults.groups.length > 0 && (
                     <div className="pb-3">
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-600 tracking-wide">
                         <span className="flex items-center gap-1.5">
                           <LuLayers className="size-3.5 text-primary-600" />
                           Nhóm ngành ({searchResults.groups.length})
@@ -331,9 +331,9 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                             <GroupIcon group={group} className="size-8 rounded-lg" />
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-sm font-semibold text-slate-900">{group.name}</div>
-                              <div className="text-xs text-slate-500">{group.majorCount} ngành đào tạo</div>
+                              <div className="text-xs text-slate-600">{group.majorCount} ngành đào tạo</div>
                             </div>
-                            <LuArrowRight className="size-3.5 text-slate-400" />
+                            <LuArrowRight className="size-3.5 text-slate-600" />
                           </button>
                         ))}
                       </div>
@@ -343,7 +343,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                   {/* Matching Schools */}
                   {searchResults.schools.length > 0 && (
                     <div className="py-3">
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-600 tracking-wide">
                         <span className="flex items-center gap-1.5">
                           <LuBuilding2 className="size-3.5 text-primary-600" />
                           Trường ({searchResults.schools.length})
@@ -362,11 +362,11 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 truncate text-sm font-semibold text-slate-900">
                                   <span>{school.name}</span>
-                                  <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                                  <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">
                                     {school.level === "cao-dang" ? "Cao đẳng" : school.level === "hoc-vien" ? "Học viện" : "Đại học"}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <div className="flex items-center gap-2 text-xs text-slate-600">
                                   <span className="font-medium text-primary-700">({school.shortName})</span>
                                   <span>•</span>
                                   <span className="flex items-center gap-1">
@@ -377,7 +377,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                                 </div>
                               </div>
                             </div>
-                            <LuArrowRight className="size-4 text-slate-400 shrink-0" />
+                            <LuArrowRight className="size-4 text-slate-600 shrink-0" />
                           </button>
                         ))}
                       </div>
@@ -387,7 +387,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                   {/* Matching Majors */}
                   {searchResults.majors.length > 0 && (
                     <div className="pt-3">
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-600 tracking-wide">
                         <span className="flex items-center gap-1.5">
                           <LuGraduationCap className="size-3.5 text-primary-600" />
                           Ngành ({searchResults.majors.length})
@@ -404,22 +404,22 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="truncate text-sm font-semibold text-slate-900">{major.name}</span>
-                                <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[11px] text-slate-600 shrink-0">
+                                <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-xs text-slate-600 shrink-0">
                                   {major.code}
                                 </span>
                               </div>
-                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
                                 {major.groupName && (
                                   <span className="text-primary-700 font-medium">{major.groupName}</span>
                                 )}
                                 {major.specializations && major.specializations.length > 0 && (
-                                  <span className="text-[11px] text-slate-400 truncate">
+                                  <span className="text-xs text-slate-600 truncate">
                                     • Gồm: {major.specializations.slice(0, 3).map((sp) => sp.name).join(", ")}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            <LuArrowRight className="size-4 text-slate-400 shrink-0" />
+                            <LuArrowRight className="size-4 text-slate-600 shrink-0" />
                           </button>
                         ))}
                       </div>
@@ -433,7 +433,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 p-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition shadow-sm"
+                  className={buttonClass({ full: true })}
                 >
                   <LuSearch className="size-4" />
                   <span>Xem mọi kết quả cho &quot;{query}&quot;</span>
@@ -450,10 +450,10 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                   type="button"
                   onClick={() => setActiveTab("groups")}
                   className={cn(
-                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-bold transition",
+                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-semibold transition",
                     activeTab === "groups"
                       ? "border-primary-600 text-primary-700"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                      : "border-transparent text-slate-600 hover:text-slate-800"
                   )}
                 >
                   <LuLayers className="size-3.5" />
@@ -463,10 +463,10 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                   type="button"
                   onClick={() => setActiveTab("schools")}
                   className={cn(
-                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-bold transition",
+                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-semibold transition",
                     activeTab === "schools"
                       ? "border-primary-600 text-primary-700"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                      : "border-transparent text-slate-600 hover:text-slate-800"
                   )}
                 >
                   <LuBuilding2 className="size-3.5" />
@@ -476,10 +476,10 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                   type="button"
                   onClick={() => setActiveTab("majors")}
                   className={cn(
-                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-bold transition",
+                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-semibold transition",
                     activeTab === "majors"
                       ? "border-primary-600 text-primary-700"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                      : "border-transparent text-slate-600 hover:text-slate-800"
                   )}
                 >
                   <LuGraduationCap className="size-3.5" />
@@ -489,13 +489,13 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                   type="button"
                   onClick={() => setActiveTab("quick")}
                   className={cn(
-                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-bold transition",
+                    "flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-semibold transition",
                     activeTab === "quick"
                       ? "border-primary-600 text-primary-700"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                      : "border-transparent text-slate-600 hover:text-slate-800"
                   )}
                 >
-                  <LuSparkles className="size-3.5 text-amber-500" />
+                  <LuSparkles className="size-3.5 text-accent-500" />
                   <span>Lọc nhanh</span>
                 </button>
               </div>
@@ -506,7 +506,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                 {activeTab === "groups" && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <span className="text-xs font-semibold text-slate-600 tracking-wide">
                         Chọn nhóm ngành
                       </span>
                       <Link
@@ -530,7 +530,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                             <span className="block text-sm font-semibold text-slate-900 group-hover:text-primary-700 transition">
                               {item.name}
                             </span>
-                            <span className="text-xs text-slate-500">{item.majorCount} ngành học</span>
+                            <span className="text-xs text-slate-600">{item.majorCount} ngành học</span>
                           </div>
                           <LuArrowRight className="size-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-primary-600" />
                         </button>
@@ -574,8 +574,8 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                             <div className="truncate text-xs font-semibold text-slate-900 group-hover:text-primary-700">
                               {school.shortName}
                             </div>
-                            <div className="truncate text-[11px] text-slate-500">{school.name}</div>
-                            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                            <div className="truncate text-xs text-slate-600">{school.name}</div>
+                            <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-600">
                               <LuMapPin className="size-2.5" /> {school.city}
                             </div>
                           </div>
@@ -599,7 +599,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                 {activeTab === "majors" && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <span className="text-xs font-semibold text-slate-600 tracking-wide">
                         Ngành phổ biến
                       </span>
                       <Link
@@ -622,7 +622,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                             <span className="block truncate text-xs font-semibold text-slate-900 group-hover:text-primary-700">
                               {major.name}
                             </span>
-                            <span className="font-mono text-[11px] text-slate-500">Mã: {major.code}</span>
+                            <span className="font-mono text-xs text-slate-600">Mã: {major.code}</span>
                           </div>
                           <LuArrowRight className="size-3.5 text-slate-300 transition group-hover:text-primary-600" />
                         </button>
@@ -634,7 +634,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
                 {/* TAB 4: GỢI Ý NHANH */}
                 {activeTab === "quick" && (
                   <div className="space-y-2">
-                    <span className="block mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <span className="block mb-2 text-xs font-semibold text-slate-600 tracking-wide">
                       Lọc theo nhu cầu
                     </span>
                     {QUICK_FILTERS.map((item) => (
@@ -657,9 +657,9 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
               </div>
 
               {/* Footer Tip */}
-              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-2 text-[11px] text-slate-500">
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-600">
                 <span>Tìm theo tên, mã trường hoặc mã ngành</span>
-                <span className="hidden sm:inline">Phím <kbd className="rounded bg-slate-200 px-1 py-0.5 text-[10px] font-mono">ESC</kbd> để đóng</span>
+                <span className="hidden sm:inline">Phím <kbd className="rounded bg-slate-200 px-1 py-0.5 text-xs font-mono">ESC</kbd> để đóng</span>
               </div>
             </div>
           )}

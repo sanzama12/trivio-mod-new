@@ -1,3 +1,4 @@
+import { siteContact } from "@/lib/site-contact";
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/help/legal-page";
 import { TrackingToggle } from "@/components/help/tracking-toggle";
@@ -24,7 +25,7 @@ export default function PrivacyPage() {
               <li><strong>Trợ lý hỏi đáp:</strong> nhật ký cải thiện chất lượng được lưu ẩn danh và tự che email, số điện thoại. Lịch sử để bạn xem lại được lưu cục bộ khi chưa đăng nhập hoặc lưu riêng theo tài khoản khi đã đăng nhập; bạn có thể xoá từng cuộc trò chuyện. Đừng nhập thông tin cá nhân vào khung chat.</li>
               <li><strong>Nhắc hạn tuyển sinh (khi bạn bật):</strong> các mốc bạn chọn “Nhắc tôi”. Nếu bật “Nhắc qua email”, Trovio gửi email trước mốc 7 ngày và 1 ngày tới email đã xác thực; tắt bất cứ lúc nào ở trang Mốc tuyển sinh.</li>
               <li><strong>Thông báo trong tài khoản:</strong> câu trả lời hỏi đáp và nhắc hạn; tự xoá khi xoá tài khoản.</li>
-              <li><strong>Thống kê sử dụng ẩn danh:</strong> khi bạn làm xong một bước (vào trang, làm trắc nghiệm, làm mini-test phong cách, nhập mã MBTI, nhập điểm, lưu chương trình, lập nguyện vọng, tạo link chia sẻ, hỏi trợ lý), trình duyệt gửi tên bước kèm một mã ngẫu nhiên do chính trình duyệt tạo. Không gửi tài khoản, địa chỉ IP, nội dung hay đường dẫn; dữ liệu tự xoá sau 180 ngày và chỉ dùng để biết người dùng hay dừng lại ở bước nào.</li>
+              <li><strong>Thống kê sử dụng ẩn danh:</strong> khi bạn làm xong một bước (vào trang, làm trắc nghiệm, nhập điểm, lưu chương trình, lập nguyện vọng, tạo link chia sẻ, hỏi trợ lý), trình duyệt gửi tên bước kèm một mã ngẫu nhiên do chính trình duyệt tạo. Không gửi tài khoản, địa chỉ IP, nội dung hay đường dẫn; dữ liệu tự xoá sau 180 ngày và chỉ dùng để biết người dùng hay dừng lại ở bước nào.</li>
               <li><strong>Phiếu khảo sát trải nghiệm (nếu bạn tham gia):</strong> điểm 10 câu hỏi, vai trò và góp ý tuỳ chọn; ẩn danh, không gắn tài khoản.</li>
             </ul>
           ),
@@ -43,6 +44,9 @@ export default function PrivacyPage() {
                 được gộp vào tài khoản và bản sao trên trình duyệt được xoá khi bạn đăng xuất.
               </p>
               <p className="mt-2">
+                Câu trả lời và kết quả trắc nghiệm sở thích RIASEC chỉ lưu trong trình duyệt này (localStorage), không gửi lên máy chủ và không đồng bộ tài khoản. Bạn có thể xoá bằng nút “Làm lại” ở trang kết quả (hoặc “Làm lại từ đầu” khi đang làm bài), hoặc xoá dữ liệu trình duyệt.
+              </p>
+              <p className="mt-2">
                 Thống kê sử dụng ẩn danh (mục trên) không dùng cookie và không dùng công cụ của bên thứ ba. Trình duyệt bật “Do Not Track” hoặc “Global Privacy Control” sẽ tự động không gửi. Bạn cũng có thể
                 tắt ngay tại đây:
               </p>
@@ -50,7 +54,7 @@ export default function PrivacyPage() {
             </>
           ),
         },
-        { id: "lien-he", title: "Thông tin liên hệ", body: <p>Mọi thắc mắc về bảo mật thông tin, vui lòng gửi email tới privacy@trovio.vn hoặc gọi 1900 8198.</p> },
+        { id: "lien-he", title: "Thông tin liên hệ", body: <p>Mọi thắc mắc về bảo mật thông tin, vui lòng gửi email tới {siteContact.email}{siteContact.demo && <small> (email demo của đồ án)</small>}.</p> },
       ]}
     />
   );

@@ -25,7 +25,7 @@ export interface SharedView {
   expiresAt: string;
   items: { view: ProgramView; note: string | null }[];
   /** Chỉ có khi chủ tài khoản bật "hiện điểm". */
-  profile: Pick<StoredProfile, "method" | "combo" | "priorityRegion" | "priorityGroup" | "budgetMax" | "admission"> | null;
+  profile: Pick<StoredProfile, "method" | "combo" | "priorityRegion" | "priorityGroup" | "budgetMax" | "admission" | "scores" | "methods"> | null;
   scoreLabel: string | null;
 }
 
@@ -93,7 +93,7 @@ export const shareService = {
       expiresAt: share.expiresAt,
       items,
       profile: profile
-        ? { method: profile.method, combo: profile.combo, priorityRegion: profile.priorityRegion, priorityGroup: profile.priorityGroup, budgetMax: profile.budgetMax, admission: profile.admission }
+        ? { method: profile.method, combo: profile.combo, priorityRegion: profile.priorityRegion, priorityGroup: profile.priorityGroup, budgetMax: profile.budgetMax, admission: profile.admission, scores: profile.scores, methods: profile.methods }
         : null,
       scoreLabel,
     };

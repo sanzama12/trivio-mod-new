@@ -30,8 +30,8 @@ export function SavedScoreHint({ filters }: { filters: ProgramFilters }) {
   }
   const { method, total } = profileScore(profile);
   const cfg = ADMISSION_METHODS[method];
-  const combos = cfg.needsCombo ? (filters.combos?.length ? filters.combos : [profile.combo]) : filters.combos;
-  const href = `/chuong-trinh${serializeProgramFilters({ ...filters, method, score: total, combos, page: undefined })}`;
+  const combos = cfg.needsCombo && profile.combo ? [profile.combo] : [];
+  const href = `/chuong-trinh${serializeProgramFilters({ ...filters, method, score: total, combos, regions: profile.regions, budgetMax: profile.budgetMax ?? undefined, types: profile.schoolTypes, groups: profile.groupIds, page: undefined })}`;
   return (
     <Link href={href} className="font-semibold text-primary-600 hover:underline">
       Dùng điểm đã lưu ({formatMethodScore(total, method)} · {cfg.needsCombo ? profile.combo : cfg.short})

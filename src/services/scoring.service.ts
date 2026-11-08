@@ -2,6 +2,7 @@
  * SERVICE LAYER — tính điểm xét tuyển.
  * Hàm thuần, không phụ thuộc framework, dễ viết unit test.
  */
+import { combos as standardCombos } from "../domain/admission-reference";
 import type {
   AdmissionMethodKey,
   AdmissionScore,
@@ -331,7 +332,7 @@ export function computeFit(userScore: number | null | undefined, program: Cutoff
 export const profileMethod = (p: Pick<ScoreProfile, "method"> | null | undefined): AdmissionMethodKey =>
   p?.method && isMethodKey(p.method) ? p.method : "thpt";
 
-type ProfileLike = Pick<ScoreProfile, "method" | "combo" | "priorityRegion" | "priorityGroup"> & { admission: Pick<AdmissionScore, "rawTotal"> };
+type ProfileLike = Pick<ScoreProfile, "method" | "combo" | "priorityRegion" | "priorityGroup"> & Partial<Pick<ScoreProfile, "scores" | "methods">> & { admission: Pick<AdmissionScore, "rawTotal"> };
 
 /** Điểm xét tuyển hiện hành của hồ sơ (tính lại theo quy chế, cộng thêm `delta` khi mô phỏng). */
 export function profileScore(profile: ProfileLike, delta = 0): { method: AdmissionMethodKey; total: number } {
@@ -350,11 +351,27 @@ export type FitResult =
  * - không xét phương thức của hồ sơ → reason "method";
  * - THPT/học bạ mà không xét tổ hợp của hồ sơ → reason "combo".
  */
+export function evaluateProgramFit(profile: ProfileLike, program: CutoffSource & Pick<Program, "combos">, delta = 0): { method: AdmissionMethodKey; combo: string; total: number; fit: FitInfo } | null {
+  const ranked = rankCombos(profile.scores ?? {}, standardCombos).filter((row) => program.combos.includes(row.code));
+  const methods = plannedMethods(profile);
+  let best: { method: AdmissionMethodKey; combo: string; total: number; fit: FitInfo } | null = null;
+  for (const method of methods) {
+    if (!cutoffFor(program, method)) continue;
+    const row = ranked[0];
+    // Hồ sơ cũ chỉ chứa tổng điểm: chỉ dùng nếu tổ hợp ghim được chương trình xét.
+    const raw = row?.raw ?? (!profile.scores && program.combos.includes(profile.combo) ? profile.admission.rawTotal : null);
+    if (raw == null) continue;
+    const total = computeAdmissionScore(Math.max(0, Math.min(30, raw + delta)), profile.priorityRegion, profile.priorityGroup, method).total;
+    const fit = computeFit(total, program, method);
+    if (fit && (!best || fit.diff > best.fit.diff)) best = { method, combo: row?.code ?? profile.combo, total, fit };
+  }
+  return best;
+}
+
 export function fitForProfile(profile: ProfileLike, program: CutoffSource & Pick<Program, "combos">, delta = 0): FitResult {
-  const { method, total } = profileScore(profile, delta);
-  if (!acceptsMethod(program, method)) return { fit: null, reason: "method" };
-  if (ADMISSION_METHODS[method].needsCombo && !program.combos.includes(profile.combo)) return { fit: null, reason: "combo" };
-  return { fit: computeFit(total, program, method)!, reason: null };
+  const result = evaluateProgramFit(profile, program, delta);
+  if (result) return { fit: result.fit, reason: null };
+  return { fit: null, reason: plannedMethods(profile).some((method) => acceptsMethod(program, method)) ? "combo" : "method" };
 }
 
 /** Cần thêm bao nhiêu điểm để lên mức an toàn (0 nếu đã an toàn). */

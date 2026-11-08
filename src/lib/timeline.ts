@@ -42,7 +42,7 @@ const addDays = (iso: string, n: number) => new Date(vnDate(iso) + n * DAY + 7 *
 const icsText = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 
 /** Nội dung file .ics (sự kiện cả ngày, nhắc trước 3 ngày và 1 ngày). */
-export function buildIcs(events: TimelineEvent[], stamp = new Date()): string {
+export function buildIcs(events: TimelineEvent[], stamp = new Date(), meta: { official?: boolean; sourceUrl?: string | null } = {}): string {
   const dtstamp = stamp.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Trovio//Moc tuyen sinh//VI", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
   for (const e of events) {
@@ -53,7 +53,7 @@ export function buildIcs(events: TimelineEvent[], stamp = new Date()): string {
       `DTSTART;VALUE=DATE:${compact(e.start)}`,
       `DTEND;VALUE=DATE:${compact(addDays(e.end ?? e.start, 1))}`,
       `SUMMARY:${icsText(e.title)}`,
-      `DESCRIPTION:${icsText(`${e.desc}\n(Mốc minh hoạ từ Trovio — đối chiếu lịch chính thức của Bộ GD&ĐT.)`)}`,
+      `DESCRIPTION:${icsText(`${e.desc}\n${meta.official ? "Mốc chính thức" : "Mốc minh hoạ"}${meta.sourceUrl ? ` — Nguồn: ${meta.sourceUrl}` : ""}.`)}`,
       "BEGIN:VALARM",
       "TRIGGER:-P3D",
       "ACTION:DISPLAY",
@@ -71,12 +71,12 @@ export function buildIcs(events: TimelineEvent[], stamp = new Date()): string {
   return lines.join("\r\n");
 }
 
-export function googleCalendarUrl(e: TimelineEvent): string {
+export function googleCalendarUrl(e: TimelineEvent, meta: { official?: boolean; sourceUrl?: string | null } = {}): string {
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: e.title,
     dates: `${compact(e.start)}/${compact(addDays(e.end ?? e.start, 1))}`,
-    details: `${e.desc}\n(Mốc minh hoạ từ Trovio — đối chiếu lịch chính thức của Bộ GD&ĐT.)`,
+    details: `${e.desc}\n${meta.official ? "Mốc chính thức" : "Mốc minh hoạ"}${meta.sourceUrl ? ` — Nguồn: ${meta.sourceUrl}` : ""}.`,
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }
