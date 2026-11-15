@@ -15,27 +15,20 @@ import {
   postgresImportBatchRepository,
   postgresNotificationRepository,
   postgresQaRepository,
-  postgresRecommendConfigRepository,
-  postgresReminderLogRepository,
   postgresShareRepository,
   postgresSurveyRepository,
   postgresSupplementaryRepository,
-  postgresTimelineConfigRepository,
   postgresUserDataRepository,
 } from "./postgres-documents";
-import { postgresCatalogAdminRepository, postgresReferenceCatalogRepository, postgresTimelineRepository } from "./postgres-catalog";
+import { postgresCatalogAdminRepository, postgresReferenceCatalogRepository } from "./postgres-catalog";
 import { postgresMajorRepository, postgresProgramRepository, postgresSchoolRepository, postgresUserRepository } from "./postgres";
 import { postgresAdminDashboardRepository } from "./postgres-admin-dashboard";
 
 import { postgresProgramAdminRepository } from "./postgres-program-admin";
-import { postgresNewsRepository } from "./postgres-news";
-import { postgresMaterialsRepository } from "./postgres-materials";
 import { postgresDonationsRepository } from "./postgres-donations";
 
 export const repositories = {
   donations: postgresDonationsRepository,
-  materials: postgresMaterialsRepository,
-  news: postgresNewsRepository,
   adminDashboard: postgresAdminDashboardRepository,
   schools: postgresSchoolRepository,
   majors: postgresMajorRepository,
@@ -44,9 +37,7 @@ export const repositories = {
   /** Quản trị danh mục */
   programAdmin: postgresProgramAdminRepository,
   catalogAdmin: postgresCatalogAdminRepository,
-  recommendConfig: postgresRecommendConfigRepository,
   importBatches: postgresImportBatchRepository,
-  timeline: postgresTimelineRepository,
   users: postgresUserRepository,
   userData: postgresUserDataRepository,
   shares: postgresShareRepository,
@@ -55,16 +46,15 @@ export const repositories = {
   chatLogs: postgresChatLogRepository,
   chatHistory: postgresChatHistoryRepository,
   notifications: postgresNotificationRepository,
-  timelineConfig: postgresTimelineConfigRepository,
   chatAliases: postgresChatAliasRepository,
   analytics: postgresAnalyticsRepository,
   surveys: postgresSurveyRepository,
-  reminderLog: postgresReminderLogRepository,
   supplementary: postgresSupplementaryRepository,
   qa: postgresQaRepository,
 };
 
 export type Repositories = typeof repositories;
+export type { DonationRecord, DonationStats } from "./postgres-donations";
 export type {
   AuditRepository,
   CatalogRepository,
@@ -76,8 +66,6 @@ export type {
   ProgramRepository,
   SchoolRepository,
   ShareRepository,
-  TimelineRepository,
   UserDataRepository,
   UserRepository,
 } from "./types";
-export type { DonationRecord, DonationStats } from "./postgres-donations";

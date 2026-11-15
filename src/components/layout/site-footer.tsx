@@ -6,11 +6,10 @@ const cols = [
   {
     title: "Về hệ thống",
     links: [
-      { label: "Giới thiệu chung", href: "/tro-giup" },
+      { label: "Giới thiệu chung", href: "/gioi-thieu" },
       { label: "Cách Trovio gợi ý", href: "/cach-goi-y" },
-      { label: "Mốc tuyển sinh & nhắc hạn", href: "/moc-tuyen-sinh" },
-      { label: "Ủng hộ dự án (VNPay)", href: "/ung-ho" },
-      { label: "Trợ giúp & Liên hệ", href: "/tro-giup" },
+      { label: "Liên hệ & Hỗ trợ", href: "/lien-he" },
+      { label: "Ủng hộ Trovio", href: "/ung-ho" },
     ],
   },
   {

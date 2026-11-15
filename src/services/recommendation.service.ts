@@ -12,7 +12,6 @@ import { matchMajor } from "./riasec.service";
 import { ADMISSION_METHODS, computeFit, cutoffFor, FIT_LABELS, formatMethodScore, type FitInfo, type MethodScore } from "./scoring.service";
 import { repositories } from "@database/repositories";
 import { formatTuition, hasTuitionData } from "../lib/format";
-import { effectiveRecommendConfig, type EffectiveRecommendConfig } from "./rules.service";
 
 export type RecommendFocus = "balanced" | "passion" | "admission" | "location_budget";
 
@@ -225,10 +224,14 @@ export const recommendationService = {
   async recommend(
     input: RecommendInput,
     limit = 6,
-    /** Cấu hình thay thế (trang Quy tắc gợi ý chạy thử trước khi lưu). */
-    configOverride?: EffectiveRecommendConfig,
   ): Promise<{ items: Recommendation[]; missing: ("quiz" | "score")[]; goal: GoalSummary | null }> {
-    const cfg = configOverride ?? (await effectiveRecommendConfig());
+    const cfg = {
+      weights: FOCUS_WEIGHTS.balanced,
+      budgetTolerance: 0,
+      diversity: { perMajor: 2, perSchool: 2, goalMajor: 3 },
+      goalPriority: true,
+      minYears: 3,
+    };
     const W = input.focus && FOCUS_WEIGHTS[input.focus] ? FOCUS_WEIGHTS[input.focus] : cfg.weights;
     const missing: ("quiz" | "score")[] = [];
     if (!input.riasec) missing.push("quiz");
@@ -344,17 +347,10 @@ export const recommendationService = {
         ...item,
         effectiveWeight: item.points == null || availableWeight === 0 ? 0 : item.weight / availableWeight,
       }));
-      let score = availableWeight === 0
+      const score = availableWeight === 0
         ? 0
         : Math.round(criteria.reduce((sum, item) => sum + (item.points == null ? 0 : item.points * item.effectiveWeight), 0));
 
-      // Quy tắc cộng điểm chỉ chạy khi tiêu chí điểm xét tuyển có dữ liệu.
-      if (cfg.boostCutoff && chosen && fitPts != null) {
-        const cut = cutoffFor(program, chosen.method);
-        if (cut && Math.abs(chosen.total - cut.score) / ADMISSION_METHODS[chosen.method].factor <= cfg.boostCutoff.gap) score += cfg.boostCutoff.points;
-      }
-      for (const b of cfg.boostSchoolTypes) if (school.type === b.type) score += b.points;
-      score = Math.min(100, score);
       // --- Mục tiêu
       let goalMatch: GoalMatch | null = null;
       let warning: string | null = null;

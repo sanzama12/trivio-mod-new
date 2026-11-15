@@ -73,7 +73,6 @@ export const userAdminService = {
         saved: data?.saved.length ?? 0,
         wishlist: data?.wishlist.length ?? 0,
         hasScores: !!data?.profile,
-        reminders: data?.reminders.length ?? 0,
       },
     };
   },

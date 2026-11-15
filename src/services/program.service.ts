@@ -9,7 +9,7 @@ import { hasTuitionData } from "../lib/format";
 import { computeFit, cutoffFor, type FitInfo } from "./scoring.service";
 import { TUITION_RANGES, type ProgramFilters, type ProgramSort, type TuitionRange } from "./program.filters";
 export type { ProgramFilters, ProgramSort, TuitionRange } from "./program.filters";
-import type { ProgramSearchResult, ProgramView, SearchSuggestion } from "../models/dtos";
+import type { ProgramSearchResult, ProgramView, SchoolSearchSummary, SearchSuggestion } from "../models/dtos";
 export type { ProgramSearchResult, ProgramView, SearchSuggestion };
 
 const fallbackSchool: School = {
@@ -65,8 +65,9 @@ function inTuitionRange(p: Program, range: TuitionRange): boolean {
 }
 
 function applyFilters(views: ProgramView[], f: ProgramFilters): ProgramView[] {
-  return views.filter(({ program, school, major }) => {
+  return views.filter(({ program, school, major, latestCutoff }) => {
     if (f.method && f.method !== "thpt" && !cutoffFor(program, f.method)) return false;
+    if (f.score != null && (latestCutoff == null || latestCutoff > f.score)) return false;
     if (f.q && !matchesQuery(f.q, program.name, major.name, school.name, school.shortName, school.code, program.admissionCode)) return false;
     if (f.combos?.length && !program.combos.some((c) => f.combos!.includes(c))) return false;
     if (f.tuition && !inTuitionRange(program, f.tuition)) return false;
@@ -104,6 +105,59 @@ function sortViews(views: ProgramView[], sort: ProgramSort, score?: number): Pro
 }
 
 export const programService = {
+  /** Apply the existing admissions filters, then count and paginate distinct schools. */
+  async searchSchools(filters: ProgramFilters) {
+    const [schools, programs] = await Promise.all([
+      repositories.schools.findAll(), repositories.programs.findAll(),
+    ]);
+    const views = await buildViews(programs, filters.score, filters.method);
+    const matching = sortViews(applyFilters(views, filters), filters.sort ?? "phu-hop", filters.score);
+    const visibleSchools = new Map(schools.map((school) => [school.id, school]));
+    const distinct = new Map<string, School>();
+    const matchesBySchool = new Map<string, ProgramView[]>();
+    for (const view of matching) {
+      const school = visibleSchools.get(view.school.id);
+      if (!school) continue;
+      distinct.set(school.id, school);
+      const matches = matchesBySchool.get(school.id) ?? [];
+      matches.push(view);
+      matchesBySchool.set(school.id, matches);
+    }
+    // School-only searches also include schools whose programs have not been entered yet.
+    const needsProgram = filters.score != null || filters.method || filters.combos?.length || filters.tuition || filters.groups?.length || filters.majors?.length;
+    if (!needsProgram) {
+      for (const school of schools) {
+        if (filters.regions?.length && !filters.regions.includes(school.region)) continue;
+        if (filters.types?.length && !filters.types.includes(school.type)) continue;
+        if (filters.q && !matchesQuery(filters.q, school.name, school.shortName, school.code, school.city)) continue;
+        if (!distinct.has(school.id)) distinct.set(school.id, school);
+      }
+    }
+    const items = [...distinct.values()];
+    if (filters.sort === "ten") items.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+    const pageSize = filters.pageSize ?? 24;
+    const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+    const page = Math.min(Math.max(1, filters.page ?? 1), pageCount);
+    const pageItems = items.slice((page - 1) * pageSize, page * pageSize);
+    const summaries: Record<string, SchoolSearchSummary> = {};
+    for (const school of pageItems) {
+      const matches = matchesBySchool.get(school.id) ?? [];
+      const tuitions = matches.map(({ program }) => program).filter((p) => hasTuitionData(p.tuitionMin, p.tuitionMax));
+      const cutoffs = matches.map((view) => view.latestCutoff).filter((score): score is number => score != null);
+      const featured = matches[0]?.program;
+      summaries[school.id] = {
+        programCount: matches.length,
+        tuitionMin: tuitions.length ? Math.min(...tuitions.map((p) => p.tuitionMin)) : null,
+        tuitionMax: tuitions.length ? Math.max(...tuitions.map((p) => p.tuitionMax)) : null,
+        cutoffMin: cutoffs.length ? Math.min(...cutoffs) : null,
+        cutoffMax: cutoffs.length ? Math.max(...cutoffs) : null,
+        method: filters.method ?? "thpt",
+        featuredProgram: featured ? { name: featured.name, slug: featured.slug } : null,
+      };
+    }
+    return { items: pageItems, summaries, total: items.length, page, pageCount, pageSize };
+  },
+
   async search(filters: ProgramFilters): Promise<ProgramSearchResult> {
     let list = await repositories.programs.findAll();
     if (filters.majors?.length) {
@@ -122,6 +176,7 @@ export const programService = {
         const count = applyFilters(all, { ...filters, ...patch }).length;
         if (count > 0) suggestions.push({ label, patch, count });
       };
+      if (filters.score != null) tryRelax("Bỏ giới hạn điểm", { score: undefined });
       if (filters.tuition) tryRelax("Bỏ giới hạn học phí", { tuition: undefined });
       if (filters.regions?.length) tryRelax("Mở rộng ra mọi khu vực", { regions: [] });
       if (filters.types?.length) tryRelax("Tất cả loại hình trường", { types: [] });

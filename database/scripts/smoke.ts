@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { repositories } from "../repositories";
 import { getPool, query } from "../client";
+import { recommendationService } from "../../src/services/recommendation.service";
 
 config({path:'.env.local',quiet:true});
 async function main() {
@@ -38,6 +39,15 @@ async function main() {
     }
     const dashboard=await repositories.adminDashboard.overviewCatalog();
     assert.equal(dashboard.programs.length,counts.all);
+    await repositories.adminDashboard.badges();
+    await repositories.users.list();
+    const recommendations = await recommendationService.recommend({ score: { method: 'thpt', total: 25, combo: 'A00' } });
+    assert.ok(recommendations.items.length > 0, 'Recommendations must work after database configuration is removed');
+    const [retired] = await query<{ count: number }>(`SELECT count(*)::int AS count FROM information_schema.tables
+      WHERE table_schema IN ('trovio', 'trovio_archive') AND table_name IN
+      ('news_posts', 'news_post_events', 'news_categories', 'news_articles', 'recommend_weights', 'recommend_rules', 'recommend_rule_params', 'timeline_config', 'timeline_events', 'deadline_reminders', 'reminder_log')`);
+    assert.equal(retired.count, 0);
+    console.log('PASS retired tables removed, admin navigation, user reads and default recommendations');
     console.log(JSON.stringify({ok:true,counts,readCheckMs:Math.round(performance.now()-start)}));
   } finally { await getPool().end(); }
 }

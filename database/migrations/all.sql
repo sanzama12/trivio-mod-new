@@ -31,7 +31,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_verification_status TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_verification_id TEXT;
 
 COMMIT;
-
 -- @migration 20261018_edudecision_foundation.sql
 BEGIN;
 SET search_path TO trovio, public;
@@ -1072,10 +1071,17 @@ ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_kind_check;
 ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check
   CHECK (kind IN ('reminder', 'supplementary', 'qa-answer', 'school-submission'));
 
-DELETE FROM recommend_rules WHERE kind = 'riasec-match';
-ALTER TABLE recommend_rules DROP CONSTRAINT IF EXISTS recommend_rules_kind_check;
-ALTER TABLE recommend_rules ADD CONSTRAINT recommend_rules_kind_check
-  CHECK (kind IN ('budget', 'diversity', 'goal-priority', 'min-years', 'boost-cutoff', 'boost-school-type'));
+-- Existing installations may still have the retired recommendation configuration.
+DO $legacy_recommend_rules$
+BEGIN
+  IF to_regclass('trovio.recommend_rules') IS NOT NULL THEN
+    DELETE FROM recommend_rules WHERE kind = 'riasec-match';
+    ALTER TABLE recommend_rules DROP CONSTRAINT IF EXISTS recommend_rules_kind_check;
+    ALTER TABLE recommend_rules ADD CONSTRAINT recommend_rules_kind_check
+      CHECK (kind IN ('budget', 'diversity', 'goal-priority', 'min-years', 'boost-cutoff', 'boost-school-type'));
+  END IF;
+END
+$legacy_recommend_rules$;
 
 ALTER TABLE IF EXISTS audit_logs DROP CONSTRAINT IF EXISTS audit_logs_target_type_check;
 ALTER TABLE IF EXISTS audit_logs ADD CONSTRAINT audit_logs_target_type_check
@@ -1087,38 +1093,119 @@ ALTER TABLE users
 
 COMMIT;
 
--- @migration 20261031_donations_vnpay.sql
+-- @migration 20261114_legacy_major_defaults.sql
+BEGIN;
+
+-- Older installations retain these retired columns. Current writers omit them.
+-- Preserve existing values/defaults and leave installations without the columns alone.
+DO $legacy_major_defaults$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'trovio' AND table_name = 'majors'
+      AND column_name = 'demand' AND column_default IS NULL
+  ) THEN
+    ALTER TABLE trovio.majors ALTER COLUMN demand SET DEFAULT 'Trung bình';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'trovio' AND table_name = 'majors'
+      AND column_name = 'growth' AND column_default IS NULL
+  ) THEN
+    ALTER TABLE trovio.majors ALTER COLUMN growth SET DEFAULT 0;
+  END IF;
+END
+$legacy_major_defaults$;
+
+COMMIT;
+
+-- @migration 20261115_remove_dashboard_features.sql
+BEGIN;
+SET search_path TO trovio, public;
+
+-- Remove the retired news, recommendation configuration and admission calendar modules.
+DROP VIEW IF EXISTS published_news;
+DROP TABLE IF EXISTS news_post_events;
+DROP TABLE IF EXISTS news_posts;
+DROP TABLE IF EXISTS news_articles;
+DROP TABLE IF EXISTS news_categories;
+DROP FUNCTION IF EXISTS news_post_guard();
+DROP TABLE IF EXISTS recommend_rule_params;
+DROP TABLE IF EXISTS recommend_rules;
+DROP TABLE IF EXISTS recommend_weights;
+DROP TABLE IF EXISTS deadline_reminders;
+DROP TABLE IF EXISTS reminder_log;
+DROP TABLE IF EXISTS timeline_config;
+
+-- Earlier installations archived reminder subscriptions with a foreign key to timeline_events.
+DO $retired_archive$
+DECLARE
+  target TEXT;
+BEGIN
+  IF to_regnamespace('trovio_archive') IS NOT NULL THEN
+    FOREACH target IN ARRAY ARRAY[
+      'deadline_reminders', 'reminder_log', 'timeline_config', 'timeline_events',
+      'recommend_rule_params', 'recommend_rules', 'recommend_weights',
+      'news_post_events', 'news_posts', 'news_articles', 'news_categories'
+    ] LOOP
+      EXECUTE format('DROP TABLE IF EXISTS trovio_archive.%I', target);
+    END LOOP;
+  END IF;
+END
+$retired_archive$;
+
+DROP TABLE IF EXISTS timeline_events;
+ALTER TABLE users DROP COLUMN IF EXISTS email_reminders;
+
+DELETE FROM app_documents
+WHERE collection IN ('recommend-config', 'timeline-config', 'reminder-log', 'news-post', 'news-category')
+   OR (collection = 'notification' AND payload->>'kind' = 'reminder')
+   OR (collection = 'audit' AND payload->>'targetType' IN ('rules', 'timeline'));
+
+UPDATE app_documents
+SET payload = payload - 'reminders', updated_at = now()
+WHERE collection = 'user-data' AND payload ? 'reminders';
+
+DELETE FROM notifications WHERE kind = 'reminder';
+ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_kind_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check
+  CHECK (kind IN ('supplementary', 'qa-answer', 'school-submission'));
+
+COMMIT;
+
+-- @migration 20261115_restore_donations.sql
 BEGIN;
 SET search_path TO trovio, public;
 
 CREATE TABLE IF NOT EXISTS donations (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  donor_name          TEXT NOT NULL,
-  donor_email         TEXT,
-  amount              NUMERIC(12, 2) NOT NULL CHECK (amount >= 5000),
-  message             TEXT,
-  order_info          TEXT NOT NULL,
-  vnp_txn_ref         TEXT NOT NULL UNIQUE,
-  vnp_transaction_no  TEXT,
-  vnp_bank_code       TEXT,
-  vnp_card_type       TEXT,
-  vnp_pay_date        TIMESTAMP WITH TIME ZONE,
-  vnp_response_code   TEXT,
-  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
-  ip_address          TEXT,
-  created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  paid_at             TIMESTAMP WITH TIME ZONE
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  donor_name TEXT NOT NULL,
+  donor_email TEXT,
+  amount NUMERIC(12, 2) NOT NULL CHECK (amount >= 10000),
+  message TEXT,
+  order_info TEXT NOT NULL,
+  vnp_txn_ref TEXT NOT NULL UNIQUE,
+  vnp_transaction_no TEXT,
+  vnp_bank_code TEXT,
+  vnp_card_type TEXT,
+  vnp_pay_date TIMESTAMPTZ,
+  vnp_response_code TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
+  ip_address TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at TIMESTAMPTZ
 );
-
 CREATE INDEX IF NOT EXISTS idx_donations_status ON donations(status);
-CREATE INDEX IF NOT EXISTS idx_donations_vnp_txn_ref ON donations(vnp_txn_ref);
 CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at DESC);
 
-DROP TRIGGER IF EXISTS trg_donations_touch ON donations;
-CREATE TRIGGER trg_donations_touch
-  BEFORE UPDATE ON donations
-  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+DO $donations_trigger$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'trovio.donations'::regclass AND tgname = 'trg_donations_touch') THEN
+    CREATE TRIGGER trg_donations_touch BEFORE UPDATE ON donations
+      FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  END IF;
+END
+$donations_trigger$;
 
 COMMIT;
-

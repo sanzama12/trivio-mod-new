@@ -1,291 +1,94 @@
 "use client";
 
-import { useState } from "react";
-import {
-  LuCreditCard,
-  LuHandHeart,
-  LuHeart,
-  LuLock,
-  LuQrCode,
-  LuShieldCheck,
-  LuSparkles,
-} from "react-icons/lu";
+import { useState, type FormEvent } from "react";
+import { LuArrowUpRight, LuCheck, LuHeart, LuLockKeyhole } from "react-icons/lu";
 import { cn } from "@/lib/cn";
-import { Input } from "@/components/ui/field";
+import { Input, Label } from "@/components/ui/field";
 
-const PRESET_AMOUNTS = [
-  { label: "20.000 ₫", value: 20000, desc: "Một ly trà đá tiếp sức" },
-  { label: "50.000 ₫", value: 50000, desc: "Một bữa sáng cho sĩ tử", popular: true },
-  { label: "100.000 ₫", value: 100000, desc: "Chi phí máy chủ 1 ngày" },
-  { label: "200.000 ₫", value: 200000, desc: "Gói dữ liệu tuyển sinh" },
-  { label: "500.000 ₫", value: 500000, desc: "Hỗ trợ học bổng sĩ tử nghèo" },
-];
+const AMOUNTS = [20000, 50000, 100000, 200000];
+const money = (amount: number) => `${amount.toLocaleString("vi-VN")} ₫`;
 
-const PAYMENT_METHODS = [
-  { id: "VNPAYQR", label: "VNPAY-QR (App Ngân hàng)", icon: LuQrCode, desc: "Quét mã qua 40+ app ngân hàng & ví" },
-  { id: "VNBANK", label: "Thẻ ATM Nội địa", icon: LuCreditCard, desc: "Thanh toán qua thẻ ATM / Internet Banking" },
-  { id: "INTCARD", label: "Thẻ Quốc tế (Visa / Master)", icon: LuCreditCard, desc: "Thẻ tín dụng & ghi nợ quốc tế" },
-];
-
-export function DonateForm() {
-  const [selectedAmount, setSelectedAmount] = useState<number>(50000);
-  const [isCustomAmount, setIsCustomAmount] = useState(false);
-  const [customAmountStr, setCustomAmountStr] = useState("");
-  const [bankCode, setBankCode] = useState<string>("VNPAYQR");
-
-  const [donorName, setDonorName] = useState("");
-  const [donorEmail, setDonorEmail] = useState("");
-  const [message, setMessage] = useState("");
-
+export function DonateForm({ enabled }: { enabled: boolean }) {
+  const [amount, setAmount] = useState(50000);
+  const [custom, setCustom] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
+  const [bankCode, setBankCode] = useState("VNPAYQR");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const selectedAmount = custom ? Number(customAmount) : amount;
 
-  const finalAmount = isCustomAmount ? Number(customAmountStr.replace(/\D/g, "")) : selectedAmount;
-
-  const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "");
-    setCustomAmountStr(raw ? Number(raw).toLocaleString("vi-VN") : "");
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-
-    if (!finalAmount || finalAmount < 10000) {
-      setErrorMsg("Số tiền ủng hộ tối thiểu là 10.000 ₫.");
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loading) return;
+    setError("");
+    if (!Number.isSafeInteger(selectedAmount) || selectedAmount < 10000 || selectedAmount > 100000000) {
+      setError("Nhập số tiền từ 10.000 đến 100.000.000 ₫.");
       return;
     }
-    if (finalAmount > 100000000) {
-      setErrorMsg("Số tiền ủng hộ tối đa cho mỗi lượt là 100.000.000 ₫.");
-      return;
-    }
-
+    const fields = new FormData(event.currentTarget);
     setLoading(true);
-
     try {
-      const res = await fetch("/api/donations", {
+      const response = await fetch("/api/donations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: finalAmount,
-          donorName: donorName.trim() || undefined,
-          donorEmail: donorEmail.trim() || undefined,
-          message: message.trim() || undefined,
-          bankCode: bankCode || undefined,
-        }),
+        body: JSON.stringify({ amount: selectedAmount, bankCode, donorName: fields.get("donorName"), donorEmail: fields.get("donorEmail"), message: fields.get("message") }),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Không thể tạo liên kết thanh toán.");
-      }
-
-      // Chuyển hướng trực tiếp sang cổng VNPay
-      if (data.data?.paymentUrl) {
-        window.location.href = data.data.paymentUrl;
-      } else {
-        throw new Error("Không nhận được đường dẫn thanh toán từ hệ thống.");
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Đã xảy ra lỗi kết nối. Vui lòng thử lại sau.");
+      const result = await response.json();
+      if (!response.ok || !result.ok || !result.data?.paymentUrl) throw new Error(result.message || "Chưa tạo được liên kết thanh toán. Vui lòng thử lại.");
+      window.location.assign(result.data.paymentUrl);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Kết nối bị gián đoạn. Vui lòng thử lại.");
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
-      {/* Bước 1: Chọn số tiền */}
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
-            1
-          </span>
-          <h3 className="text-base font-bold text-slate-900">Chọn số tiền ủng hộ (VNĐ)</h3>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {PRESET_AMOUNTS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => {
-                setSelectedAmount(item.value);
-                setIsCustomAmount(false);
-                setErrorMsg(null);
-              }}
-              className={cn(
-                "relative flex flex-col items-center justify-center rounded-2xl border p-3.5 text-center transition-all",
-                !isCustomAmount && selectedAmount === item.value
-                  ? "border-primary-600 bg-primary-50/70 text-primary-900 ring-2 ring-primary-600/20"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-              )}
-            >
-              {item.popular && (
-                <span className="absolute -top-2.5 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
-                  Phổ biến
-                </span>
-              )}
-              <span className="text-base font-extrabold">{item.label}</span>
-              <span className="mt-0.5 text-[11px] text-slate-500">{item.desc}</span>
-            </button>
-          ))}
-
-          <button
-            type="button"
-            onClick={() => {
-              setIsCustomAmount(true);
-              setErrorMsg(null);
-            }}
-            className={cn(
-              "flex flex-col items-center justify-center rounded-2xl border p-3.5 text-center transition-all",
-              isCustomAmount
-                ? "border-primary-600 bg-primary-50/70 text-primary-900 ring-2 ring-primary-600/20"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-            )}
-          >
-            <span className="text-base font-bold">Số tiền khác</span>
-            <span className="mt-0.5 text-[11px] text-slate-500">Tuỳ tâm đóng góp</span>
-          </button>
-        </div>
-
-        {isCustomAmount && (
-          <div className="mt-3">
-            <div className="relative">
-              <Input
-                type="text"
-                value={customAmountStr}
-                onChange={handleCustomAmountChange}
-                placeholder="Nhập số tiền muốn ủng hộ (VD: 300.000)"
-                className="pl-4 pr-12 text-base font-bold text-primary-700"
-                autoFocus
-              />
-              <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm font-bold text-slate-400">
-                VNĐ
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">Tối thiểu: 10.000 ₫ · Tối đa: 100.000.000 ₫</p>
-          </div>
-        )}
-      </div>
-
-      {/* Bước 2: Phương thức thanh toán VNPay */}
-      <div className="mt-8">
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
-            2
-          </span>
-          <h3 className="text-base font-bold text-slate-900">Phương thức thanh toán qua VNPay</h3>
-        </div>
-
-        <div className="mt-4 space-y-2">
-          {PAYMENT_METHODS.map((method) => (
-            <label
-              key={method.id}
-              className={cn(
-                "flex cursor-pointer items-center justify-between rounded-2xl border p-3.5 transition-all",
-                bankCode === method.id
-                  ? "border-primary-600 bg-primary-50/40 ring-1 ring-primary-600/30"
-                  : "border-slate-200 bg-white hover:bg-slate-50"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value={method.id}
-                  checked={bankCode === method.id}
-                  onChange={() => setBankCode(method.id)}
-                  className="size-4 text-primary-600 focus:ring-primary-500"
-                />
-                <div>
-                  <div className="text-sm font-bold text-slate-900">{method.label}</div>
-                  <div className="text-xs text-slate-500">{method.desc}</div>
-                </div>
-              </div>
-              <method.icon className="size-5 text-slate-400" />
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Bước 3: Thông tin người ủng hộ */}
-      <div className="mt-8 space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
-            3
-          </span>
-          <h3 className="text-base font-bold text-slate-900">Thông tin người ủng hộ (Tuỳ chọn)</h3>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Họ và tên hoặc Biệt danh</label>
-            <Input
-              value={donorName}
-              onChange={(e) => setDonorName(e.target.value)}
-              placeholder="VD: Nguyễn Văn A (hoặc để trống)"
-              maxLength={80}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Email nhận biên lai</label>
-            <Input
-              type="email"
-              value={donorEmail}
-              onChange={(e) => setDonorEmail(e.target.value)}
-              placeholder="VD: name@example.com"
-            />
-          </div>
-        </div>
-
+    <form id="dong-gop" onSubmit={submit} aria-labelledby="donate-form-title" className="scroll-mt-28 rounded-3xl border border-teal-900/10 bg-white p-6 shadow-[0_20px_70px_-25px_rgba(15,76,75,0.24)] sm:p-8">
+      <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-700">Lời nhắn gửi gắm đến các sĩ tử</label>
-          <textarea
-            value={message}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
-            placeholder="Chúc các bạn 2k8 thi tốt, chạm tay vào cánh cổng đại học mơ ước!"
-            rows={2}
-            maxLength={500}
-            className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-100"
-          />
+          <h2 id="donate-form-title" className="text-2xl font-extrabold tracking-tight text-slate-900">Gửi một lời tiếp sức</h2>
+          <p className="mt-2 text-sm text-slate-500">Chọn mức đóng góp phù hợp với bạn.</p>
         </div>
+        <LuHeart className="mt-1 size-6 shrink-0 text-teal-700" aria-hidden />
       </div>
-
-      {errorMsg && (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
-          ⚠️ {errorMsg}
+      <fieldset disabled={loading} className="space-y-5">
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold text-slate-800">Số tiền đóng góp</legend>
+          <div className="grid grid-cols-2 gap-3">
+            {AMOUNTS.map((value) => (
+              <button key={value} type="button" aria-pressed={!custom && amount === value}
+                onClick={() => { setCustom(false); setAmount(value); }}
+                className={cn("flex min-h-14 items-center justify-between rounded-xl border px-4 text-base font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700", !custom && amount === value ? "border-teal-800 bg-teal-50 text-teal-900" : "border-slate-200 text-slate-700 hover:border-teal-500")}>
+                {money(value)}{!custom && amount === value && <LuCheck className="size-4" aria-hidden />}
+              </button>
+            ))}
+          </div>
+          <button type="button" aria-pressed={custom} onClick={() => setCustom(true)} className={cn("mt-3 w-full rounded-xl border px-4 py-3 text-sm font-semibold", custom ? "border-teal-800 bg-teal-50 text-teal-900" : "border-slate-200 text-slate-600 hover:border-teal-500")}>Chọn số tiền khác</button>
+          {custom && <div className="mt-3"><Label htmlFor="donate-amount">Số tiền khác (VNĐ)</Label><Input id="donate-amount" type="number" min={10000} max={100000000} step={1} required inputMode="numeric" value={customAmount} onChange={(event) => setCustomAmount(event.target.value)} placeholder="Nhập số tiền từ 10.000 ₫" /></div>}
+        </fieldset>
+        <div>
+          <Label htmlFor="donate-method">Phương thức thanh toán</Label>
+          <select id="donate-method" value={bankCode} onChange={(event) => setBankCode(event.target.value)} className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-teal-700">
+            <option value="VNPAYQR">Quét mã VNPAY-QR</option>
+            <option value="VNBANK">Thẻ ATM / Ngân hàng nội địa</option>
+            <option value="INTCARD">Thẻ quốc tế</option>
+          </select>
         </div>
-      )}
-
-      {/* Tóm tắt & Nút xác nhận */}
-      <div className="mt-8 border-t border-slate-100 pt-6">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-600">Tổng số tiền ủng hộ:</span>
-          <span className="text-xl font-extrabold text-primary-700">
-            {finalAmount ? finalAmount.toLocaleString("vi-VN") : "0"} ₫
-          </span>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading || !finalAmount || finalAmount < 10000}
-          className={cn(
-            "mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold text-white shadow-lg transition-all",
-            loading
-              ? "cursor-not-allowed bg-slate-400"
-              : "bg-primary-600 shadow-primary-600/30 hover:bg-primary-700 active:scale-[0.99]"
-          )}
-        >
-          <LuHandHeart className="size-5" />
-          {loading ? "Đang kết nối cổng VNPay..." : "Xác nhận ủng hộ qua VNPay"}
+        <details className="border-t border-slate-100 pt-4">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-700">Tên và lời nhắn của bạn <span className="font-normal text-slate-400">(tuỳ chọn)</span></summary>
+          <div className="mt-4 space-y-4">
+            <div><Label htmlFor="donor-name">Tên hiển thị công khai</Label><Input id="donor-name" name="donorName" maxLength={80} autoComplete="name" placeholder="Để trống để ủng hộ ẩn danh" /></div>
+            <div><Label htmlFor="donor-email">Email liên hệ</Label><Input id="donor-email" name="donorEmail" type="email" maxLength={254} autoComplete="email" placeholder="ban@example.com" /><p className="mt-1 text-xs text-slate-500">Email được lưu cùng giao dịch và dùng khi cần hỗ trợ.</p></div>
+            <div><Label htmlFor="donor-message">Lời nhắn công khai</Label><textarea id="donor-message" name="message" maxLength={500} rows={3} className="w-full rounded-xl border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-teal-700" placeholder="Một lời động viên gửi đến Trovio…" /></div>
+          </div>
+        </details>
+        {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+        {!enabled && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">Cổng thanh toán đang chờ cấu hình. Bạn có thể liên hệ đội ngũ qua trang Liên hệ để trao đổi việc đồng hành.</p>}
+        <button type="submit" disabled={!enabled || loading} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-teal-900 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">
+          <span>{loading ? "Đang mở thanh toán…" : `Ủng hộ ${money(selectedAmount || 0)}`}</span><LuArrowUpRight className="size-5 shrink-0" aria-hidden />
         </button>
-
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
-          <LuLock className="size-3.5" />
-          <span>Giao dịch an toàn & bảo mật qua Cổng thanh toán Quốc gia VNPay</span>
-        </div>
-      </div>
+      </fieldset>
+      <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs text-slate-500"><LuLockKeyhole className="size-3.5 shrink-0" aria-hidden />Tiếp tục thanh toán qua cổng VNPAY.</p>
     </form>
   );
 }
-

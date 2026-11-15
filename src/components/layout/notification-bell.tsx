@@ -1,14 +1,13 @@
 "use client";
 
-/** Chuông thông báo cho mốc tuyển sinh và hoạt động cộng đồng. */
+/** Chuông thông báo cho hoạt động cộng đồng. */
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { LuBell, LuCalendarClock, LuMessageCircleQuestion, LuRoute, LuSchool } from "react-icons/lu";
+import { LuBell, LuMessageCircleQuestion, LuRoute, LuSchool } from "react-icons/lu";
 import type { AppNotification } from "@/domain/types";
 import { cn } from "@/lib/cn";
 
 const ICON = {
-  reminder: { Icon: LuCalendarClock, cls: "text-accent-700 bg-accent-50" },
   supplementary: { Icon: LuRoute, cls: "text-primary-700 bg-primary-50" },
   "qa-answer": { Icon: LuMessageCircleQuestion, cls: "text-success-700 bg-success-50" },
   "school-submission": { Icon: LuSchool, cls: "text-primary-700 bg-primary-50" },
@@ -105,7 +104,7 @@ export function NotificationBell() {
           ) : (
             <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
               {items.map((n) => {
-                const { Icon, cls } = ICON[n.kind] ?? ICON.reminder;
+                const { Icon, cls } = ICON[n.kind] ?? ICON.supplementary;
                 const body = (
                   <>
                     <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full", cls)}>

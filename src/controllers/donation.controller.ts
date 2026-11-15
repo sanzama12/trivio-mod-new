@@ -3,7 +3,7 @@
  * Quản lý các endpoint liên quan đến ủng hộ qua VNPay và doanh thu quản trị
  */
 import { NextResponse, type NextRequest } from "next/server";
-import { donationService, DonationValidationError } from "@/services/donation.service";
+import { donationService, DonationUnavailableError, DonationValidationError } from "@/services/donation.service";
 import { requireAdmin } from "@/lib/auth";
 import { clientIp } from "@/lib/http";
 
@@ -33,6 +33,9 @@ export class DonationController {
         data: result,
       });
     } catch (err: any) {
+      if (err instanceof DonationUnavailableError) {
+        return NextResponse.json({ ok: false, message: err.message }, { status: 503 });
+      }
       if (err instanceof DonationValidationError) {
         return NextResponse.json({ ok: false, message: err.message }, { status: 400 });
       }
@@ -60,12 +63,10 @@ export class DonationController {
 
       const baseRedirectUrl = new URL("/ung-ho/ket-qua", req.nextUrl.origin);
       baseRedirectUrl.searchParams.set("status", result.success ? "success" : "failed");
-      baseRedirectUrl.searchParams.set("message", result.message);
 
       if (result.donation) {
         baseRedirectUrl.searchParams.set("txnRef", result.donation.vnpTxnRef);
         baseRedirectUrl.searchParams.set("amount", String(result.donation.amount));
-        baseRedirectUrl.searchParams.set("donorName", result.donation.donorName);
         if (result.donation.vnpBankCode) {
           baseRedirectUrl.searchParams.set("bankCode", result.donation.vnpBankCode);
         }

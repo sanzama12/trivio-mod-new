@@ -1,7 +1,7 @@
 import { query, withTransaction, afterCommit } from "@database/client";
 import { loadProgramsBatched, invalidatePostgresCache, postgresMajorRepository, postgresProgramRepository, postgresSchoolRepository } from "./postgres";
-import type { CatalogAdminRepository, CatalogRepository, TimelineRepository } from "./types";
-import type { Combo, FaqGroup, FinancialAidConfig, GuidanceProgram, Major, MajorGroup, PlanningProgram, Program, School, Subject, TimelineEvent } from "@/domain/types";
+import type { CatalogAdminRepository, CatalogRepository } from "./types";
+import type { Combo, FaqGroup, FinancialAidConfig, GuidanceProgram, Major, MajorGroup, PlanningProgram, Program, School, Subject } from "@/domain/types";
 
 type DiscoveryStats = Awaited<ReturnType<CatalogRepository["findDiscoveryStats"]>>;
 type DiscoveryCatalog = Awaited<ReturnType<CatalogRepository["findDiscoveryCatalog"]>>;
@@ -369,24 +369,6 @@ export const postgresReferenceCatalogRepository: CatalogRepository = {
 
   findDiscoveryStats,
   findDiscoveryCatalog,
-};
-
-export const postgresTimelineRepository: TimelineRepository = {
-  async findAll(): Promise<TimelineEvent[]> {
-    const rows = await query<{
-      id: string;
-      title: string;
-      start: string;
-      end: string | null;
-      category: TimelineEvent["category"];
-      desc: string;
-    }>(
-      `SELECT id, title, start_date::text AS start, end_date::text AS "end",
-              category, description AS "desc"
-       FROM trovio.timeline_events ORDER BY start_date`,
-    );
-    return rows.map((row) => ({ ...row, end: row.end ?? undefined }));
-  },
 };
 
 async function saveSchool(school: School): Promise<void> {

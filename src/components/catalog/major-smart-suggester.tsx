@@ -265,7 +265,7 @@ export function MajorSmartSuggester({ groups, subjects }: MajorSmartSuggesterPro
                         {rec.schoolCount > 0 ? `${rec.schoolCount} trường đào tạo` : "Nhiều trường đào tạo"}
                       </span>
                       <Link
-                        href={`/chuong-trinh?majors=${encodeURIComponent(rec.major.id)}`}
+                        href={`/truong?major=${encodeURIComponent(rec.major.id)}`}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-primary-800 transition-all"
                       >
                         <span>Tìm trường</span>

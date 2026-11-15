@@ -185,7 +185,6 @@ export function ProfileClient({
     { n: store.saved.length, label: "Đã lưu", detail: "Chương trình", href: "/da-luu", icon: LuHeart },
     { n: store.wishlist.length, label: "Nguyện vọng", detail: "Dự kiến", href: "/da-luu", icon: LuBookOpen },
     { n: store.compare.length, label: "So sánh", detail: "Đang xem", href: "/so-sanh", icon: LuGitCompare },
-    { n: store.reminders.length, label: "Nhắc lịch", detail: "Mốc tuyển sinh", href: "/moc-tuyen-sinh", icon: LuBell },
   ];
 
   return (

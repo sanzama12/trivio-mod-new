@@ -5,13 +5,11 @@
  */
 import type {
   ImportBatch,
-  RecommendConfig,
   AppNotification,
   QaQuestion,
   ChatAlias,
   FunnelEvent,
   SusResponse,
-  TimelineConfig,
   AuditEntry,
   ChatLog,
   Combo,
@@ -28,7 +26,6 @@ import type {
   ShareComment,
   Subject,
   SupplementaryRound,
-  TimelineEvent,
   User,
   UserData,
 } from "@/domain/types";
@@ -131,10 +128,6 @@ export interface ProgramAdminRepository {
   listAudit(limit?: number): Promise<AuditEntry[]>;
 }
 
-export interface TimelineRepository {
-  findAll(): Promise<TimelineEvent[]>;
-}
-
 /** Nhật ký thay đổi dùng chung cho dữ liệu và nội dung quản trị. */
 export interface AuditRepository {
   append(entry: AuditEntry): Promise<void>;
@@ -161,12 +154,6 @@ export interface NotificationRepository {
   markRead(userId: string, ids?: string[]): Promise<number>;
 }
 
-/** Lịch tuyển sinh quản trị viên đã cập nhật (null = dùng file cấu hình gốc). */
-export interface TimelineConfigRepository {
-  get(): Promise<TimelineConfig | null>;
-  set(config: TimelineConfig | null): Promise<void>;
-}
-
 export interface ChatAliasRepository {
   list(): Promise<ChatAlias[]>;
   add(alias: ChatAlias): Promise<void>;
@@ -187,12 +174,6 @@ export interface SurveyRepository {
   list(): Promise<SusResponse[]>;
 }
 
-/** Ghi nhớ email nhắc hạn đã gửi (tránh gửi trùng). */
-export interface ReminderLogRepository {
-  sent(keys: string[]): Promise<Set<string>>;
-  add(keys: string[]): Promise<void>;
-}
-
 export interface SupplementaryRepository {
   list(): Promise<SupplementaryRound[]>;
 }
@@ -208,7 +189,6 @@ export interface QaRepository {
 
 /** Lớp của giáo viên chủ nhiệm. */
 
-
 /** Xác minh danh tính giáo viên (quy trình kiểm duyệt). */
 /** Quản trị danh mục (A02–A04): đọc cả bản ghi đang ẩn, thêm/sửa trường-ngành-chương trình. */
 export interface CatalogAdminRepository {
@@ -223,11 +203,6 @@ export interface CatalogAdminRepository {
   getProgram(id: string): Promise<Program | null>;
   createProgram(program: Program): Promise<void>;
   createProgramsBatch(programs: Program[]): Promise<void>;
-}
-
-export interface RecommendConfigRepository {
-  get(): Promise<RecommendConfig | null>;
-  save(cfg: RecommendConfig): Promise<void>;
 }
 
 export interface ImportBatchRepository {

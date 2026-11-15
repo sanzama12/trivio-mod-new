@@ -239,8 +239,6 @@ export interface User {
   under16: boolean;
   parentConsent: boolean;
   onboarded: boolean;
-  /** Đồng ý nhận email nhắc hạn tuyển sinh cho các mốc đã bật "Nhắc tôi". */
-  emailReminders?: boolean;
   /** Bị quản trị viên khoá: không đăng nhập được (kể cả Google, đặt lại mật khẩu) và mọi phiên mất hiệu lực. */
   disabled?: boolean;
   /** Lần đăng nhập gần nhất (thống kê quản trị). */
@@ -369,8 +367,6 @@ export interface UserData {
   saved: string[];
   wishlist: WishlistItem[];
   profile: StoredProfile | null;
-  /** id các mốc tuyển sinh người dùng bật "Nhắc tôi". */
-  reminders: string[];
   /** Mục tiêu đặt qua hội thoại (/muc-tieu); thiếu = chưa đặt. */
   goal?: Goal | null;
   /** Sở thích và môn thế mạnh do học sinh chủ động cung cấp cho bộ gợi ý ngành. */
@@ -428,7 +424,7 @@ export interface AuditEntry {
   /** id đối tượng bị thay đổi (tên trường giữ nguyên để tương thích nhật ký cũ). */
   programId: string;
   /** Loại đối tượng; thiếu = chương trình. */
-  targetType?: "program" | "qa" | "timeline" | "chat-alias" | "school" | "major" | "rules" | "import" | "user" | "school-submission";
+  targetType?: "program" | "qa" | "chat-alias" | "school" | "major" | "import" | "user" | "school-submission";
   action: "update" | "verify" | "reset" | "approve" | "reject" | "delete" | "create";
   changes: { field: string; before: string; after: string }[];
 }
@@ -447,22 +443,11 @@ export interface ChatLog {
   helpful: boolean | null;
 }
 
-/** Mốc tuyển sinh (cấu hình theo năm). */
-export interface TimelineEvent {
-  id: string;
-  title: string;
-  start: string; // YYYY-MM-DD
-  end?: string; // YYYY-MM-DD
-  category: "thi" | "dang-ky" | "ket-qua" | "nhap-hoc" | "dgnl";
-  desc: string;
-}
-
-
 // ---------------------------------------------------------------------------
-// Thông báo, cấu hình mốc tuyển sinh, từ khoá chatbot, thống kê, khảo sát
+// Thông báo, từ khoá chatbot, thống kê, khảo sát
 // ---------------------------------------------------------------------------
 
-export type NotificationKind = "reminder" | "supplementary" | "qa-answer" | "school-submission";
+export type NotificationKind = "supplementary" | "qa-answer" | "school-submission";
 
 /** Đợt xét tuyển bổ sung được quản trị và lưu trong PostgreSQL. */
 export interface SupplementaryRound {
@@ -502,18 +487,6 @@ export interface AppNotification {
   href: string | null;
   createdAt: string;
   read: boolean;
-}
-
-/** Lịch tuyển sinh do quản trị viên cập nhật (ghi đè file cấu hình). */
-export interface TimelineConfig {
-  season: string;
-  /** true = đã đối chiếu lịch chính thức của Bộ GD&ĐT (bắt buộc có đường dẫn nguồn). */
-  official: boolean;
-  sourceUrl: string | null;
-  note: string;
-  events: TimelineEvent[];
-  updatedAt: string;
-  updatedBy: string;
 }
 
 /** Từ khoá/cách gọi khác do quản trị viên thêm để chatbot nhận ra ngành/trường. */
@@ -576,28 +549,6 @@ export interface QaQuestion {
 // ---------------------------------------------------------------------------
 // Quản trị nâng cao (A01–A09) & cổng trường
 // ---------------------------------------------------------------------------
-
-export type RecRuleKind = "budget" | "diversity" | "goal-priority" | "min-years" | "boost-cutoff" | "boost-school-type";
-export type RecRuleStatus = "active" | "draft" | "disabled";
-
-export interface RecRule {
-  id: string;
-  kind: RecRuleKind;
-  name: string;
-  description: string;
-  version: string;
-  status: RecRuleStatus;
-  params: Record<string, number | string>;
-  builtin: boolean;
-  updatedAt: string;
-}
-
-export interface RecommendConfig {
-  /** Trọng số 4 tiêu chí (tổng = 100). */
-  weights: { interest: number; fit: number; place: number; group: number };
-  rules: RecRule[];
-  updatedAt: string | null;
-}
 
 /** Một lượt nhập dữ liệu hàng loạt (A07). */
 export interface ImportBatch {

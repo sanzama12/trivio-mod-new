@@ -14,9 +14,8 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
 
 export type UserDataInput = Omit<UserData, "updatedAt">;
 
-export const MAX_REMINDERS = 50;
 
-export const emptyUserData = (): UserData => ({ saved: [], wishlist: [], profile: null, reminders: [], goal: null, preferences: null, updatedAt: new Date(0).toISOString() });
+export const emptyUserData = (): UserData => ({ saved: [], wishlist: [], profile: null, goal: null, preferences: null, updatedAt: new Date(0).toISOString() });
 
 const REGIONS: Region[] = ["bac", "trung", "nam"];
 const COMBO_RE = /^[A-Z]\d{2}$/;
@@ -142,11 +141,7 @@ export function sanitizeUserData(input: unknown): UserDataInput {
     (w) => w.id,
   ).slice(0, MAX_WISHLIST);
   const profile = sanitizeProfile(src.profile);
-  const reminders = uniq(
-    (Array.isArray(src.reminders) ? src.reminders : []).filter((x): x is string => typeof x === "string" && ID_RE.test(x)),
-    (x) => x,
-  ).slice(0, MAX_REMINDERS);
-  return { saved, wishlist, profile, reminders, goal: sanitizeGoal(src.goal), preferences: sanitizeRecommendationPreferences(src.preferences) };
+  return { saved, wishlist, profile, goal: sanitizeGoal(src.goal), preferences: sanitizeRecommendationPreferences(src.preferences) };
 }
 
 const newer = <T>(a: T | null, b: T | null, at: (x: T) => string): T | null => {
@@ -171,10 +166,9 @@ export function mergeUserData(server: UserDataInput, local: UserDataInput): User
   const profile = newer(server.profile, local.profile, (x) => x.updatedAt);
   // Mục trong nguyện vọng luôn nằm trong danh sách đã lưu.
   for (const w of wishlist) if (!saved.includes(w.id)) saved.push(w.id);
-  const reminders = uniq([...server.reminders, ...local.reminders], (x) => x).slice(0, MAX_REMINDERS);
   const goal = newer(server.goal ?? null, local.goal ?? null, (x) => x.updatedAt);
   const preferences = newer(server.preferences ?? null, local.preferences ?? null, (x) => x.updatedAt);
-  return { saved, wishlist, profile, reminders, goal, preferences };
+  return { saved, wishlist, profile, goal, preferences };
 }
 
 async function onlyExistingPrograms(data: UserDataInput): Promise<UserDataInput> {
@@ -186,7 +180,6 @@ async function onlyExistingPrograms(data: UserDataInput): Promise<UserDataInput>
 export const userDataService = {
   async get(userId: string): Promise<UserData> {
     const data = await repositories.userData.get(userId);
-    // Dữ liệu lưu từ phiên bản cũ chưa có `reminders`.
     return data ? { ...sanitizeUserData(data), updatedAt: data.updatedAt } : emptyUserData();
   },
 

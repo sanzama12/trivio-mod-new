@@ -3,7 +3,7 @@
 /**
  * Thanh điều hướng tự co giãn — mọi mục luôn nằm trên MỘT dòng:
  * 1. Đo chiều rộng thật (theo font đang hiển thị, cỡ chữ người dùng, zoom trình duyệt…).
- * 2. Không đủ chỗ → lần lượt thu gọn: nhãn "Đã lưu" ngắn → chỉ biểu tượng + bỏ tên người dùng → chữ menu 14px
+ * 2. Không đủ chỗ → lần lượt thu gọn: bỏ tên người dùng → chữ menu 14px
  *    → chữ 13px và bỏ dòng khẩu hiệu dưới logo (giới hạn dưới, vẫn dễ đọc).
  * 3. Vẫn không đủ → chuyển sang giao diện di động (nút menu ☰), kể cả trên màn hình rộng.
  * Trước khi JavaScript chạy: dùng breakpoint CSS (≥ 1280px hiện menu ngang ở mức gọn; nút bên phải chỉ còn biểu tượng
@@ -12,21 +12,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { LuBookmark, LuCalendarDays, LuChevronDown, LuDatabase, LuHeart, LuLogOut, LuMenu, LuSchool, LuUser, LuX } from "react-icons/lu";
+import { LuBookmark, LuChevronDown, LuDatabase, LuLogOut, LuMenu, LuUser, LuX } from "react-icons/lu";
 import { cn } from "@/lib/cn";
 import { Avatar } from "@/components/ui/avatar";
-import { useTrovio } from "@/stores/trovio-store";
 import { buttonClass } from "@/components/ui/button";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Logo } from "./logo";
 
 const NAV = [
-  { href: "/chuong-trinh", label: "Tìm trường", match: ["/chuong-trinh", "/truong", "/diem-cua-toi"] },
-  { href: "/nganh", label: "Khám phá ngành", match: ["/nganh"] },
+  { href: "/truong", label: "Tìm trường", match: ["/truong"] },
+  { href: "/nganh", label: "Tìm ngành", match: ["/nganh"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
-  { href: "/moc-tuyen-sinh", label: "Mốc tuyển sinh", match: ["/moc-tuyen-sinh"] },
-  { href: "/tin-tuc", label: "Tin tức", match: ["/tin-tuc"] },
-  { href: "/tai-lieu", label: "Tài liệu", match: ["/tai-lieu"] },
+  { href: "/gioi-thieu", label: "Giới thiệu", match: ["/gioi-thieu"] },
+  { href: "/lien-he", label: "Liên hệ", match: ["/lien-he"] },
+  { href: "/ung-ho", label: "Ủng hộ", match: ["/ung-ho"] },
 ];
 
 /** 0 = rộng rãi nhất … 4 = gọn nhất (chữ 13px); "mobile" = menu ☰. */
@@ -40,7 +39,6 @@ type HeaderUser = { name: string; email: string; avatarUrl: string | null; admin
 export function HeaderClient({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { wishlist, saved, hydrated } = useTrovio();
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   /** null = chưa đo (trước khi JS chạy) → dùng breakpoint CSS. */
@@ -74,8 +72,6 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
     };
   }, []);
 
-  const count = hydrated ? new Set([...saved, ...wishlist.map((w) => w.id)]).size : 0;
-
   /** Đo lại: bắt đầu từ mức rộng nhất, mỗi lần tràn thì thu gọn một bậc (chạy trước khi vẽ nên không nháy). */
   const remeasure = useCallback(() => {
     const row = rowRef.current;
@@ -95,7 +91,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
     const avail = row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const need = left.scrollWidth + right.scrollWidth + 24;
     if (need > avail) setMode(NEXT[mode]);
-  }, [mode, user, count, tick]);
+  }, [mode, user, tick]);
 
   useEffect(() => {
     const row = rowRef.current;
@@ -111,11 +107,9 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   }, [remeasure]);
 
   const isActive = (m: string[]) => m.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const onSavedPage = pathname.startsWith("/da-luu");
   const mobile = mode === "mobile";
   // Chưa đo (HTML từ server, trước khi JS chạy): dùng mức gọn (2) để không tràn ngang trên điện thoại lẫn màn 1280px.
   const level = typeof mode === "number" ? mode : mode === null ? 2 : 1;
-  const compactRight = mobile || mode === null;
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -129,7 +123,6 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
   // Thứ tự thu gọn: ưu tiên giữ cỡ chữ menu (dễ đọc) → rút gọn nút bên phải trước, rồi mới giảm chữ.
   const navText = level <= 2 ? "text-[15px]" : level === 3 ? "text-sm" : "text-[13px]";
   const navGap = level === 0 ? "gap-7" : level === 1 ? "gap-6" : level <= 3 ? "gap-5" : "gap-4";
-  const savedLabel = level === 0 ? "full" : level === 1 ? "short" : "icon";
   const showName = level <= 1;
   const showTagline = level <= 3;
 
@@ -146,22 +139,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
           <div ref={leftRef} className={cn("flex shrink-0 items-center", level <= 1 ? "gap-10" : "gap-6")}>
             <Logo compact={!showTagline} taglineFromSm />
             <nav aria-label="Điều hướng chính" className={cn("items-center whitespace-nowrap", navVisible, navText, navGap)}>
-              {NAV.slice(0, 3).map((n) => (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  aria-current={isActive(n.match) ? "page" : undefined}
-                  data-tour={undefined}
-                  className={cn(
-                    "relative py-2 transition-colors",
-                    isActive(n.match) ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
-                  )}
-                >
-                  {n.label}
-                  {isActive(n.match) && <span aria-hidden className="absolute inset-x-0 -bottom-[22px] h-0.5 rounded-full bg-primary-600" />}
-                </Link>
-              ))}
-              {NAV.slice(3).map((n) => (
+              {NAV.map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}
@@ -179,28 +157,6 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
           </div>
 
           <div ref={rightRef} className="flex shrink-0 items-center gap-2 whitespace-nowrap sm:gap-3">
-            <Link
-              href="/da-luu"
-              data-tour="saved"
-              aria-label={savedLabel === "icon" || mobile ? `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}` : undefined}
-              title="Đã lưu & Nguyện vọng"
-              className={cn(
-                "h-10 items-center gap-2 rounded-full border text-sm font-medium transition-colors",
-                compactRight ? "hidden sm:flex" : "flex",
-                savedLabel === "icon" || mobile ? "px-3" : "px-4",
-                onSavedPage ? "border-primary-200 bg-primary-50 font-semibold text-primary-700" : "border-slate-200 text-slate-700 hover:border-primary-200",
-              )}
-            >
-              <LuHeart className="size-4 shrink-0" aria-hidden />
-              {!mobile && savedLabel === "full" && <span>Đã lưu & Nguyện vọng</span>}
-              {!mobile && savedLabel === "short" && <span>Đã lưu</span>}
-              {count > 0 && (
-                <span aria-hidden={savedLabel === "icon" || mobile} className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-[11px] font-bold text-slate-900">
-                  {count}
-                </span>
-              )}
-            </Link>
-
             {user && <NotificationBell />}
 
             {user ? (
@@ -226,9 +182,6 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                     </Link>
                     <Link role="menuitem" href="/da-luu" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                       <LuBookmark className="size-4" aria-hidden /> Đã lưu & Nguyện vọng
-                    </Link>
-                    <Link role="menuitem" href="/moc-tuyen-sinh" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                      <LuCalendarDays className="size-4" aria-hidden /> Mốc tuyển sinh
                     </Link>
                     {user.admin ? (
                       <Link role="menuitem" href="/quan-tri" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
@@ -268,7 +221,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
         {open && (
           <nav id="menu-di-dong" aria-label="Menu di động" className="border-t border-slate-200 bg-white">
             <div className="container-page grid gap-1 py-2 sm:grid-cols-2">
-              {[...NAV, { href: "/da-luu", label: `Đã lưu & Nguyện vọng${count ? ` (${count})` : ""}`, match: ["/da-luu"] }].map((n) => (
+              {NAV.map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}

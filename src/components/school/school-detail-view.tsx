@@ -40,7 +40,7 @@ interface SchoolDetailViewProps {
   programs: ProgramView[];
 }
 
-type TabKey = "programs" | "overview" | "admission" | "tuition";
+type TabKey = "programs" | "admission" | "tuition";
 
 export function SchoolDetailView({ school, programs }: SchoolDetailViewProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("programs");
@@ -123,6 +123,7 @@ export function SchoolDetailView({ school, programs }: SchoolDetailViewProps) {
     });
   }, [programs, searchQuery, selectedGroup]);
 
+  const majorCount = new Set(programs.map(({ major }) => major.id)).size;
   const schoolType = SCHOOL_TYPE_LABELS[school.type] || "Đại học Công lập";
   const regionLabel = REGION_LABELS[school.region] || "Toàn quốc";
 
@@ -152,14 +153,14 @@ export function SchoolDetailView({ school, programs }: SchoolDetailViewProps) {
 
         {/* Khối thông tin trung tâm trường học */}
         <div className="relative px-6 pb-6 pt-0 sm:px-8 sm:pb-8">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between -mt-16 sm:-mt-20">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             {/* Logo trường */}
             <div className="flex items-end gap-4 sm:gap-5">
-              <div className="relative flex size-24 sm:size-28 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-white p-1 shadow-md">
+              <div className="relative -mt-12 flex size-24 sm:-mt-14 sm:size-28 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-white p-1 shadow-md">
                 <SchoolLogo school={school} size="lg" priority className="size-full rounded-xl" />
               </div>
 
-              <div className="pt-2 sm:pt-0">
+              <div className="min-w-0 pt-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-md bg-stone-900 px-2.5 py-0.5 text-xs font-bold text-amber-300 tracking-wide uppercase">
                     Mã: {school.code}
@@ -226,10 +227,10 @@ export function SchoolDetailView({ school, programs }: SchoolDetailViewProps) {
             <div className="rounded-2xl border border-[#EDE8DF] bg-[#FAF8F5] p-3.5 sm:p-4">
               <div className="flex items-center gap-2 text-xs font-semibold text-stone-500">
                 <LuGraduationCap className="size-4 text-[#00629B]" />
-                <span>Chương trình đào tạo</span>
+                <span>Ngành đào tạo</span>
               </div>
               <p className="mt-1.5 text-xl sm:text-2xl font-black text-stone-900">
-                {programs.length} <span className="text-xs font-bold text-stone-500">ngành</span>
+                {majorCount} <span className="text-xs font-bold text-stone-500">ngành</span>
               </p>
             </div>
 
@@ -271,10 +272,125 @@ export function SchoolDetailView({ school, programs }: SchoolDetailViewProps) {
       {/* ======================================================== */}
       {/* 2. THANH CHUYỂN TAB ĐIỀU HƯỚNG CHI TIẾT */}
       {/* ======================================================== */}
-      <nav aria-label="Điều hướng chi tiết trường học" className="mt-8 flex flex-wrap gap-2 border-b border-stone-200 pb-3">
+      {/* --- TAB 2: TỔNG QUAN & CƠ SỞ ĐÀO TẠO --- */}
+
+        <section aria-labelledby="heading-overview" className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <h2 id="heading-overview" className="sr-only">Tổng quan trường và cơ sở đào tạo</h2>
+          {/* Cột trái: Mô tả và thế mạnh trường */}
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-[#EDE8DF] bg-white p-6 sm:p-8 shadow-xs">
+              <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                <LuBuilding2 className="size-5 text-[#00629B]" />
+                <span>Giới thiệu về trường</span>
+              </h3>
+              <p className="mt-4 text-[15px] leading-relaxed text-stone-700 whitespace-pre-line">
+                {school.description || `Thông tin giới thiệu chi tiết về ${school.name} đang được cập nhật.`}
+              </p>
+
+              {school.highlight ? (
+                <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-800">
+                    <LuSparkles className="size-4 text-amber-600" />
+                    <span>Điểm nổi bật & Thế mạnh đào tạo</span>
+                  </div>
+                  <p className="mt-2 text-sm sm:text-base font-semibold leading-relaxed text-amber-950">
+                    {school.highlight}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Thông tin website & cổng tuyển sinh */}
+            <div className="rounded-3xl border border-[#EDE8DF] bg-white p-6 sm:p-8 shadow-xs">
+              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                <LuCompass className="size-5 text-emerald-600" />
+                <span>Kênh thông tin chính thức</span>
+              </h3>
+              <div className="mt-4 space-y-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
+                  <span className="text-stone-500">Website tuyển sinh:</span>
+                  {school.website ? <a
+                    href={school.website}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="font-bold text-[#00629B] hover:underline inline-flex items-center gap-1"
+                  >
+                    <span className="break-all">{school.website.replace(/^https?:\/\//, "")}</span>
+                    <LuArrowUpRight className="size-4" />
+                  </a> : <span className="text-stone-500">Đang cập nhật</span>}
+                </div>
+                <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
+                  <span className="text-stone-500">Mã trường quy ước:</span>
+                  <span className="font-mono font-bold text-stone-900">{school.code}</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
+                  <span className="text-stone-500">Loại hình:</span>
+                  <span className="font-bold text-stone-900">{schoolType}</span>
+                </div>
+                {school.founded > 0 && <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
+                  <span className="text-stone-500">Năm thành lập:</span>
+                  <span className="font-bold text-stone-900">{school.founded}</span>
+                </div>}
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-500">Khu vực địa lý:</span>
+                  <span className="font-bold text-stone-900">{regionLabel}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cột phải: Danh sách cơ sở đào tạo */}
+          <div>
+            <div className="rounded-3xl border border-[#EDE8DF] bg-white p-6 sm:p-7 shadow-xs">
+              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                <LuMapPin className="size-5 text-rose-500" />
+                <span>Hệ thống cơ sở đào tạo</span>
+              </h3>
+
+              <div className="mt-4 space-y-3">
+                {school.campuses && school.campuses.length > 0 ? (
+                  school.campuses.map((campus, idx) => (
+                    <div
+                      key={campus}
+                      className="rounded-2xl border border-stone-200 bg-[#FAF8F5] p-4 transition-colors hover:border-stone-300"
+                    >
+                      <p className="text-xs font-bold text-stone-500 uppercase tracking-wide">
+                        {idx === 0 ? "Trụ sở chính" : `Cơ sở đào tạo ${idx + 1}`}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold leading-snug text-stone-900">
+                        {campus}
+                      </p>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${school.name} ${campus}`)}`}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="mt-2.5 inline-flex items-center gap-1 text-xs font-bold text-[#00629B] hover:underline"
+                      >
+                        <LuMapPin className="size-3.5" />
+                        <span>Xem bản đồ đường đi</span>
+                      </a>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl bg-stone-50 p-4 text-sm text-stone-600">
+                    Địa chỉ tại thành phố {school.city}. Vui lòng tham khảo đề án tuyển sinh chính thức để biết các điểm học tập cụ thể.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+
+      <div id="nganh-dao-tao" className="mt-10 scroll-mt-24">
+        <h2 className="text-2xl font-bold tracking-tight text-stone-900">Trường đào tạo những ngành gì?</h2>
+        <p className="mt-2 text-sm text-stone-600">{majorCount} ngành với {programs.length} chương trình đào tạo. Chọn chương trình để xem thông tin tuyển sinh chi tiết.</p>
+      </div>
+      <nav aria-label="Điều hướng thông tin đào tạo" className="mt-5 flex flex-wrap gap-2 border-b border-stone-200 pb-3">
         {[
           { key: "programs", label: `Chương trình đào tạo (${programs.length})`, icon: LuGraduationCap },
-          { key: "overview", label: "Giới thiệu & Cơ sở", icon: LuBuilding2 },
+
           { key: "admission", label: `Phương thức tuyển sinh (${admissionMethods.length})`, icon: LuCalendarCheck },
           { key: "tuition", label: "Học phí & Học bổng", icon: LuCoins },
         ].map((tab) => {
@@ -460,108 +576,6 @@ export function SchoolDetailView({ school, programs }: SchoolDetailViewProps) {
               })}
             </div>
           )}
-        </section>
-      ) : null}
-
-      {/* --- TAB 2: TỔNG QUAN & CƠ SỞ ĐÀO TẠO --- */}
-      {activeTab === "overview" ? (
-        <section aria-labelledby="heading-overview" className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
-          <h2 id="heading-overview" className="sr-only">Tổng quan trường và cơ sở đào tạo</h2>
-          {/* Cột trái: Mô tả và thế mạnh trường */}
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-[#EDE8DF] bg-white p-6 sm:p-8 shadow-xs">
-              <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
-                <LuBuilding2 className="size-5 text-[#00629B]" />
-                <span>Giới thiệu về trường</span>
-              </h3>
-              <p className="mt-4 text-[15px] leading-relaxed text-stone-700 whitespace-pre-line">
-                {school.description || `${school.name} là một trong những cơ sở giáo dục đại học uy tín hàng đầu tại Việt Nam, sở hữu đội ngũ giảng viên giàu kinh nghiệm, môi trường học thuật tiên tiến và mối quan hệ chặt chẽ với các doanh nghiệp trong và ngoài nước.`}
-              </p>
-
-              {school.highlight ? (
-                <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-800">
-                    <LuSparkles className="size-4 text-amber-600" />
-                    <span>Điểm nổi bật & Thế mạnh đào tạo</span>
-                  </div>
-                  <p className="mt-2 text-sm sm:text-base font-semibold leading-relaxed text-amber-950">
-                    {school.highlight}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Thông tin website & cổng tuyển sinh */}
-            <div className="rounded-3xl border border-[#EDE8DF] bg-white p-6 sm:p-8 shadow-xs">
-              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-                <LuCompass className="size-5 text-emerald-600" />
-                <span>Kênh thông tin chính thức</span>
-              </h3>
-              <div className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
-                  <span className="text-stone-500">Website tuyển sinh:</span>
-                  <a
-                    href={school.website}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="font-bold text-[#00629B] hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>{school.website ? school.website.replace("https://", "") : "Đang cập nhật"}</span>
-                    <LuArrowUpRight className="size-4" />
-                  </a>
-                </div>
-                <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
-                  <span className="text-stone-500">Mã trường quy ước:</span>
-                  <span className="font-mono font-bold text-stone-900">{school.code}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-stone-500">Khu vực địa lý:</span>
-                  <span className="font-bold text-stone-900">{regionLabel}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Cột phải: Danh sách cơ sở đào tạo */}
-          <div>
-            <div className="rounded-3xl border border-[#EDE8DF] bg-white p-6 sm:p-7 shadow-xs">
-              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-                <LuMapPin className="size-5 text-rose-500" />
-                <span>Hệ thống cơ sở đào tạo</span>
-              </h3>
-
-              <div className="mt-4 space-y-3">
-                {school.campuses && school.campuses.length > 0 ? (
-                  school.campuses.map((campus, idx) => (
-                    <div
-                      key={campus}
-                      className="rounded-2xl border border-stone-200 bg-[#FAF8F5] p-4 transition-colors hover:border-stone-300"
-                    >
-                      <p className="text-xs font-bold text-stone-500 uppercase tracking-wide">
-                        {idx === 0 ? "Trụ sở chính" : `Cơ sở đào tạo ${idx + 1}`}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold leading-snug text-stone-900">
-                        {campus}
-                      </p>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${school.name} ${campus}`)}`}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="mt-2.5 inline-flex items-center gap-1 text-xs font-bold text-[#00629B] hover:underline"
-                      >
-                        <LuMapPin className="size-3.5" />
-                        <span>Xem bản đồ đường đi</span>
-                      </a>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-xl bg-stone-50 p-4 text-sm text-stone-600">
-                    Địa chỉ tại thành phố {school.city}. Vui lòng tham khảo đề án tuyển sinh chính thức để biết các điểm học tập cụ thể.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </section>
       ) : null}
 

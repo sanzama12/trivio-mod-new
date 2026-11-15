@@ -1,5 +1,6 @@
 import { repositories, type DonationRecord, type DonationStats } from "@database/repositories";
-import { buildVnpayPaymentUrl, verifyVnpayCallback } from "./vnpay.service";
+import { buildVnpayPaymentUrl, isVnpayConfigured, verifyVnpayCallback } from "./vnpay.service";
+import { randomUUID } from "node:crypto";
 import { emailError } from "@/lib/email-validation";
 
 export interface CreateDonationInput {
@@ -23,6 +24,8 @@ export class DonationValidationError extends Error {
     this.name = "DonationValidationError";
   }
 }
+
+export class DonationUnavailableError extends Error {}
 
 // In-memory cache để loại bỏ query chậm trên trang chủ và API public
 let cachedStats: DonationStats | null = null;
@@ -59,7 +62,7 @@ export const donationService = {
 
     let donorName = (input.donorName || "").trim();
     if (!donorName) {
-      donorName = "Nhà hảo tâm giấu tên";
+      donorName = "Người ủng hộ ẩn danh";
     } else if (donorName.length > 80) {
       donorName = donorName.slice(0, 80);
     }
@@ -79,8 +82,12 @@ export const donationService = {
     }
 
     // Tạo mã tham chiếu giao dịch độc nhất: TROVIO_TIME_RANDOM
-    const txnRef = `TROVIO_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const orderInfo = `Ung ho Trieu Nu Cuoi TriOVO - ${donorName}`;
+    if (!isVnpayConfigured()) throw new DonationUnavailableError("Cổng thanh toán đang chờ cấu hình. Vui lòng liên hệ đội ngũ Trovio.");
+    if (input.bankCode && !["VNPAYQR", "VNBANK", "INTCARD"].includes(input.bankCode)) {
+      throw new DonationValidationError("Phương thức thanh toán không hợp lệ.");
+    }
+    const txnRef = `TROVIO_${randomUUID().replaceAll("-", "")}`;
+    const orderInfo = `Ung ho Trovio ${txnRef}`;
 
     // Lưu bản ghi trạng thái pending vào cơ sở dữ liệu
     const donation = await repositories.donations.create({
@@ -136,6 +143,10 @@ export const donationService = {
       };
     }
 
+    if (Number(existing.amount) !== verified.amount) {
+      return { success: false, message: "Số tiền xác thực không khớp với giao dịch.", donation: null };
+    }
+
     // Cập nhật trạng thái nếu đơn vẫn đang pending
     if (existing.status === "pending") {
       const updated = await repositories.donations.updatePaymentResult(verified.txnRef, {
@@ -150,12 +161,13 @@ export const donationService = {
       // Xóa cache thống kê & danh sách để cập nhật doanh thu ngay lập tức
       invalidateDonationCache();
 
+      const confirmed = updated ?? await repositories.donations.getByTxnRef(verified.txnRef) ?? existing;
       return {
-        success: verified.isSuccess,
-        message: verified.isSuccess
+        success: confirmed.status === "success",
+        message: confirmed.status === "success"
           ? "Thanh toán ủng hộ thành công! Chân thành cảm ơn tấm lòng hảo tâm của bạn."
           : `Giao dịch chưa hoàn tất (Mã lỗi: ${verified.responseCode}).`,
-        donation: updated ?? existing,
+        donation: confirmed,
       };
     }
 

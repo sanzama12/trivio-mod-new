@@ -30,7 +30,9 @@ export class V1CatalogController {
       const params = request.nextUrl.searchParams;
       const page = positiveInteger(params.get("page"), 1);
       const limit = positiveInteger(params.get("limit"), 20);
-      const result = await catalogService.searchSchools({
+      const result = params.get("filtered") === "1" ? await programService.searchSchools({
+        ...parseProgramFilters(Object.fromEntries(params)), page, pageSize: limit,
+      }) : await catalogService.searchSchools({
         q: params.get("q")?.trim() || undefined,
         region: (params.get("region") || undefined) as Region | undefined,
         type: (params.get("type") || undefined) as SchoolType | undefined,

@@ -1,0 +1,115 @@
+/* Đục & port từ mona.media/lien-he (template/css/merge.min.css, 1.6MB)
+ * — .form-cus: input border-bottom + label absolute trượt lên khi focus/filled
+ *   (input:focus+.label, input:not(:placeholder-shown)+.label → translateY(-100%))
+ * — .form-tab: tab pill nền pastel, active nền thương hiệu chữ trắng
+ * — .fcts-mid-link: thẻ kênh liên hệ, hover translateY(-.5rem), bo 1.6rem
+ * — .tab-panel: display none/block + zoomIn .4s
+ * Đổi: màu Trovio (teal/dạ quang) thay tím/cam mona. */
+
+/* ===== Floating label — form-cus ===== */
+.field {
+  position: relative;
+}
+
+.fieldLabel {
+  position: absolute;
+  left: 0;
+  bottom: 0.7rem;
+  font-size: 0.95rem;
+  color: #94a3b8;
+  pointer-events: none;
+  transform-origin: left bottom;
+  transition: transform 0.3s ease, color 0.3s ease;
+  background: transparent;
+}
+
+.fieldInput {
+  width: 100%;
+  padding: 1.6rem 0 0.6rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
+  font-size: 0.95rem;
+  transition: border-color 0.3s ease;
+}
+
+.fieldInput::placeholder {
+  color: transparent;
+}
+
+.fieldInput:focus {
+  outline: none;
+  border-color: #0b5b5c;
+}
+
+.fieldTextarea {
+  composes: fieldInput;
+  min-height: 8rem;
+  resize: vertical;
+}
+
+/* label trượt lên khi focus hoặc đã có nội dung — đúng như gốc */
+.fieldInput:focus + .fieldLabel,
+.fieldInput:not(:placeholder-shown) + .fieldLabel,
+.fieldTextarea:focus + .fieldLabel,
+.fieldTextarea:not(:placeholder-shown) + .fieldLabel {
+  transform: translateY(-1.35rem) scale(0.78);
+  color: #0b5b5c;
+}
+
+.fieldInput:focus + .fieldLabel::after,
+.fieldInput:not(:placeholder-shown) + .fieldLabel::after {
+  content: "";
+}
+
+/* dấu sao đỏ cho trường bắt buộc — cần trong label */
+.fieldLabel .req {
+  color: #d92d20;
+}
+
+/* ===== Tab panel — zoomIn .4s của mona ===== */
+.tabPanel {
+  animation: contactZoomIn 0.4s ease forwards;
+}
+
+@keyframes contactZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ===== Channel card — fcts-mid-link ===== */
+.channelCard {
+  transition:
+    transform 0.3s ease-in-out,
+    box-shadow 0.3s ease-in-out;
+}
+
+.channelCard:hover {
+  transform: translateY(-0.5rem);
+  box-shadow: 0 14px 32px rgb(8 15 52 / 0.1);
+}
+
+/* chấm tròn trước nhãn "phong cách" — fcts-mid-txt::before */
+.channelStyleTag {
+  position: relative;
+  padding-left: 1.6rem;
+}
+
+.channelStyleTag::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  background: var(--tag-dot, #0b5b5c);
+  transform: translateY(-50%);
+}

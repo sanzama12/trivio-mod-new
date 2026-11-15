@@ -7,11 +7,16 @@ export interface VnpayConfig {
   returnUrl: string;
 }
 
+export function isVnpayConfigured(): boolean {
+  return Boolean(process.env.VNPAY_TMN_CODE?.trim() && process.env.VNPAY_HASH_SECRET?.trim());
+}
+
 export function getVnpayConfig(): VnpayConfig {
+  if (!isVnpayConfigured()) throw new Error("Cổng thanh toán chưa được cấu hình.");
   const appUrl = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
   return {
-    tmnCode: process.env.VNPAY_TMN_CODE || "CGXZLS0Z",
-    hashSecret: process.env.VNPAY_HASH_SECRET || "RAOCTPGSKOWEHJTXDDFN dynamic",
+    tmnCode: process.env.VNPAY_TMN_CODE!.trim(),
+    hashSecret: process.env.VNPAY_HASH_SECRET!.trim(),
     url: process.env.VNPAY_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
     returnUrl: process.env.VNPAY_RETURN_URL || `${appUrl}/api/donations/vnpay-return`,
   };
@@ -75,7 +80,7 @@ export function buildVnpayPaymentUrl(params: BuildPaymentUrlParams): string {
     if (val !== undefined && val !== null && val.length > 0) {
       searchParams.set(key, val);
       // Chuẩn hóa signData: encodeURIComponent hoặc định dạng raw key=val
-      signDataParts.push(`${key}=${encodeURIComponent(val)}`);
+      signDataParts.push(`${key}=${encodeURIComponent(val).replace(/%20/g, "+")}`);
     }
   }
 
@@ -130,7 +135,7 @@ export function verifyVnpayCallback(
   for (const key of sortedKeys) {
     const val = cleanParams[key];
     if (val !== undefined && val !== null && val.length > 0) {
-      signDataParts.push(`${key}=${encodeURIComponent(val)}`);
+      signDataParts.push(`${key}=${encodeURIComponent(val).replace(/%20/g, "+")}`);
     }
   }
 
@@ -139,17 +144,18 @@ export function verifyVnpayCallback(
   const calculatedHash = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
 
   const isValid =
-    receivedHash.length > 0 &&
-    calculatedHash.toLowerCase() === receivedHash.toLowerCase();
+    receivedHash.length > 0 && cleanParams.vnp_TmnCode === config.tmnCode &&
+    receivedHash.length === calculatedHash.length &&
+    crypto.timingSafeEqual(Buffer.from(calculatedHash.toLowerCase()), Buffer.from(receivedHash.toLowerCase()));
 
   const responseCode = cleanParams.vnp_ResponseCode || "99";
   const rawAmount = Number(cleanParams.vnp_Amount || 0);
 
   return {
     isValid,
-    isSuccess: isValid && responseCode === "00",
+    isSuccess: isValid && responseCode === "00" && cleanParams.vnp_TransactionStatus === "00",
     txnRef: cleanParams.vnp_TxnRef || "",
-    amount: rawAmount ? Math.round(rawAmount / 100) : 0,
+    amount: Number.isSafeInteger(rawAmount) && rawAmount > 0 ? rawAmount / 100 : 0,
     transactionNo: cleanParams.vnp_TransactionNo || null,
     bankCode: cleanParams.vnp_BankCode || null,
     cardType: cleanParams.vnp_CardType || null,

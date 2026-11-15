@@ -2,15 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { LuArrowRight } from "react-icons/lu";
 import { catalogService, programService } from "@/services";
-import { admissionTimeline, TIMELINE_SEASON } from "@/domain/admission-reference";
 import { HeroSearch } from "@/components/home/hero-search";
 import { JourneySteps } from "@/components/home/journey-steps";
 import { MajorGroupCard } from "@/components/catalog/major-group-card";
-
-const fmtDay = (iso: string) => {
-  const [, m, d] = iso.split("-").map(Number);
-  return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}`;
-};
 
 export default async function HomePage() {
   const [groups, stats, schools, majors] = await Promise.all([
@@ -20,8 +14,6 @@ export default async function HomePage() {
     catalogService.getMajors(),
   ]);
   const groupNames = new Map(groups.map(({ group }) => [group.id, group.name]));
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = admissionTimeline.filter((e) => (e.end ?? e.start) >= today).slice(0, 6);
 
   return (
     <>
@@ -37,7 +29,7 @@ export default async function HomePage() {
         <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-slate-950/40 via-slate-950/10 to-transparent" />
         <div className="container-page relative py-16 sm:py-24 lg:py-32">
           <p className="inline-flex items-center gap-2 bg-accent-500 px-3 py-1 text-[13px] font-black text-slate-900">
-            Tuyển sinh {TIMELINE_SEASON} · {stats.schools.toLocaleString("vi-VN")} trường · {stats.programs.toLocaleString("vi-VN")} chương trình
+            Tuyển sinh {new Date().getFullYear()} · {stats.schools.toLocaleString("vi-VN")} trường · {stats.programs.toLocaleString("vi-VN")} chương trình
           </p>
           <h1 className="mt-5 max-w-2xl text-4xl leading-[1.02] font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
             Biết điểm, chọn ngành.
@@ -59,28 +51,6 @@ export default async function HomePage() {
           <p className="mt-4 text-sm text-slate-300">
             Bắt đầu nhanh: <Link href="/diem-cua-toi" className="font-bold text-accent-200 underline underline-offset-4">nhập điểm</Link> rồi xem <Link href="/chuong-trinh" className="font-bold text-accent-200 underline underline-offset-4">chương trình phù hợp</Link>.
           </p>
-        </div>
-      </section>
-
-      {/* Dải lịch mốc: cuộn ngang */}
-      <section className="border-y-2 border-slate-900 bg-accent-100" aria-labelledby="lich-moc">
-        <div className="container-page py-8">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <h2 id="lich-moc" className="text-xl font-black tracking-tight text-slate-900 md:text-2xl">
-              Lịch mốc sắp tới
-            </h2>
-            <Link href="/moc-tuyen-sinh" className="flex items-center gap-1 text-sm font-bold text-slate-900 hover:underline">
-              Toàn bộ lịch <LuArrowRight className="size-4" aria-hidden />
-            </Link>
-          </div>
-          <div className="mt-5 flex gap-3 overflow-x-auto pb-2">
-            {upcoming.map((e) => (
-              <Link key={e.id} href="/moc-tuyen-sinh" className="w-60 shrink-0 border-2 border-slate-900 bg-white p-4 hover:bg-slate-900 hover:text-white">
-                <p className="text-2xl font-black tabular-nums">{fmtDay(e.start)}</p>
-                <p className="mt-1 line-clamp-3 min-h-12 text-[13px] leading-snug font-medium">{e.title}</p>
-              </Link>
-            ))}
-          </div>
         </div>
       </section>
 

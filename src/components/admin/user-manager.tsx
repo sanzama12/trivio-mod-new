@@ -13,7 +13,7 @@ import { Dialog, Drawer, Pager, paginate } from "./overlay";
 import { useAdminPost } from "./use-admin-post";
 import { ago, fmtDate, inputCls, Panel, selectCls, td, th } from "./ui";
 
-type Detail = { user: { id: string; email: string; verified: boolean; hasPassword: boolean; hasGoogle: boolean; gradYear: number | null; province: string | null; under16: boolean }; usage: { saved: number; wishlist: number; hasScores: boolean; reminders: number } };
+type Detail = { user: { id: string; email: string; verified: boolean; hasPassword: boolean; hasGoogle: boolean; gradYear: number | null; province: string | null; under16: boolean }; usage: { saved: number; wishlist: number; hasScores: boolean } };
 
 const STATUS: Record<AdminUserRow["status"], { label: string; tone: BadgeTone }> = {
   active: { label: "Hoạt động", tone: "success" },
@@ -198,7 +198,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Mức sử dụng (không hiện dữ liệu cá nhân chi tiết)</p>
                 <p className="mt-2 text-slate-700">
-                  {detail.usage.saved} chương trình đã lưu · {detail.usage.wishlist} nguyện vọng · {detail.usage.hasScores ? "đã" : "chưa"} nhập điểm · {detail.usage.reminders} nhắc hạn
+                  {detail.usage.saved} chương trình đã lưu · {detail.usage.wishlist} nguyện vọng · {detail.usage.hasScores ? "đã" : "chưa"} nhập điểm
                 </p>
               </div>
             )}

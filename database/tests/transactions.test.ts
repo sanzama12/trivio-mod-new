@@ -46,3 +46,45 @@ test('reimporting renamed program reuses school/code identity without creating e
   assert.equal(failed.ok,false);
   assert.equal(ctx.programs.length,1);
 });
+
+test('unified entry preserves existing legacy major codes while rejecting new invalid codes', async () => {
+  for (const code of ['7991234', '7480201_CLC']) {
+    const ctx: UnifiedEntryContext = {
+      schools: [{id:'school-old',slug:'school',code:'ABC',name:'Trường ABC',shortName:'ABC',type:'cong-lap',region:'bac',city:'Hà Nội',campuses:['Hà Nội'],founded:0,students:0,highlight:'',website:'',logoUrl:null,description:'',scholarships:''}],
+      majors: [{id:'major-old',slug:'it',code,name:'Công nghệ thông tin',groupId:'cntt',riasec:['I','R','C'],summary:'',description:''}],
+      programs: [], schoolsToSave: [], majorsToSave: [], programsToInsert: [], skipAudit: true,
+    };
+    const actor = {id:'actor',email:'actor@example.test',name:'Actor'} as PublicUser;
+    const input = {schoolCode:'ABC',majorName:'Công nghệ thông tin',majorCode:code,admissionCode:'IT1'};
+    assert.equal((await unifiedEntryService.save(actor, input, ctx)).ok, true);
+    assert.equal((await unifiedEntryService.save(actor, {...input,id:ctx.programs[0].id,score:24}, ctx)).ok, true);
+    assert.equal(ctx.programs[0].majorId, 'major-old');
+    assert.equal(ctx.programs[0].cutoffs[0].score, 24);
+    assert.equal(ctx.majorsToSave?.length, 0);
+    for (const invalid of ['7999999', 'IT2', '748020']) {
+      const result = await unifiedEntryService.save(actor, {...input,majorName:'Ngành chưa xác định',majorCode:invalid,admissionCode:'OTHER'}, ctx);
+      assert.equal(result.ok, false);
+      assert.equal(ctx.programs.length, 1);
+    }
+  }
+});
+
+test('unified entry resolves numbered major codes consistently, including admission fallback', async () => {
+  for (const code of ['7480201', '1-7480201', '1 7480201', '1.7480201', '(1) 7480201']) {
+    for (const explicit of [true, false]) {
+      const ctx: UnifiedEntryContext = {
+        schools: [{id:'school-old',slug:'school',code:'ABC',name:'Trường ABC',shortName:'ABC',type:'cong-lap',region:'bac',city:'Hà Nội',campuses:['Hà Nội'],founded:0,students:0,highlight:'',website:'',logoUrl:null,description:'',scholarships:''}],
+        majors: [{id:'major-old',slug:'it',code:'7480201',name:'Công nghệ thông tin',groupId:'cntt',riasec:['I','R','C'],summary:'',description:''}],
+        programs: [], schoolsToSave: [], majorsToSave: [], programsToInsert: [], skipAudit: true,
+      };
+      const actor = {id:'actor',email:'actor@example.test',name:'Actor'} as PublicUser;
+      const result = await unifiedEntryService.save(actor, {
+        schoolCode:'ABC',majorName:'Chương trình chuyên sâu',
+        majorCode:explicit ? code : undefined, admissionCode:explicit ? 'IT1' : code,
+      }, ctx);
+      assert.equal(result.ok, true, `${code}, explicit=${explicit}`);
+      assert.equal(ctx.programs[0].majorId, 'major-old');
+      assert.equal(ctx.majorsToSave?.length, 0);
+    }
+  }
+});

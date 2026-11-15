@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Tải SAU các tiện ích nặng không cần cho lần hiển thị đầu (trợ lý chat, hướng dẫn 6 bước, thanh cookie, cảnh báo phiên, hộp thoại ủng hộ):
+ * Tải SAU các tiện ích nặng không cần cho lần hiển thị đầu (trợ lý chat, hướng dẫn 6 bước, thanh cookie, cảnh báo phiên):
  * tách khỏi gói JS chung → trang hiện nhanh hơn, chuyển tab nhẹ hơn.
  */
 import dynamic from "next/dynamic";
@@ -11,15 +11,12 @@ const ChatWidget = dynamic(() => import("@/components/chat/chat-widget").then((m
 const GuidedTour = dynamic(() => import("@/components/tour/guided-tour").then((m) => m.GuidedTour), { ssr: false });
 const CookieBanner = dynamic(() => import("./cookie-banner").then((m) => m.CookieBanner), { ssr: false });
 const SessionWatch = dynamic(() => import("./session-watch").then((m) => m.SessionWatch), { ssr: false });
-const DonatePromptModal = dynamic(() => import("@/components/donate/donate-prompt-modal").then((m) => m.DonatePromptModal), { ssr: false });
-
 export function LazyWidgets() {
   return (
     <>
       <ChatWidget />
       <CookieBanner />
       <SessionWatch />
-      <DonatePromptModal />
       <Suspense fallback={null}>
         <GuidedTour />
       </Suspense>

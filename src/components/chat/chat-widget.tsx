@@ -328,7 +328,7 @@ export function ChatWidget() {
 
             {messages.length === 0 && (
               <div>
-                <p className="text-sm text-slate-700">Chào bạn! Bạn có thể hỏi về ngành học, trường đào tạo, điểm chuẩn, học phí hoặc mốc tuyển sinh.</p>
+                <p className="text-sm text-slate-700">Chào bạn! Bạn có thể hỏi về ngành học, trường đào tạo, điểm chuẩn hoặc học phí.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {STARTERS.map((s) => (
                     <SuggestionChip key={s} text={s} onPick={send} disabled={busy} />

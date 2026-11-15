@@ -5,8 +5,8 @@
  * Mọi lựa chọn hợp lệ được áp dụng ngay lên URL và danh sách kết quả.
  */
 import { useEffect, useRef, useState } from "react";
-import type { Combo, MajorGroup, Region, SchoolType, Subject } from "@/domain/types";
-import { ADMISSION_METHODS } from "@/services/scoring.service";
+import type { AdmissionMethodKey, Combo, MajorGroup, Region, SchoolType, Subject } from "@/domain/types";
+import { ADMISSION_METHODS, METHOD_KEYS } from "@/services/scoring.service";
 import { REGION_LABELS, SCHOOL_TYPE_LABELS, serializeProgramFilters, TUITION_RANGES, type ProgramFilters, type TuitionRange } from "@/services/program.filters";
 import { useModal } from "@/components/ui/use-modal";
 import { cn } from "@/lib/cn";
@@ -15,7 +15,7 @@ import { apiRequest } from "@/lib/api-client";
 const chip = (on: boolean) => cn("rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors", on ? "border-primary-600 bg-primary-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-primary-300");
 const SHORT_TUITION: Record<TuitionRange, string> = { "duoi-15": "Dưới 15 triệu", "15-30": "15–30 triệu", "30-50": "30–50 triệu", "tren-50": "Trên 50 triệu" };
 
-export function MobileFilterSheet({ open, onClose, filters, combos, subjects, groups, onChange }: { open: boolean; onClose: () => void; filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; groups: MajorGroup[]; onChange: (f: ProgramFilters) => void }) {
+export function MobileFilterSheet({ open, onClose, filters, combos, subjects, groups, onChange, resultKind = "programs" }: { open: boolean; onClose: () => void; filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; groups: MajorGroup[]; onChange: (f: ProgramFilters) => void; resultKind?: "programs" | "schools" }) {
   const ref = useRef<HTMLDivElement>(null);
   useModal(ref, open, onClose);
   const [draft, setDraft] = useState<ProgramFilters>(filters);
@@ -38,14 +38,16 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
       try {
-        const response = await apiRequest<unknown[]>(`/api/v1/programs${serializeProgramFilters({ ...draft, page: undefined, sort: undefined }) || "?"}&limit=1`, { signal: ctrl.signal });
+        const endpoint = resultKind === "schools" ? "/api/v1/schools" : "/api/v1/programs";
+        const query = serializeProgramFilters({ ...draft, page: undefined, sort: undefined });
+        const response = await apiRequest<unknown[]>(`${endpoint}${query}${query ? "&" : "?"}limit=1${resultKind === "schools" ? "&filtered=1" : ""}`, { signal: ctrl.signal });
         setCount(typeof response.meta.total === "number" ? response.meta.total : null);
       } catch {
         /* huỷ hoặc mất mạng: giữ số cũ */
       }
     }, 250);
     return () => (clearTimeout(t), ctrl.abort());
-  }, [draft, open]);
+  }, [draft, open, resultKind]);
 
   if (!open) return null;
   const short = (id: string) => subjects.find((s) => s.id === id)?.short ?? id;
@@ -78,6 +80,17 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
           </button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-4">
+          <div>
+            <label htmlFor="sheet-method" className="text-[15px] font-semibold text-slate-900">Phương thức xét tuyển</label>
+            <select id="sheet-method" value={method} className="mt-2 h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
+              onChange={(event) => {
+                const selected = event.target.value as AdmissionMethodKey;
+                setScore("");
+                applyDraft({ ...draft, method: selected === "thpt" ? undefined : selected, score: undefined });
+              }}>
+              {METHOD_KEYS.map((key) => <option key={key} value={key}>{ADMISSION_METHODS[key].label}</option>)}
+            </select>
+          </div>
           {/* 1. Điểm xét tuyển */}
           <div>
             <label htmlFor="sheet-score" className="text-[15px] font-semibold text-slate-900">
@@ -90,6 +103,7 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
             <p id="sheet-score-hint" className={cn("mt-1.5 text-[13px]", invalid ? "text-danger-700" : "text-slate-500")}>
               {invalid ? `Điểm phải từ 0 đến ${max}.` : method === "thpt" ? "Tổng điểm 3 môn theo tổ hợp xét tuyển" : ADMISSION_METHODS[method].label}
             </p>
+            <p className="mt-1.5 text-[13px] text-slate-500">Chỉ hiện ngành có điểm chuẩn không vượt điểm bạn nhập.</p>
           </div>
 
           {/* 2. Khối / Tổ hợp xét tuyển */}

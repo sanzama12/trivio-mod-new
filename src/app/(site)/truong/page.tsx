@@ -1,122 +1,126 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { LuBuilding2, LuMapPin, LuSearch } from "react-icons/lu";
-import { catalogService } from "@/services";
+import { LuSearch, LuSearchX } from "react-icons/lu";
+import { catalogService, parseProgramFilters, programService, serializeProgramFilters, SORT_LABELS, type ProgramSort } from "@/services";
 import { cn } from "@/lib/cn";
-import { buttonClass } from "@/components/ui/button";
-import { Card, SectionHeading } from "@/components/ui/card";
 import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
-import { REGION_LABELS, SCHOOL_TYPE_LABELS } from "@/services/program.filters";
-import type { Region } from "@/domain/types";
-import { SchoolLogo } from "@/components/school/school-logo";
+import { buttonClass } from "@/components/ui/button";
+import { FilterPanel } from "@/components/search/filter-panel";
 import { SchoolCard } from "@/components/school/school-card";
 import { OpenCompareButton } from "@/components/program/program-actions";
 
-export const metadata: Metadata = { title: "Danh mục trường" };
+export const metadata: Metadata = { title: "Tìm trường" };
 
-const REGIONS: Region[] = ["bac", "trung", "nam"];
-
-type Props = { searchParams: Promise<Record<string, string | undefined>> };
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function SchoolsPage({ searchParams }: Props) {
-  const sp = await searchParams;
-  const q = sp.q?.trim() || undefined;
-  const region = REGIONS.includes(sp.region as Region) ? (sp.region as Region) : undefined;
-  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
-  const result = await catalogService.searchSchools({ q, region, page, limit: 24 });
-  const items = result.items;
-
-  const href = (patch: Record<string, string | undefined>) => {
-    const p = new URLSearchParams(Object.entries({ q, region, ...patch }).filter(([, v]) => v) as [string, string][]);
-    const s = p.toString();
-    return s ? `/truong?${s}` : "/truong";
-  };
+  const raw = await searchParams;
+  const filters = parseProgramFilters({ ...raw, majors: raw.majors ?? raw.major, regions: raw.regions ?? raw.region });
+  const [result, combos, subjects, groups] = await Promise.all([
+    programService.searchSchools(filters),
+    catalogService.getCombos(),
+    catalogService.getSubjects(),
+    catalogService.getGroups(),
+  ]);
+  const href = (patch: Partial<typeof filters>) => `/truong${serializeProgramFilters({ ...filters, ...patch })}`;
+  const sort = filters.sort ?? "phu-hop";
 
   return (
-    <section className="bg-gradient-to-b from-primary-50 to-slate-50">
-      <div className="container-page pt-6 pb-16">
-        <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Danh mục trường" }]} />
-        <div className="mt-8">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">Danh mục trường</h1>
-          <p className="mt-3 max-w-2xl text-slate-600">Toàn bộ trường đang có trong hệ thống. Trường mới hiện ở đây sau khi dữ liệu được nhập.</p>
-          <form action="/truong" role="search" className="mt-6 flex max-w-xl flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center">
-            <label htmlFor="school-q" className="sr-only">
-              Tìm trường
+    <div className="bg-[#fafaf6]">
+    <div className="container-page min-w-0 py-6 md:py-10">
+      <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Tìm trường" }]} />
+      <section className="relative isolate mt-4 overflow-hidden rounded-3xl bg-slate-950">
+        <Image
+          src="https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2000&q=75"
+          alt="Sân trường đại học mùa tuyển sinh"
+          fill
+          sizes="(max-width: 1024px) 100vw, 1280px"
+          className="object-cover opacity-55"
+        />
+        <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/65 to-primary-900/30" />
+        <div className="relative px-5 py-8 sm:px-8 sm:py-10">
+          <p className="inline-flex bg-accent-500 px-3 py-1 text-xs font-black tracking-wide text-slate-950 uppercase">Sổ tuyển sinh</p>
+          <h1 className="mt-4 max-w-3xl text-3xl leading-tight font-black tracking-tight text-white md:text-5xl">Tìm trường phù hợp với bạn</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 md:text-base">Lọc theo điểm, tổ hợp, học phí và khu vực. Chọn trường để xem giới thiệu và các ngành đào tạo.</p>
+        </div>
+      </section>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-2xl text-sm break-words text-slate-600">
+          Tìm thấy <strong className="text-slate-900">{result.total}</strong> trường phù hợp
+        </p>
+        <OpenCompareButton />
+      </div>
+      <div className="mt-5 min-w-0">
+        <form action="/truong" role="search" className="mx-auto flex w-full min-w-0 max-w-lg flex-col gap-2 rounded-xl border-2 border-slate-900 bg-white p-2">
+          {Object.entries({ ...filters, q: undefined, page: undefined }).map(([k, v]) =>
+            v == null || (Array.isArray(v) && v.length === 0) ? null : <input key={k} type="hidden" name={k} value={Array.isArray(v) ? v.join(",") : String(v)} />,
+          )}
+          <div className="flex min-w-0 items-center gap-1">
+            <LuSearch className="ml-2 size-4 shrink-0 text-slate-400" aria-hidden />
+            <label htmlFor="s-q" className="sr-only">
+              Từ khoá
             </label>
-            <input
-              id="school-q"
-              name="q"
-              defaultValue={q}
-              placeholder="Tên trường, tên viết tắt hoặc mã trường"
-              className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 shadow-card focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none"
-            />
-            {region ? <input type="hidden" name="region" value={region} /> : null}
-            <button className={buttonClass({ className: "w-full min-[420px]:w-auto" })}>
-              <LuSearch className="size-4" aria-hidden /> Tìm
-            </button>
-          </form>
-          <nav aria-label="Lọc theo miền" className="mt-4 flex flex-wrap gap-2">
-            <Link href={href({ region: undefined })} className={cn("rounded-full px-3 py-1.5 text-[13px] font-semibold", !region ? "bg-primary-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200")}>
-              Tất cả
-            </Link>
-            {REGIONS.map((r) => (
-              <Link
-                key={r}
-                href={href({ region: region === r ? undefined : r })}
-                aria-current={region === r ? "true" : undefined}
-                className={cn("rounded-full px-3 py-1.5 text-[13px] font-semibold", region === r ? "bg-primary-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200")}
-              >
-                {REGION_LABELS[r]}
-              </Link>
-            ))}
-          </nav>
+            <input id="s-q" name="q" defaultValue={filters.q} placeholder="Tên trường, ngành, mã xét tuyển…" className="h-9 min-w-0 flex-1 bg-transparent text-sm focus:outline-none" />
+          </div>
+          <button className={cn(buttonClass({ size: "sm" }), "w-full sm:w-auto")}>Tìm</button>
+        </form>
+      </div>
+
+      <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+        <div className="min-w-0 lg:order-2 lg:sticky lg:top-24">
+          <FilterPanel filters={filters} combos={combos} subjects={subjects} groups={groups} resultKind="schools" />
         </div>
 
-        <div className="mt-10">
-          <SectionHeading
-            title={`${result.total} trường`}
-            subtitle={q || region ? "Đúng bộ lọc đang chọn." : "Không lọc — đây là toàn bộ danh mục."}
-            action={
-              <div className="flex items-center gap-3">
-                <OpenCompareButton />
-                {q || region ? (
-                  <Link href="/truong" className="text-sm font-semibold text-primary-600 hover:underline">
-                    Xoá lọc
-                  </Link>
-                ) : null}
-              </div>
-            }
-          />
-          {result.total === 0 && !q && !region ? (
-            <Card className="mt-6">
-              <EmptyState icon={<LuBuilding2 />} title="Chưa có trường" description="Danh sách trống. Sau khi nhập dữ liệu trường, các trường sẽ hiện tại trang này." />
-            </Card>
-          ) : items.length === 0 ? (
-            <Card className="mt-6">
-              <EmptyState icon={<LuBuilding2 />} title="Không có trường khớp" description="Thử từ khoá khác hoặc bỏ bộ lọc miền.">
+        <section aria-label="Kết quả tìm kiếm" className="min-w-0 lg:order-1">
+          <div className="mb-4 flex flex-wrap items-center gap-2" role="tablist" aria-label="Sắp xếp">
+            {(Object.keys(SORT_LABELS) as ProgramSort[]).map((k) => (
+              <Link
+                key={k}
+                role="tab"
+                aria-selected={sort === k}
+                href={href({ sort: k, page: undefined })}
+                scroll={false}
+                className={cn(
+                  "rounded-full border-2 border-slate-900 px-4 py-2 text-[13px] font-bold transition-colors",
+                  sort === k ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-100",
+                )}
+              >
+                {SORT_LABELS[k]}
+              </Link>
+            ))}
+          </div>
+
+          {result.total === 0 ? (
+            <div className="rounded-2xl border-2 border-slate-900 bg-white">
+              <EmptyState
+                icon={<LuSearchX />}
+                title="Không tìm thấy trường phù hợp"
+                description="Thử nới bớt một điều kiện bên dưới, hoặc nhập lại điểm và tổ hợp của bạn."
+              >
                 <Link href="/truong" className={buttonClass({ variant: "outline", size: "sm" })}>
-                  Xem tất cả trường
+                  Xoá bộ lọc
+                </Link>
+                <Link href="/diem-cua-toi" className={buttonClass({ variant: "ghost", size: "sm" })}>
+                  Sửa điều kiện điểm
                 </Link>
               </EmptyState>
-            </Card>
+            </div>
           ) : (
-            <div className="mt-6 space-y-4">
-              {items.map((s) => (
-                <SchoolCard key={s.id} school={s} />
-              ))}
-            </div>
+            <>
+              <div className="space-y-4">
+                {result.items.map((school) => (
+                  <SchoolCard key={school.id} school={school} summary={result.summaries[school.id]} />
+                ))}
+              </div>
+              <div className="mt-8">
+                <Pagination page={result.page} pageCount={result.pageCount} hrefFor={(p) => href({ page: p })} />
+              </div>
+            </>
           )}
-          {result.total > 0 && result.pageCount > 1 ? (
-            <div className="mt-8">
-              <Pagination
-                page={result.page}
-                pageCount={result.pageCount}
-                hrefFor={(nextPage) => href({ page: nextPage > 1 ? String(nextPage) : undefined })}
-              />
-            </div>
-          ) : null}
-        </div>
+        </section>
       </div>
-    </section>
+    </div>
+    </div>
   );
 }

@@ -26,7 +26,6 @@ const INTENT_LABELS: Record<string, string> = {
   help: "Chào hỏi / hướng dẫn",
   "rules-priority": "Quy chế: điểm ưu tiên",
   "rules-wishlist": "Quy chế: nguyện vọng",
-  timeline: "Mốc tuyển sinh",
   recommend: "Gợi ý ngành",
   methods: "Phương thức xét tuyển",
   "methods-schools": "Trường theo phương thức",

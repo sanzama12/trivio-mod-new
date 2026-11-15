@@ -13,11 +13,9 @@ export const ACTION_LABEL: Record<AuditEntry["action"], string> = {
 export const TARGET_LABEL: Record<NonNullable<AuditEntry["targetType"]>, string> = {
   program: "Chương trình",
   qa: "Hỏi đáp",
-  timeline: "Mốc tuyển sinh",
   "chat-alias": "Từ khoá chatbot",
   school: "Trường",
   major: "Ngành",
-  rules: "Quy tắc gợi ý",
   import: "Nhập dữ liệu",
   user: "Người dùng",
   "school-submission": "Bản sửa của trường",
@@ -40,7 +38,7 @@ export const FIELD_LABEL: Record<string, string> = {
   "*": "Toàn bộ",
 };
 
-/** "Cập nhật Mốc tuyển sinh · Mùa tuyển sinh (+2)" — mô tả ngắn một dòng nhật ký. */
+/** Mô tả ngắn một dòng nhật ký. */
 export function describeAudit(e: Pick<AuditEntry, "action" | "targetType" | "changes">): string {
   const head = `${ACTION_LABEL[e.action] ?? e.action} ${(TARGET_LABEL[e.targetType ?? "program"] ?? "").toLowerCase()}`.trim();
   const f = e.changes[0]?.field;

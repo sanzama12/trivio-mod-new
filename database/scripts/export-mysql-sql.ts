@@ -164,20 +164,11 @@ async function exportToMysql() {
     mysqlSql += `SET FOREIGN_KEY_CHECKS = 1;\n`;
     mysqlSql += `-- Hoàn tất nạp CSDL MySQL: ${totalRows} dòng trên ${tableRows.length} bảng.\n`;
 
-    const out1 = join(root, "database", "dump_triovo_mysql.sql");
-    const out2 = join(root, "triovo_mysql_setup.sql");
-    const outDesktop = "C:\\Users\\Admin\\Desktop\\triovo_mysql_setup.sql";
-
-    writeFileSync(out1, mysqlSql, "utf8");
-    writeFileSync(out2, mysqlSql, "utf8");
-    try {
-      writeFileSync(outDesktop, mysqlSql, "utf8");
-    } catch {}
+    const outputPath = join(root, "database", "dump_triovo_mysql.sql");
+    writeFileSync(outputPath, mysqlSql, "utf8");
 
     console.log(`\n🎉 XUẤT THÀNH CÔNG DUMP DÀNH RIÊNG CHO MYSQL!`);
-    console.log(`📁 File 1 (database): ${out1}`);
-    console.log(`📁 File 2 (project root): ${out2}`);
-    console.log(`📁 File 3 (Desktop): ${outDesktop}`);
+    console.log(`📁 File SQL: ${outputPath}`);
     console.log(`📊 Tổng cộng: ${totalRows} dòng dữ liệu trên ${tableRows.length} bảng.`);
   } finally {
     await client.end();

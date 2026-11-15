@@ -29,7 +29,6 @@ export class AccountController {
     if (typeof body.under16 === "boolean") patch.under16 = body.under16;
     if (typeof body.parentConsent === "boolean") patch.parentConsent = body.parentConsent;
     if (typeof body.onboarded === "boolean") patch.onboarded = body.onboarded;
-    if (typeof body.emailReminders === "boolean") patch.emailReminders = body.emailReminders;
     const result = await authService.updateProfile(user.id, patch);
     return NextResponse.json(result, { status: result.ok ? 200 : 400 });
   }

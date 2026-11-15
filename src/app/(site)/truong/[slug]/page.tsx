@@ -10,8 +10,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const school = await catalogService.getSchoolBySlug((await params).slug);
   if (!school) return { title: "Không tìm thấy trường" };
   return {
-    title: `${school.name} (${school.code}) - Tuyển sinh 2026 | Trovio`,
-    description: `Xem chi tiết tuyển sinh 2026 của ${school.name}: chỉ tiêu, điểm chuẩn các ngành, học phí, phương thức xét tuyển và địa chỉ các cơ sở đào tạo.`,
+    title: `${school.name} (${school.code}) | Trovio`,
+    description: `Giới thiệu ${school.name}, thông tin cơ sở, các ngành đào tạo, điểm chuẩn, học phí và phương thức xét tuyển.`,
   };
 }
 

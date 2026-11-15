@@ -55,6 +55,13 @@ async function main() {
       await client.query(sqlFile(`migrations/${name}`));
       console.log(`PASS migration ${name}`);
     }
+    for (const table of ['news_posts', 'news_post_events', 'news_categories', 'news_articles', 'recommend_weights', 'recommend_rules', 'recommend_rule_params', 'timeline_config', 'timeline_events', 'deadline_reminders', 'reminder_log']) {
+      const result = await client.query(`SELECT to_regclass($1) AS relation`, [`${schema}.${table}`]);
+      assert.equal(result.rows[0].relation, null, `Retired table ${table} must be removed`);
+    }
+    assert.equal((await client.query(`SELECT count(*)::int AS count FROM information_schema.columns WHERE table_schema=$1 AND table_name='users' AND column_name='email_reminders'`, [schema])).rows[0].count, 0);
+    assert.equal((await client.query(`SELECT count(*)::int AS count FROM ${schema}.app_documents WHERE collection IN ('recommend-config', 'timeline-config', 'reminder-log') OR (collection='user-data' AND payload ? 'reminders') OR (collection='notification' AND payload->>'kind'='reminder')`)).rows[0].count, 0);
+    console.log('PASS retired dashboard tables, configuration and reminder data removed');
     assert.equal((await client.query(`SELECT count(*)::int AS count FROM ${schema}.programs`)).rows[0].count, before);
     assert.equal((await client.query(`SELECT count(*)::int AS count FROM ${schema}.app_documents WHERE collection='program-patch'`)).rows[0].count,0);
     assert.equal((await client.query(`SELECT count(*)::int AS count FROM (SELECT code FROM ${schema}.majors WHERE code IS NOT NULL GROUP BY code HAVING count(*)>1) d`)).rows[0].count,0);

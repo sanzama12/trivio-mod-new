@@ -57,7 +57,7 @@ const list = (v: string | string[] | undefined) =>
   (Array.isArray(v) ? v : v ? v.split(",") : []).map((s) => s.trim()).filter(Boolean);
 
 export function parseProgramFilters(params: RawParams): ProgramFilters {
-  const scoreRaw = Number(one(params.score));
+  const scoreRaw = Number(one(params.score)?.replace(",", "."));
   const pageRaw = Number(one(params.page));
   const pageSizeRaw = Number(one(params.pageSize));
   const tuition = one(params.tuition) as TuitionRange | undefined;

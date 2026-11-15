@@ -18,7 +18,7 @@ import { MAX_SHEET_ROWS, parseCsv, parseXlsx } from "../lib/sheet";
 import { slugify } from "./catalog-admin.service";
 import { unifiedEntryService, type UnifiedEntryContext } from "./unified-entry.service";
 import { normalizeVi } from "../lib/text";
-import { findMajorForImport, normalizeMajorIdentity } from "./major-mapping.service";
+import { normalizeAdmissionCode, normalizeMajorCode, resolveMajorForImport, normalizeMajorIdentity } from "./major-mapping.service";
 
 type Fail = { ok: false; status: number; field?: string; message: string };
 const now = () => new Date().toISOString();
@@ -470,44 +470,6 @@ async function context() {
   };
 }
 
-/**
- * Bóc tách tiền tố đánh số chuyên ngành hẹp:
- * Hỗ trợ các định dạng:
- * - "1 7480201", "2 7480201", "3 7480201"
- * - "1-7480201", "2-7480201", "3-7480201"
- * - "1. 7480201", "2. 7480201", "3. 7480201"
- * - "(1) 7480201", "(2) 7480201", "(3) 7480201"
- * - "1) 7480201", "2) 7480201", "3) 7480201"
- * - "1.7480201", "2.7480201", "3.7480201"
- * - "1_7480201", "2_7480201", "3_7480201"
- * - "1 IT1", "2 IT1"
- */
-function parseNumberedCode(raw: unknown): {
-  normalized: string;
-  baseCode: string;
-  prefixNumber: number | null;
-} {
-  let cleaned = String(raw ?? "").trim();
-  if (!cleaned) return { normalized: "", baseCode: "", prefixNumber: null };
-
-  cleaned = cleaned.replace(/^\((\d+)\)\s*/, "$1-");
-  cleaned = cleaned.replace(/^(\d+)[.)\s_-]+([a-zA-Z0-9]+)/, "$1-$2");
-  const normalized = cleaned.toUpperCase().replace(/\s+/g, "-");
-  const match = normalized.match(/^(\d+)[-._]+([A-Z0-9]+)$/);
-  if (match) {
-    return {
-      normalized,
-      baseCode: match[2],
-      prefixNumber: Number(match[1]),
-    };
-  }
-  return {
-    normalized,
-    baseCode: normalized,
-    prefixNumber: null,
-  };
-}
-
 type Ctx = Awaited<ReturnType<typeof context>>;
 
 function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
@@ -519,8 +481,7 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
     const errors: ImportRow["errors"] = [];
     const warnings: ImportRow["warnings"] = [];
 
-    const parsedAdmission = parseNumberedCode(data.ma_xet_tuyen);
-    const code = parsedAdmission.normalized;
+    const code = normalizeAdmissionCode(data.ma_xet_tuyen);
     data.ma_xet_tuyen = code;
 
     if (!code || /^(\(.*\)|-|chờ|chưa|tba|n\/a|trống)/i.test(code)) {
@@ -529,9 +490,8 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
       errors.push({ field: "ma_xet_tuyen", message: "Mã xét tuyển chỉ gồm chữ, số, dấu gạch hoặc chấm (2–30 ký tự)" });
     }
 
-    const parsedMajor = parseNumberedCode(data.ma_nganh);
-    if (parsedMajor.prefixNumber != null) data.ma_nganh = parsedMajor.baseCode;
-    else if (!data.ma_nganh && /^\d{7}$/.test(parsedAdmission.baseCode)) data.ma_nganh = parsedAdmission.baseCode;
+    // Preserve exact legacy codes; resolve school-specific codes with the same rules as save.
+    if (!data.ma_nganh && isMajorCode(normalizeMajorCode(code))) data.ma_nganh = normalizeMajorCode(code);
 
     let schoolCode = data.ma_truong.trim().toUpperCase();
     let school = schoolCode ? ctx.schoolByCode.get(schoolCode) : undefined;
@@ -630,7 +590,12 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
 
     let major = null as Ctx["majors"][number] | null;
     if (!existing) {
-      major = findMajorForImport(ctx.majors, data.ten_chuong_trinh, data.ma_nganh) ?? null;
+      const resolved = resolveMajorForImport(ctx.majors, data.ten_chuong_trinh, data.ma_nganh);
+      major = resolved.major ?? null;
+      if (resolved.code !== data.ma_nganh && (major || isMajorCode(resolved.code))) {
+        warnings.push({ field: "ma_nganh", message: `Đã ánh xạ mã "${data.ma_nganh || "trống"}" sang ngành "${major?.name || data.ten_chuong_trinh}" (${resolved.code || "chưa có mã chuẩn"}); giữ nguyên mã xét tuyển "${code}".` });
+        data.ma_nganh = resolved.code;
+      }
       if (!major && !isMajorCode(data.ma_nganh)) {
         errors.push({ field: "ma_nganh", message: "Cần mã ngành chuẩn hoặc tên khớp duy nhất với ngành đã có; không tạo mã giả." });
       }
@@ -922,7 +887,7 @@ export const importService = {
         const nextMajor = {
           ...currentMajor,
           name: last.ten_chuong_trinh || currentMajor.name,
-          code: last.ma_nganh || currentMajor.code,
+          code: isMajorCode(normalizeMajorCode(last.ma_nganh)) ? normalizeMajorCode(last.ma_nganh) : currentMajor.code,
         };
         const queuedIndex = batchCtx.majorsToSave.findIndex((item) => item.id === nextMajor.id);
         if (queuedIndex >= 0) batchCtx.majorsToSave[queuedIndex] = nextMajor;
@@ -974,7 +939,10 @@ export const importService = {
         source: first.nguon || `Nhập từ file ${preview.fileName}`,
       }, batchCtx);
 
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) return {
+        ok: false, status: 400, field: "field" in res ? res.field : undefined,
+        message: `Dòng ${rows[0].line} (${first.ma_truong} / ${first.ma_xet_tuyen}): ${res.message} Chưa lưu thay đổi của lần nhập này.`,
+      };
       if (res.ok) {
         const createdProgram = batchCtx.programs.find((program) => program.id === res.programId);
         if (createdProgram) {

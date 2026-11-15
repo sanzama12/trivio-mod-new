@@ -37,8 +37,6 @@ interface State {
   wishlist: WishlistItem[];
   compare: string[];
   profile: StoredProfile | null;
-  /** id các mốc tuyển sinh đã bật "Nhắc tôi". */
-  reminders: string[];
   /** Mục tiêu đặt qua hội thoại. */
   goal: Goal | null;
   preferences: RecommendationPreferences | null;
@@ -48,7 +46,7 @@ interface State {
   owner: string | null;
 }
 
-const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, reminders: [], goal: null, preferences: null, owner: null };
+const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, goal: null, preferences: null, owner: null };
 
 interface Store extends Omit<State, "owner"> {
   hydrated: boolean;
@@ -62,8 +60,6 @@ interface Store extends Omit<State, "owner"> {
   moveWishlist: (id: string, dir: -1 | 1) => void;
   /** Đặt lại thứ tự nguyện vọng theo danh sách id (id thiếu giữ nguyên ở cuối). */
   reorderWishlist: (ids: string[]) => void;
-  hasReminder: (id: string) => boolean;
-  toggleReminder: (id: string) => boolean;
   setWishlistNote: (id: string, note: string) => void;
   inCompare: (id: string) => boolean;
   toggleCompare: (id: string) => "added" | "removed" | "full";
@@ -101,7 +97,6 @@ function load(): State {
       saved: Array.isArray(s.saved) ? s.saved : [],
       wishlist: Array.isArray(s.wishlist) ? s.wishlist : [],
       compare: Array.isArray(s.compare) ? s.compare : [],
-      reminders: Array.isArray(s.reminders) ? s.reminders : [],
       goal: s.goal && typeof s.goal === "object" ? s.goal : null,
       preferences: s.preferences && typeof s.preferences === "object" ? s.preferences : null,
     };
@@ -110,9 +105,9 @@ function load(): State {
   }
 }
 
-const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, reminders: s.reminders, goal: s.goal, preferences: s.preferences });
+const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, goal: s.goal, preferences: s.preferences });
 const hasGuestData = (s: State) =>
-  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || s.reminders.length > 0 || !!s.goal || !!s.preferences;
+  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || !!s.goal || !!s.preferences;
 
 function takeIntent(): PendingIntent | null {
   try {
@@ -183,7 +178,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       syncedFor.current = null;
       inflight.current = null;
       setSync("guest");
-      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, reminders: [], goal: null, preferences: null, owner: null }));
+      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, goal: null, preferences: null, owner: null }));
       return;
     }
     if (syncedFor.current === uid || inflight.current === uid) return;
@@ -207,7 +202,6 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
           saved: data.saved,
           wishlist: data.wishlist,
           profile: data.profile,
-          reminders: data.reminders ?? [],
           goal: data.goal ?? null,
           preferences: data.preferences ?? null,
           owner: uid,
@@ -235,7 +229,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         .catch(() => setSync("error"));
     }, 600);
     return () => clearTimeout(t);
-  }, [uid, state.saved, state.wishlist, state.profile, state.reminders, state.goal, state.preferences, state.owner]);
+  }, [uid, state.saved, state.wishlist, state.profile, state.goal, state.preferences, state.owner]);
 
   useEffect(() => {
     const flush = () => {
@@ -253,7 +247,6 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       wishlist: state.wishlist,
       compare: state.compare,
       profile: state.profile,
-      reminders: state.reminders,
       goal: state.goal,
       preferences: state.preferences,
       hydrated,
@@ -292,12 +285,6 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
           const rest = s.wishlist.filter((w) => !ids.includes(w.id));
           return { ...s, wishlist: [...ordered, ...rest] };
         }),
-      hasReminder: (id) => state.reminders.includes(id),
-      toggleReminder: (id) => {
-        const on = !state.reminders.includes(id);
-        update((s) => ({ ...s, reminders: on ? [...s.reminders, id] : s.reminders.filter((x) => x !== id) }));
-        return on;
-      },
       setWishlistNote: (id, note) => update((s) => ({ ...s, wishlist: s.wishlist.map((w) => (w.id === id ? { ...w, note } : w)) })),
       inCompare: (id) => state.compare.includes(id),
       toggleCompare: (id) => {

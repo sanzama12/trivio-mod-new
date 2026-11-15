@@ -20,7 +20,7 @@ export function getPool(): Pool {
       dbUrl.includes("neon.tech") ||
       dbUrl.includes("supabase.co") ||
       dbUrl.includes("amazonaws.com") ||
-      dbUrl.includes("sslmode=require");
+      dbUrl.includes("sslmode=");
 
     global.__pgPool = new Pool({
       connectionString: dbUrl,
@@ -28,12 +28,12 @@ export function getPool(): Pool {
       max: Number(process.env.PG_POOL_MAX) || 16,
       min: Number(process.env.PG_POOL_MIN) || 2, // Duy trì kết nối ấm tránh cold-start 150ms
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: Number(process.env.PG_CONNECT_TIMEOUT_MS) || 10000,
+      connectionTimeoutMillis: Number(process.env.PG_CONNECT_TIMEOUT_MS) || 30000,
 
-      // Ngắt truy vấn treo để bảo vệ pool không bị kẹt tài nguyên
-      statement_timeout: 10000, // 10s server-side timeout
-      query_timeout: 10000,     // 10s client-side timeout
-      lock_timeout: 5000,       // 5s chống bế tắc (deadlock)
+      // Ngắt truy vấn treo để bảo vệ pool không bị kẹt tài nguyên (30s cho Neon Serverless)
+      statement_timeout: 30000,
+      query_timeout: 30000,
+      lock_timeout: 10000,
 
       // Duy trì kết nối TCP sống, chống đứt kết nối qua Cloud NAT / Firewalls
       keepAlive: true,
@@ -121,9 +121,29 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<T
     }
 
     return result.rows as T[];
-  } catch (error) {
+  } catch (error: any) {
+    const msg = error instanceof Error ? error.message : String(error);
+    const isConnErr =
+      msg.includes("Connection terminated") ||
+      msg.includes("timeout") ||
+      msg.includes("ECONNRESET") ||
+      msg.includes("57P01");
+
+    // Tự động thử lại 1 lần với kết nối mới nếu lỗi do Neon Serverless đang ngủ hoặc reset idle connection
+    if (isConnErr && !context) {
+      try {
+        const freshResult = await getPool().query(sql, params);
+        return freshResult.rows as T[];
+      } catch (retryErr) {
+        if (process.env.NODE_ENV !== "test") {
+          console.error("[pg:error:retry]", retryErr instanceof Error ? retryErr.message : retryErr);
+        }
+        throw retryErr;
+      }
+    }
+
     if (process.env.NODE_ENV !== "test") {
-      console.error("[pg:error]", error instanceof Error ? error.message : error);
+      console.error("[pg:error]", msg);
     }
     throw error;
   }

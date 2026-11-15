@@ -143,7 +143,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
       {/* Nút bật bộ lọc trên Mobile */}
       <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
         <div className="relative flex-1">
-          <LuSearch className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+          <LuSearch className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={query}
@@ -152,13 +152,13 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
               setCurrentPage(1);
             }}
             placeholder="Tên ngành hoặc mã ngành…"
-            className="w-full rounded-xl border border-[#E9E3D5] bg-[#F8F5EE] py-2.5 pl-10 pr-9 text-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-400 focus:bg-white focus:outline-none"
+            className="w-full rounded-xl border border-primary-200 bg-primary-50 py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-600 focus:bg-white focus:outline-none"
           />
           {query ? (
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               <LuX className="size-4" />
             </button>
@@ -171,8 +171,8 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
           className={cn(
             "inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-bold shadow-xs transition-colors",
             selectedGroup
-              ? "border-[#00629B] bg-[#00629B] text-white"
-              : "border-stone-300 bg-white text-stone-800 hover:bg-stone-50"
+              ? "border-primary-700 bg-primary-700 text-white"
+              : "border-primary-200 bg-white text-primary-800 hover:bg-primary-50"
           )}
         >
           <LuFilter className="size-4" />
@@ -188,17 +188,17 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
         {/* ========================================================= */}
         <aside
           aria-label="Bộ lọc tìm kiếm ngành học"
-          className="sticky top-20 hidden rounded-3xl border border-[#EBE6DC] bg-[#FAF8F5] p-5 shadow-xs lg:block"
+          className="sticky top-20 hidden rounded-3xl border border-primary-200 bg-[#fbfdf8] p-5 shadow-xs lg:block"
         >
           {/* Tiêu đề Bộ lọc */}
-          <div className="flex items-center gap-2.5 border-b border-[#EBE5D9] pb-4">
-            <LuSlidersHorizontal className="size-5 text-stone-900" aria-hidden />
-            <h2 className="text-xl font-black tracking-tight text-stone-900">Bộ lọc</h2>
+          <div className="flex items-center gap-2.5 border-b border-primary-100 pb-4">
+            <LuSlidersHorizontal className="size-5 text-primary-700" aria-hidden />
+            <h2 className="text-xl font-black tracking-tight text-slate-900">Bộ lọc</h2>
             {selectedGroup || query ? (
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-stone-500 hover:text-stone-900"
+                className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900"
               >
                 <LuFilterX className="size-3.5" />
                 <span>Đặt lại</span>
@@ -208,11 +208,11 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
 
           {/* Mục 1: Tìm ngành học */}
           <div className="mt-5">
-            <label htmlFor={searchInputId} className="block text-base font-bold text-stone-900">
+            <label htmlFor={searchInputId} className="block text-base font-bold text-slate-900">
               Tìm ngành học
             </label>
             <div className="relative mt-2.5">
-              <LuSearch className="pointer-events-none absolute left-3.5 top-1/2 size-4.5 -translate-y-1/2 text-stone-400" />
+              <LuSearch className="pointer-events-none absolute left-3.5 top-1/2 size-4.5 -translate-y-1/2 text-slate-400" />
               <input
                 id={searchInputId}
                 type="text"
@@ -222,14 +222,14 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                   setCurrentPage(1);
                 }}
                 placeholder="Tên ngành hoặc mã ngành"
-                className="w-full rounded-2xl border border-[#EAE3D4] bg-[#F7F4EC] py-3 pl-10 pr-9 text-[14px] text-stone-800 placeholder:text-stone-400 transition-colors focus:border-stone-400 focus:bg-white focus:outline-none"
+                className="w-full rounded-2xl border border-primary-200 bg-primary-50 py-3 pl-10 pr-9 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors focus:border-primary-600 focus:bg-white focus:outline-none"
               />
               {query ? (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
                   aria-label="Xóa từ khóa tìm kiếm"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
                   <LuX className="size-4" />
                 </button>
@@ -240,12 +240,12 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
           {/* Mục 2: Nhóm ngành */}
           <div className="mt-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-stone-900">Nhóm ngành</h3>
+              <h3 className="text-base font-bold text-slate-900">Nhóm ngành</h3>
               {selectedGroup ? (
                 <button
                   type="button"
                   onClick={() => handleSelectGroup(null)}
-                  className="text-xs font-semibold text-[#00629B] hover:underline"
+                  className="text-xs font-semibold text-primary-700 hover:underline"
                 >
                   Xem tất cả
                 </button>
@@ -261,15 +261,15 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                 className={cn(
                   "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-colors cursor-pointer",
                   selectedGroup === null
-                    ? "bg-[#EAE4D5] text-stone-950 font-bold shadow-xs"
-                    : "text-stone-700 hover:bg-[#F3EFE6]"
+                    ? "bg-primary-100 text-primary-900 font-bold shadow-xs"
+                    : "text-slate-700 hover:bg-primary-50"
                 )}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <LuSlidersHorizontal className="size-4.5 shrink-0 text-stone-600" />
+                  <LuSlidersHorizontal className="size-4.5 shrink-0 text-primary-700" />
                   <span className="truncate text-[14.5px]">Tất cả nhóm ngành</span>
                 </div>
-                <span className="text-[13px] text-stone-500 font-medium shrink-0">
+                <span className="text-[13px] text-slate-500 font-medium shrink-0">
                   {items.length}
                 </span>
               </button>
@@ -289,19 +289,19 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                       className={cn(
                         "group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-colors cursor-pointer",
                         isSelected
-                          ? "bg-[#EAE4D5] text-stone-950 font-bold shadow-xs"
-                          : "text-stone-700 hover:bg-[#F3EFE6]"
+                          ? "bg-primary-100 text-primary-900 font-bold shadow-xs"
+                          : "text-slate-700 hover:bg-primary-50"
                       )}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <IconComponent className="size-4.5 shrink-0 text-stone-600" aria-hidden />
+                        <IconComponent className="size-4.5 shrink-0 text-primary-700" aria-hidden />
                         <span className="truncate text-[14px] leading-tight" title={group.name}>
                           {group.name}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        <span className="text-[13px] text-stone-400 font-medium group-hover:text-stone-600">
+                        <span className="text-[13px] text-slate-400 font-medium group-hover:text-slate-600">
                           {item.majorCount}
                         </span>
                         <button
@@ -309,7 +309,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                           onClick={(e) => toggleGroupExpand(group.id, e)}
                           title={isExpanded ? "Thu gọn" : "Mở rộng danh sách ngành"}
                           aria-label={isExpanded ? `Thu gọn nhóm ${group.name}` : `Mở rộng nhóm ${group.name}`}
-                          className="p-0.5 text-stone-400 hover:text-stone-800 transition-colors"
+                          className="p-0.5 text-slate-400 hover:text-slate-800 transition-colors"
                         >
                           <LuChevronDown
                             className={cn(
@@ -323,12 +323,12 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
 
                     {/* Accordion mở rộng hiển thị các ngành cụ thể trong nhóm */}
                     {isExpanded && groupMajors.length > 0 ? (
-                      <div className="my-1 space-y-0.5 border-l-2 border-stone-300 py-1 pl-4 pr-1 text-xs">
+                      <div className="my-1 space-y-0.5 border-l-2 border-primary-200 py-1 pl-4 pr-1 text-xs">
                         {groupMajors.slice(0, 10).map((mItem) => (
                           <Link
                             key={mItem.major.id}
                             href={`/nganh/${mItem.major.slug}`}
-                            className="block truncate py-1 text-stone-600 hover:font-bold hover:text-[#00629B]"
+                            className="block truncate py-1 text-slate-600 hover:font-bold hover:text-primary-700"
                             title={mItem.major.name}
                           >
                             • {mItem.major.name}
@@ -338,7 +338,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                           <button
                             type="button"
                             onClick={() => handleSelectGroup(group.id)}
-                            className="block py-1 text-[11px] font-bold text-[#00629B] hover:underline"
+                            className="block py-1 text-[11px] font-bold text-primary-700 hover:underline"
                           >
                             + Xem thêm {groupMajors.length - 10} ngành nữa...
                           </button>
@@ -357,11 +357,11 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
         {/* ========================================================= */}
         <main className="min-w-0">
           {/* Thanh trạng thái kết quả & Lọc đang chọn */}
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-              <p className="text-sm font-semibold text-stone-700">
+              <p className="text-sm font-semibold text-slate-700">
                 Tìm thấy{" "}
-                <span className="font-bold text-stone-950">{filteredItems.length}</span>{" "}
+                <span className="font-bold text-slate-900">{filteredItems.length}</span>{" "}
                 ngành đào tạo
                 {selectedGroup && activeGroupInfo
                   ? ` thuộc nhóm “${activeGroupInfo.group.name}”`
@@ -373,12 +373,12 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
             {selectedGroup || query ? (
               <div className="flex items-center gap-2">
                 {selectedGroup && activeGroupInfo ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EAE4D5] px-3 py-1 text-xs font-bold text-stone-800">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-primary-900">
                     <span>{activeGroupInfo.group.name}</span>
                     <button
                       type="button"
                       onClick={() => handleSelectGroup(null)}
-                      className="hover:text-stone-950"
+                      className="hover:text-slate-900"
                     >
                       <LuX className="size-3.5" />
                     </button>
@@ -386,12 +386,12 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                 ) : null}
 
                 {query ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-800">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-900">
                     <span>“{query}”</span>
                     <button
                       type="button"
                       onClick={() => setQuery("")}
-                      className="hover:text-stone-950"
+                      className="hover:text-slate-900"
                     >
                       <LuX className="size-3.5" />
                     </button>
@@ -401,7 +401,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="text-xs font-bold text-[#00629B] hover:underline"
+                  className="text-xs font-bold text-primary-700 hover:underline"
                 >
                   Xóa tất cả
                 </button>
@@ -411,18 +411,18 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
 
           {/* Trạng thái không có kết quả */}
           {pageItems.length === 0 ? (
-            <div className="rounded-2xl border border-[#EDE8DF] bg-white p-10 text-center shadow-xs">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-stone-100 text-stone-500">
+            <div className="rounded-[1.8rem] border border-dashed border-slate-400 bg-[#fbfdf8] p-10 text-center">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary-50 text-primary-700">
                 <LuSearch className="size-6" />
               </div>
-              <h3 className="mt-4 text-lg font-bold text-stone-900">Không tìm thấy ngành học phù hợp</h3>
-              <p className="mt-1 text-sm text-stone-600">
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Không tìm thấy ngành học phù hợp</h3>
+              <p className="mt-1 text-sm text-slate-600">
                 Thử thay đổi từ khóa tìm kiếm hoặc chọn nhóm ngành khác để tiếp tục khám phá.
               </p>
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-sm font-bold text-white hover:bg-stone-800"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-bold text-white hover:bg-primary-800"
               >
                 <LuFilterX className="size-4" />
                 <span>Xem tất cả ngành</span>
@@ -447,7 +447,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                   setCurrentPage((p) => Math.max(1, p - 1));
                   window.scrollTo({ top: 120, behavior: "smooth" });
                 }}
-                className="rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-sm font-bold text-stone-700 shadow-xs hover:bg-stone-50 disabled:opacity-40"
+                className="rounded-xl border border-primary-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 shadow-xs hover:bg-primary-50 disabled:opacity-40"
               >
                 Trước
               </button>
@@ -460,7 +460,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                     const hasGap = prevP && p - prevP > 1;
                     return (
                       <span key={p} className="inline-flex items-center gap-1.5">
-                        {hasGap ? <span className="px-1 text-stone-400">…</span> : null}
+                        {hasGap ? <span className="px-1 text-slate-400">…</span> : null}
                         <button
                           type="button"
                           onClick={() => {
@@ -470,8 +470,8 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                           className={cn(
                             "flex size-9 items-center justify-center rounded-xl text-sm font-bold transition-colors",
                             p === validPage
-                              ? "bg-stone-900 text-white shadow-xs"
-                              : "border border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                              ? "bg-primary-700 text-white shadow-xs"
+                              : "border border-primary-200 bg-white text-slate-700 hover:bg-primary-50"
                           )}
                         >
                           {p}
@@ -488,7 +488,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                   setCurrentPage((p) => Math.min(totalPages, p + 1));
                   window.scrollTo({ top: 120, behavior: "smooth" });
                 }}
-                className="rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-sm font-bold text-stone-700 shadow-xs hover:bg-stone-50 disabled:opacity-40"
+                className="rounded-xl border border-primary-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 shadow-xs hover:bg-primary-50 disabled:opacity-40"
               >
                 Sau
               </button>
@@ -511,23 +511,23 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
             onClick={() => setIsMobileFilterOpen(false)}
             aria-hidden="true"
           />
-          <div className="relative ml-auto flex h-full w-full max-w-sm flex-col bg-[#FAF8F5] p-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#EBE5D9] pb-4">
+          <div className="relative ml-auto flex h-full w-full max-w-sm flex-col bg-[#fbfdf8] p-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-primary-100 pb-4">
               <div className="flex items-center gap-2">
-                <LuSlidersHorizontal className="size-5 text-stone-900" />
-                <h2 className="text-lg font-black text-stone-900">Bộ lọc ngành học</h2>
+                <LuSlidersHorizontal className="size-5 text-slate-900" />
+                <h2 className="text-lg font-black text-slate-900">Bộ lọc ngành học</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsMobileFilterOpen(false)}
-                className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-200"
+                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200"
               >
                 <LuX className="size-5" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto py-4">
-              <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wide">Nhóm ngành</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Nhóm ngành</h3>
               <div className="mt-3 space-y-1">
                 <button
                   type="button"
@@ -535,12 +535,12 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                   className={cn(
                     "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm",
                     selectedGroup === null
-                      ? "bg-[#EAE4D5] text-stone-950 font-bold"
-                      : "text-stone-700 hover:bg-[#F3EFE6]"
+                      ? "bg-primary-100 text-primary-900 font-bold"
+                      : "text-slate-700 hover:bg-primary-50"
                   )}
                 >
                   <span>Tất cả nhóm ngành</span>
-                  <span className="text-xs text-stone-400">{items.length}</span>
+                  <span className="text-xs text-slate-400">{items.length}</span>
                 </button>
 
                 {groups.map((item) => {
@@ -555,26 +555,26 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                       className={cn(
                         "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm",
                         isSelected
-                          ? "bg-[#EAE4D5] text-stone-950 font-bold"
-                          : "text-stone-700 hover:bg-[#F3EFE6]"
+                          ? "bg-primary-100 text-primary-900 font-bold"
+                          : "text-slate-700 hover:bg-primary-50"
                       )}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon className="size-4 shrink-0 text-stone-500" />
+                        <Icon className="size-4 shrink-0 text-primary-700" />
                         <span className="truncate">{group.name}</span>
                       </div>
-                      <span className="text-xs text-stone-400 shrink-0 ml-2">{item.majorCount}</span>
+                      <span className="text-xs text-slate-400 shrink-0 ml-2">{item.majorCount}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="border-t border-[#EBE5D9] pt-3">
+            <div className="border-t border-primary-100 pt-3">
               <button
                 type="button"
                 onClick={() => setIsMobileFilterOpen(false)}
-                className="w-full rounded-xl bg-stone-900 py-3 text-center text-sm font-bold text-white shadow-xs"
+                className="w-full rounded-xl bg-primary-700 py-3 text-center text-sm font-bold text-white shadow-xs"
               >
                 Xem {filteredItems.length} kết quả
               </button>

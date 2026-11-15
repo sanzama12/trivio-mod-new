@@ -3,7 +3,7 @@
  *
  * Thiết kế để KHÔNG đưa thông tin sai về tuyển sinh:
  * 1. Trả lời bằng cách truy xuất dữ liệu có cấu trúc của Trovio (ngành, trường, chương trình, điểm chuẩn,
- *    chương trình và mốc tuyển sinh) — không "sáng tác" nội dung.
+ *    chương trình) — không "sáng tác" nội dung.
  * 2. Mọi con số kèm năm và nguồn; câu trả lời có liên kết tới trang gốc để người dùng kiểm tra.
  * 3. Từ chối dự đoán điểm chuẩn, cam kết đỗ, gian lận; câu hỏi ngoài phạm vi → nói rõ "chưa có thông tin".
  * 4. (Tuỳ chọn) lớp LLM chỉ được diễn đạt lại; mọi con số trong câu trả lời LLM phải có trong dữ kiện,
@@ -18,7 +18,6 @@ import { hasTuitionData } from "../lib/format";
 import { normalizeVi } from "../lib/text";
 import { ADMISSION_METHODS, cutoffFor, formatMethodScore } from "./scoring.service";
 import { matchMajor, riasecService, sanitizeRiasec } from "./riasec.service";
-import { timelineService } from "./timeline.service";
 import { polishWithLlm } from "./chatbot-llm";
 import { majorRecommendationService } from "./major-recommendation.service";
 import { userDataService } from "./user-data.service";
@@ -272,7 +271,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     return base(
       "help",
       "answer",
-      "Chào bạn! Mình là trợ lý Trovio. Bạn có thể hỏi về ngành, trường, điểm chuẩn, học phí và mốc tuyển sinh. Mình không dự đoán điểm chuẩn.",
+      "Chào bạn! Mình là trợ lý Trovio. Bạn có thể hỏi về ngành, trường, điểm chuẩn và học phí. Mình không dự đoán điểm chuẩn.",
       { context: ctx, suggestions: defaultSuggestions() },
     );
   }
@@ -298,40 +297,12 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
       "Thí sinh đăng ký nguyện vọng theo thứ tự ưu tiên trên hệ thống của Bộ GD&ĐT (số lượng tối đa theo quy chế từng năm). Mỗi thí sinh chỉ trúng tuyển MỘT nguyện vọng — nguyện vọng có thứ tự cao nhất mà bạn đủ điều kiện. Vì vậy nên xếp nguyện vọng khó (Thử sức) lên trước, An toàn xuống cuối, và luôn có ít nhất một nguyện vọng An toàn.",
       {
         context: ctx,
-        sources: [{ label: "Kiểm tra danh sách nguyện vọng của bạn", href: "/da-luu" }, { label: "Mốc đăng ký nguyện vọng", href: "/moc-tuyen-sinh" }, OFFICIAL_PORTAL],
+        sources: [{ label: "Kiểm tra danh sách nguyện vọng của bạn", href: "/da-luu" }, OFFICIAL_PORTAL],
         suggestions: ["Khi nào đăng ký nguyện vọng?", "Điểm ưu tiên khu vực tính thế nào?"],
       },
     );
   }
 
-  if (has(n, I.timeline) && !major && !school) {
-    const { events, note } = await timelineService.list();
-    const today = new Date().toISOString().slice(0, 10);
-    const TOPICS: [string[], string][] = [
-      [["nguyen vong", "xet tuyen"], "nguyen vong"],
-      [["le phi"], "le phi"],
-      [["dang ky thi", "dang ky du thi"], "dang ky du thi"],
-      [["thi tot nghiep", "thi thpt", "ky thi"], "ky thi tot nghiep"],
-      [["diem thi"], "cong bo diem thi"],
-      [["dgnl", "danh gia nang luc", "hsa", "v act"], "danh gia nang luc"],
-      [["trung tuyen", "ket qua xet tuyen"], "trung tuyen"],
-      [["nhap hoc"], "nhap hoc"],
-    ];
-    const topic = TOPICS.find(([keys]) => has(n, keys));
-    const matched = topic ? events.filter((e) => norm(e.title).includes(` ${topic[1]} `) || norm(e.title).includes(topic[1])) : [];
-    const shown = matched.length ? matched : events.filter((e) => (e.end ?? e.start) >= today).slice(0, 4);
-    return base("timeline", "answer", matched.length ? "Mốc tuyển sinh liên quan:" : "Các mốc tuyển sinh sắp tới:", {
-      context: ctx,
-      items: shown.map((e) => ({
-        title: e.title,
-        meta: `${e.end && e.end !== e.start ? `${fmtDate(e.start)} – ${fmtDate(e.end)}` : fmtDate(e.start)}${(e.end ?? e.start) < today ? " · đã qua" : ""}`,
-        href: "/moc-tuyen-sinh",
-      })),
-      note,
-      sources: [{ label: "Lịch đầy đủ & nhắc hạn", href: "/moc-tuyen-sinh" }, OFFICIAL_PORTAL],
-      suggestions: ["Thứ tự nguyện vọng quan trọng thế nào?"],
-    });
-  }
 
   if (has(n, I.recommend) && !explicitMajor) {
     if (userId) {
@@ -690,10 +661,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   );
 }
 
-function fmtDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
+
 
 function defaultSuggestions() {
   return ["Giới thiệu ngành Marketing", "Điểm chuẩn ngành Công nghệ thông tin", "Học phí ngành Kế toán", "Thứ tự nguyện vọng quan trọng thế nào?"];

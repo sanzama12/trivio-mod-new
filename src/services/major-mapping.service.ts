@@ -1,5 +1,32 @@
 import type { Major, MajorGroup, RiasecType } from "../domain/types";
 import { normalizeVi } from "../lib/text";
+import { isMajorCode } from "@database/identity";
+
+export function normalizeAdmissionCode(value: string): string {
+  return value.trim().toUpperCase()
+    .replace(/^\((\d{1,3})\)\s*/, "$1-")
+    .replace(/^(\d{1,3})[.)\s_-]+([A-Z0-9]+)/, "$1-$2")
+    .replace(/\s+/g, "-");
+}
+
+/** National code embedded in a numbered or school-specific admission code. */
+export function normalizeMajorCode(value: string): string {
+  return value.trim().toUpperCase()
+    .replace(/^(?:\(\d+\)\s*|\d+[.)_\s-]+)(\d{7}(?:[A-Z][A-Z0-9_]*|[._-][A-Z0-9_]+)?)$/, "$1")
+    .replace(/^(\d{7})(?:[A-Z][A-Z0-9_]*|[._-][A-Z0-9_]+)$/, "$1");
+}
+
+/** Shared by preview and save so accepted rows use the same major identity. */
+export function resolveMajorForImport(majors: Major[], name: string, inputCode = "") {
+  const rawCode = inputCode.trim().toUpperCase();
+  const exact = rawCode ? majors.filter((major) => major.code.trim().toUpperCase() === rawCode) : [];
+  if (exact.length) return { major: exact.length === 1 ? exact[0] : undefined, code: rawCode };
+  const code = normalizeMajorCode(rawCode);
+  if (isMajorCode(code)) return { major: findMajorForImport(majors, name, code), code };
+  // Short school codes carry no national identity. Only an unambiguous name can resolve them.
+  const major = findMajorForImport(majors, name);
+  return { major, code: major ? major.code : code };
+}
 
 /** A stable identity used by imports. Punctuation and repeated spaces are irrelevant. */
 export function normalizeMajorIdentity(value: string): string {

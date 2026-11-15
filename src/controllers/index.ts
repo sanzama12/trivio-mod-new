@@ -12,5 +12,3 @@ export * from "./auth.controller";
 export * from "./catalog.controller";
 export * from "./community.controller";
 export * from "./account.controller";
-export * from "./content.controller";
-export * from "./donation.controller";

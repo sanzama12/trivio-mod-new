@@ -535,7 +535,6 @@ function mapUser(row: any): User {
     under16: Boolean(row.under16),
     parentConsent: Boolean(row.parentConsent),
     onboarded: Boolean(row.onboarded),
-    emailReminders: Boolean(row.emailReminders),
     lastLoginAt: row.lastLoginAt ? new Date(row.lastLoginAt).toISOString() : null,
     admin: Boolean(row.admin),
   };
@@ -550,7 +549,7 @@ const USER_SELECT = `
          u.email_otp_hash AS "emailOtpHash", u.email_otp_expires AS "emailOtpExpires",
          u.grad_year AS "gradYear", u.province, u.under16,
          u.parent_consent AS "parentConsent", u.onboarded,
-         u.email_reminders AS "emailReminders", u.last_login_at AS "lastLoginAt",
+         u.last_login_at AS "lastLoginAt",
          (u.access_role = 'admin') AS admin
   FROM trovio.users u`;
 
@@ -584,9 +583,9 @@ export const postgresUserRepository: UserRepository = {
         lock_until, disabled, failed_attempts, session_version,
         email_otp_hash, email_otp_expires, access_role,
         grad_year, province, under16, parent_consent, onboarded,
-        email_reminders, last_login_at
+        last_login_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
       )
     `, [
       id, input.email.toLowerCase(), input.name, input.avatarUrl ?? null, input.passwordHash ?? null,
@@ -594,7 +593,7 @@ export const postgresUserRepository: UserRepository = {
       input.failedAttempts, input.sessionVersion ?? 0, input.emailOtpHash ?? null, input.emailOtpExpires ?? null,
       input.admin === true ? "admin" : "user",
       input.gradYear, input.province, input.under16, input.parentConsent, input.onboarded,
-      input.emailReminders ?? false, input.lastLoginAt ?? null,
+      input.lastLoginAt ?? null,
     ]);
     const created = await this.findById(id);
     if (!created) throw new Error("[PostgreSQL] Không đọc lại được tài khoản vừa tạo.");
@@ -616,15 +615,15 @@ export const postgresUserRepository: UserRepository = {
         verified = $11, failed_attempts = $12, session_version = $13,
         email_otp_hash = $14, email_otp_expires = $15,
         grad_year = $16, province = $17, under16 = $18,
-        parent_consent = $19, onboarded = $20, email_reminders = $21,
-        last_login_at = $22
+        parent_consent = $19, onboarded = $20,
+        last_login_at = $21
       WHERE id = $1
     `, [
       id, merged.email.toLowerCase(), merged.passwordHash, merged.name, merged.avatarUrl, merged.admin === true ? "admin" : "user",
       merged.locked, merged.lockUntil ?? null, merged.disabled ?? false, merged.googleId, merged.verified,
       merged.failedAttempts, merged.sessionVersion ?? 0, merged.emailOtpHash ?? null, merged.emailOtpExpires ?? null,
       merged.gradYear, merged.province, merged.under16, merged.parentConsent, merged.onboarded,
-      merged.emailReminders ?? false, merged.lastLoginAt ?? null,
+      merged.lastLoginAt ?? null,
     ]);
     return this.findById(id);
   },

@@ -880,7 +880,10 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                     value={form.admissionCode}
                     onChange={(e) => setForm((prev) => ({ ...prev, admissionCode: e.target.value.toUpperCase() }))}
                   />
-                  <p className="mt-1 text-[11px] text-slate-400">Để trống hệ thống sẽ tự sinh mã.</p>
+                  {(formErrors.admissionCode || formErrors.majorCode) && (
+                    <p className="mt-1 text-xs text-danger-600">{formErrors.admissionCode || formErrors.majorCode}</p>
+                  )}
+                  <p className="mt-1 text-[11px] text-slate-400">Nhập mã xét tuyển do trường công bố; có thể dùng mã ngành 7 số nếu trường dùng mã này để xét tuyển.</p>
                 </div>
               </div>
 
@@ -1050,7 +1053,7 @@ export function UnifiedEntryHub({ userName, schools: initialSchools, majors: ini
                           <td
                             key={column.key}
                             className={cn(
-                                "max-w-64 whitespace-normal break-words px-3 py-1.5",
+                              "max-w-64 whitespace-normal break-words px-3 py-1.5",
                               column.key === "ma_xet_tuyen" && "font-mono font-bold text-primary-700",
                               !example[column.key] && "italic text-slate-400",
                             )}

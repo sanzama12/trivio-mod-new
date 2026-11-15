@@ -9,15 +9,9 @@ export type AdminSection =
   | "scores"
   | "import"
   | "users"
-  | "rules"
   | "qa"
-  | "emails"
-  | "timeline"
-  | "news"
-  | "materials"
   | "chatbot"
-  | "stats"
-  | "donations";
+  | "stats";
 
 /** Số việc đang chờ xử lý hiển thị trên thanh bên (gọi ở server). */
 export async function adminBadges(): Promise<Partial<Record<AdminSection, number>>> {

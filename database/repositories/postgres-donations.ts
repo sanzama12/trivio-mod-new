@@ -116,7 +116,7 @@ export const postgresDonationsRepository = {
            vnp_pay_date = CASE WHEN $5 IS NOT NULL THEN TO_TIMESTAMP($5, 'YYYYMMDDHH24MISS') ELSE vnp_pay_date END,
            vnp_response_code = COALESCE($6, vnp_response_code),
            paid_at = CASE WHEN $1 = 'success' THEN COALESCE(paid_at, now()) ELSE paid_at END
-       WHERE vnp_txn_ref = $7
+       WHERE vnp_txn_ref = $7 AND status = 'pending'
        RETURNING ${cols}`,
       [
         result.status,
@@ -232,7 +232,7 @@ export const postgresDonationsRepository = {
        WHERE status = 'success'
        ORDER BY paid_at DESC NULLS LAST, created_at DESC
        LIMIT $1`,
-      [Math.min(limit, 50)]
+      [Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), 50)) : 8]
     );
   },
 };

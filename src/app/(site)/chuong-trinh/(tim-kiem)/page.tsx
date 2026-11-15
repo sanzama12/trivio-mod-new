@@ -10,7 +10,6 @@ import { FilterPanel } from "@/components/search/filter-panel";
 import { ProgramCard } from "@/components/program/program-card";
 import { OpenCompareButton } from "@/components/program/program-actions";
 import { SavedScoreHint } from "@/components/search/saved-score-hint";
-import { PersonalizedSuggestions } from "@/components/search/personalized-suggestions";
 
 export const metadata: Metadata = { title: "Tìm chương trình đào tạo" };
 
@@ -72,15 +71,14 @@ export default async function SearchPage({ searchParams }: Props) {
           </div>
           <button className={cn(buttonClass({ size: "sm" }), "w-full sm:w-auto")}>Tìm</button>
         </form>
-        <PersonalizedSuggestions query={filters.q} />
       </div>
 
-      <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
-        <div className="min-w-0 lg:sticky lg:top-24">
+      <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+        <div className="min-w-0 lg:order-2 lg:sticky lg:top-24">
           <FilterPanel filters={filters} combos={combos} subjects={subjects} groups={groups} />
         </div>
 
-        <section aria-label="Kết quả tìm kiếm" className="min-w-0">
+        <section aria-label="Kết quả tìm kiếm" className="min-w-0 lg:order-1">
           <div className="mb-4 flex flex-wrap items-center gap-2" role="tablist" aria-label="Sắp xếp">
             {(Object.keys(SORT_LABELS) as ProgramSort[]).map((k) => (
               <Link

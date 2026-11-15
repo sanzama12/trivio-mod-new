@@ -16,12 +16,9 @@ import type {
   ImportBatchRepository,
   NotificationRepository,
   QaRepository,
-  RecommendConfigRepository,
-  ReminderLogRepository,
   ShareRepository,
   SurveyRepository,
   SupplementaryRepository,
-  TimelineConfigRepository,
   UserDataRepository,
 } from "./types";
 import type {
@@ -32,12 +29,10 @@ import type {
   FunnelEvent,
   ImportBatch,
   QaQuestion,
-  RecommendConfig,
   Share,
   ShareComment,
   SusResponse,
   SupplementaryRound,
-  TimelineConfig,
   UserData,
 } from "@/domain/types";
 import type { ChatConversation } from "@/domain/chat";
@@ -200,14 +195,6 @@ export const postgresNotificationRepository: NotificationRepository = {
   },
 };
 
-export const postgresTimelineConfigRepository: TimelineConfigRepository = {
-  get: () => getDocument<TimelineConfig>("timeline-config", "active"),
-  async set(config) {
-    if (config) await putDocument("timeline-config", "active", config, { ownerId: config.updatedBy, status: config.official ? "official" : "draft" });
-    else await deleteDocument("timeline-config", "active");
-  },
-};
-
 export const postgresSupplementaryRepository: SupplementaryRepository = {
   list: () => listDocuments<SupplementaryRound>("supplementary-round"),
 };
@@ -261,33 +248,12 @@ export const postgresSurveyRepository: SurveyRepository = {
   list: () => listDocuments<SusResponse>("sus-response"),
 };
 
-export const postgresReminderLogRepository: ReminderLogRepository = {
-  async sent(keys) {
-    if (!keys.length) return new Set<string>();
-    const rows = await query<{ key: string }>(`SELECT key FROM trovio.reminder_log WHERE key = ANY($1::text[])`, [keys]);
-    return new Set(rows.map((row) => row.key));
-  },
-  async add(keys) {
-    if (!keys.length) return;
-    await query(
-      `INSERT INTO trovio.reminder_log (key)
-       SELECT unnest($1::text[]) ON CONFLICT (key) DO NOTHING`,
-      [keys],
-    );
-  },
-};
-
 export const postgresQaRepository: QaRepository = {
   create: (question) => putDocument("qa-question", question.id, question, { ownerId: question.userId, parentId: question.programId, status: question.status }),
   update: (id, transform) => updateDocument<QaQuestion>("qa-question", id, transform, (value) => ({ ownerId: value.userId, parentId: value.programId, status: value.status })),
   findById: (id) => getDocument<QaQuestion>("qa-question", id),
   listByProgram: (programId) => listDocuments<QaQuestion>("qa-question", { parentId: programId }),
   list: () => listDocuments<QaQuestion>("qa-question"),
-};
-
-export const postgresRecommendConfigRepository: RecommendConfigRepository = {
-  get: () => getDocument<RecommendConfig>("recommend-config", "active"),
-  save: (config) => putDocument("recommend-config", "active", config).then(() => undefined),
 };
 
 export const postgresImportBatchRepository: ImportBatchRepository = {

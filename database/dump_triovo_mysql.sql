@@ -83,28 +83,6 @@ CREATE TABLE `data_sources` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS `donations`;
-CREATE TABLE `donations` (
-  `id` VARCHAR(36) NOT NULL,
-  `donor_name` LONGTEXT NOT NULL,
-  `donor_email` LONGTEXT NULL,
-  `amount` DECIMAL(12,2) NOT NULL,
-  `message` LONGTEXT NULL,
-  `order_info` LONGTEXT NOT NULL,
-  `vnp_txn_ref` LONGTEXT NOT NULL,
-  `vnp_transaction_no` LONGTEXT NULL,
-  `vnp_bank_code` LONGTEXT NULL,
-  `vnp_card_type` LONGTEXT NULL,
-  `vnp_pay_date` DATETIME NULL,
-  `vnp_response_code` LONGTEXT NULL,
-  `status` LONGTEXT NOT NULL,
-  `ip_address` LONGTEXT NULL,
-  `created_at` DATETIME NOT NULL,
-  `updated_at` DATETIME NOT NULL,
-  `paid_at` DATETIME NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 DROP TABLE IF EXISTS `learning_materials`;
 CREATE TABLE `learning_materials` (
   `id` VARCHAR(191) NOT NULL,
@@ -1567,11 +1545,6 @@ INSERT IGNORE INTO `data_sources` (`id`, `title`, `publisher`, `year`, `url`, `k
 INSERT IGNORE INTO `data_sources` (`id`, `title`, `publisher`, `year`, `url`, `kind`, `trust`, `note`, `accessed_at`, `is_custom`) VALUES ('tuoitre-2026-01-viec-lam', 'Trường đại học nào nhiều sinh viên sớm có việc làm, lương cao sau khi ra trường?', 'Báo Tuổi Trẻ (21/01/2026)', 2025, 'https://tuoitre.vn/truong-dai-hoc-nao-nhieu-sinh-vien-som-co-viec-lam-luong-cao-sau-khi-ra-truong-20260121180410959.htm', 'bao-chi', 'trung-binh', 'Báo chí tổng hợp kết quả khảo sát do chính các trường thực hiện với sinh viên tốt nghiệp năm 2025. Nên đối chiếu báo cáo gốc của trường; tỷ lệ phản hồi và cách định nghĩa "có việc làm" khác nhau giữa các trường.', '2026-09-28 17:00:00.000', 0);
 INSERT IGNORE INTO `data_sources` (`id`, `title`, `publisher`, `year`, `url`, `kind`, `trust`, `note`, `accessed_at`, `is_custom`) VALUES ('trovio-demo', 'Số liệu minh hoạ của bản demo Trovio', 'Trovio', 2025, NULL, 'minh-hoa', 'minh-hoa', 'Ước lượng chỉ để minh hoạ giao diện, KHÔNG phải số liệu thống kê. Cần thay bằng số liệu từ báo cáo khảo sát việc làm của các trường hoặc khảo sát có phương pháp công bố rõ ràng.', '2026-09-28 17:00:00.000', 0);
 
--- Dữ liệu cho bảng: `donations` (3 dòng)
-INSERT IGNORE INTO `donations` (`id`, `donor_name`, `donor_email`, `amount`, `message`, `order_info`, `vnp_txn_ref`, `vnp_transaction_no`, `vnp_bank_code`, `vnp_card_type`, `vnp_pay_date`, `vnp_response_code`, `status`, `ip_address`, `created_at`, `updated_at`, `paid_at`) VALUES ('5ae96c62-da7e-4c35-9141-b55cd487536f', 'Nhà hảo tâm giấu tên', NULL, '20000.00', NULL, 'Ung ho Trieu Nu Cuoi TriOVO - Nhà hảo tâm giấu tên', 'TROVIO_1793680030024_FD7Y7', NULL, NULL, NULL, NULL, NULL, 'pending', '42.116.13.48', '2026-11-03 04:27:10.135', '2026-11-03 04:27:10.135', NULL);
-INSERT IGNORE INTO `donations` (`id`, `donor_name`, `donor_email`, `amount`, `message`, `order_info`, `vnp_txn_ref`, `vnp_transaction_no`, `vnp_bank_code`, `vnp_card_type`, `vnp_pay_date`, `vnp_response_code`, `status`, `ip_address`, `created_at`, `updated_at`, `paid_at`) VALUES ('d9112bbe-0cf0-47ae-af6f-b225dd6f52dc', 'Nhà hảo tâm giấu tên', NULL, '100000.00', 'Tiếp sức 1 ly cà phê cho TriOVO qua VNPay', 'Ung ho Trieu Nu Cuoi TriOVO - Nhà hảo tâm giấu tên', 'TROVIO_1793943886615_K954M', NULL, NULL, NULL, NULL, NULL, 'pending', '127.0.0.1', '2026-11-06 05:44:46.168', '2026-11-06 05:44:46.168', NULL);
-INSERT IGNORE INTO `donations` (`id`, `donor_name`, `donor_email`, `amount`, `message`, `order_info`, `vnp_txn_ref`, `vnp_transaction_no`, `vnp_bank_code`, `vnp_card_type`, `vnp_pay_date`, `vnp_response_code`, `status`, `ip_address`, `created_at`, `updated_at`, `paid_at`) VALUES ('f885ad73-898a-40b1-a6b8-fe8c2ab65316', 'Sĩ tử TriOVO', NULL, '100000.00', 'Tiếp sức ly cà phê duy trì máy chủ', 'Ung ho Trieu Nu Cuoi TriOVO - Sĩ tử TriOVO', 'TROVIO_1793951466494_GOBPA', NULL, NULL, NULL, NULL, NULL, 'pending', '127.0.0.1', '2026-11-06 07:51:09.073', '2026-11-06 07:51:09.073', NULL);
-
 -- Dữ liệu cho bảng: `major_code_review` (10 dòng)
 INSERT IGNORE INTO `major_code_review` (`major_id`, `original_code`, `reason`, `recorded_at`) VALUES ('maj-cong-nghe-ky-thuat-o-to', '7510205', 'duplicate', '2026-10-20 03:03:41.453');
 INSERT IGNORE INTO `major_code_review` (`major_id`, `original_code`, `reason`, `recorded_at`) VALUES ('maj-cong-nghe-sinh-hoc', '7420201', 'duplicate', '2026-10-20 03:03:41.453');
@@ -1784,7 +1757,6 @@ INSERT IGNORE INTO `schema_migrations` (`name`, `applied_at`) VALUES ('20261020_
 INSERT IGNORE INTO `schema_migrations` (`name`, `applied_at`) VALUES ('20261020_zz_finalize_account_roles.sql', '2026-10-20 13:29:04.631');
 INSERT IGNORE INTO `schema_migrations` (`name`, `applied_at`) VALUES ('20261021_remove_quiz_teacher_channel.sql', '2026-10-21 10:34:30.982');
 INSERT IGNORE INTO `schema_migrations` (`name`, `applied_at`) VALUES ('20261021_remove_additional_work_style_tables.sql', '2026-10-21 10:38:16.626');
-INSERT IGNORE INTO `schema_migrations` (`name`, `applied_at`) VALUES ('20261031_donations_vnpay.sql', '2026-11-03 04:11:05.230');
 
 -- Dữ liệu cho bảng: `school_campuses` (3 dòng)
 INSERT IGNORE INTO `school_campuses` (`id`, `school_id`, `name`, `position`) VALUES ('22', 'sch-dad', 'Đà Nẵng', 0);
@@ -1877,3 +1849,26 @@ INSERT IGNORE INTO `users` (`id`, `email`, `name`, `avatar_url`, `password_hash`
 
 SET FOREIGN_KEY_CHECKS = 1;
 -- Hoàn tất nạp CSDL MySQL: 1311 dòng trên 39 bảng.
+
+-- Remove retired dashboard modules after restoring the snapshot.
+DROP TABLE IF EXISTS `news_post_events`;
+DROP TABLE IF EXISTS `news_posts`;
+DROP TABLE IF EXISTS `news_articles`;
+DROP TABLE IF EXISTS `news_categories`;
+DROP TABLE IF EXISTS `recommend_rule_params`;
+DROP TABLE IF EXISTS `recommend_rules`;
+DROP TABLE IF EXISTS `recommend_weights`;
+DROP TABLE IF EXISTS `deadline_reminders`;
+DROP TABLE IF EXISTS `reminder_log`;
+DROP TABLE IF EXISTS `timeline_config`;
+DROP TABLE IF EXISTS `timeline_events`;
+ALTER TABLE `users` DROP COLUMN `email_reminders`;
+DELETE FROM `app_documents`
+WHERE `collection` IN ('recommend-config', 'timeline-config', 'reminder-log', 'news-post', 'news-category')
+   OR (`collection` = 'notification' AND JSON_UNQUOTE(JSON_EXTRACT(`payload`, '$.kind')) = 'reminder')
+   OR (`collection` = 'audit' AND JSON_UNQUOTE(JSON_EXTRACT(`payload`, '$.targetType')) IN ('rules', 'timeline'));
+UPDATE `app_documents` SET `payload` = JSON_REMOVE(`payload`, '$.reminders')
+WHERE `collection` = 'user-data';
+DELETE FROM `notifications` WHERE `kind` = 'reminder';
+INSERT IGNORE INTO `schema_migrations` (`name`, `applied_at`)
+VALUES ('20261115_remove_dashboard_features.sql', CURRENT_TIMESTAMP);

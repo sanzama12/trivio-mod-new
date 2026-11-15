@@ -787,39 +787,6 @@ COMMENT ON TABLE recommend_weights IS 'Trọng số các tiêu chí gợi ý ch�
 COMMENT ON TABLE audit_logs IS 'Nhật ký mọi thay đổi dữ liệu của quản trị viên / kiểm duyệt viên / cổng trường.';
 COMMENT ON TABLE analytics_events IS 'Phễu hành vi ẩn danh (chỉ gửi sau khi đồng ý cookie), xoá sau 180 ngày.';
 
--- =====================================================================================================
--- 14. ỦNG HỘ & DOANH THU (Donations / VNPay Gateway)
--- =====================================================================================================
-CREATE TABLE donations (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  donor_name          TEXT NOT NULL,
-  donor_email         TEXT,
-  amount              NUMERIC(12, 2) NOT NULL CHECK (amount >= 5000),
-  message             TEXT,
-  order_info          TEXT NOT NULL,
-  vnp_txn_ref         TEXT NOT NULL UNIQUE,
-  vnp_transaction_no  TEXT,
-  vnp_bank_code       TEXT,
-  vnp_card_type       TEXT,
-  vnp_pay_date        TIMESTAMP WITH TIME ZONE,
-  vnp_response_code   TEXT,
-  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
-  ip_address          TEXT,
-  created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  paid_at             TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_donations_status ON donations(status);
-CREATE INDEX idx_donations_vnp_txn_ref ON donations(vnp_txn_ref);
-CREATE INDEX idx_donations_created_at ON donations(created_at DESC);
-
-CREATE TRIGGER trg_donations_touch
-  BEFORE UPDATE ON donations
-  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
-
-COMMENT ON TABLE donations IS 'Giao dịch ủng hộ dự án qua cổng thanh toán VNPay.';
-
 COMMIT;
 
 
@@ -1915,40 +1882,6 @@ ALTER TABLE users
 
 COMMIT;
 
--- @migration 20261031_donations_vnpay.sql
-BEGIN;
-SET search_path TO trovio, public;
-
-CREATE TABLE IF NOT EXISTS donations (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  donor_name          TEXT NOT NULL,
-  donor_email         TEXT,
-  amount              NUMERIC(12, 2) NOT NULL CHECK (amount >= 5000),
-  message             TEXT,
-  order_info          TEXT NOT NULL,
-  vnp_txn_ref         TEXT NOT NULL UNIQUE,
-  vnp_transaction_no  TEXT,
-  vnp_bank_code       TEXT,
-  vnp_card_type       TEXT,
-  vnp_pay_date        TIMESTAMP WITH TIME ZONE,
-  vnp_response_code   TEXT,
-  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
-  ip_address          TEXT,
-  created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  paid_at             TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX IF NOT EXISTS idx_donations_status ON donations(status);
-CREATE INDEX IF NOT EXISTS idx_donations_vnp_txn_ref ON donations(vnp_txn_ref);
-CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at DESC);
-
-DROP TRIGGER IF EXISTS trg_donations_touch ON donations;
-CREATE TRIGGER trg_donations_touch
-  BEFORE UPDATE ON donations
-  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
-
-COMMIT;
 
 
 
@@ -3185,10 +3118,6 @@ INSERT INTO trovio."app_documents" ("collection", "id", "owner_id", "parent_id",
 INSERT INTO trovio."app_documents" ("collection", "id", "owner_id", "parent_id", "status", "payload", "created_at", "updated_at") VALUES ('notification', 'cf1bcf11-eada-4d02-b624-964556b64919', 'u-002', NULL, 'unread', '{"id":"cf1bcf11-eada-4d02-b624-964556b64919","body":"y","href":null,"kind":"reminder","read":false,"title":"x","userId":"u-002","createdAt":"2026-10-17T04:27:54.559Z"}'::jsonb, '2026-10-17T04:27:54.116Z', '2026-10-17T04:27:54.116Z') ON CONFLICT DO NOTHING;
 INSERT INTO trovio."app_documents" ("collection", "id", "owner_id", "parent_id", "status", "payload", "created_at", "updated_at") VALUES ('notification', '2df36082-ac90-44a7-9951-6466d2ea8192', 'u-002', NULL, 'read', '{"id":"2df36082-ac90-44a7-9951-6466d2ea8192","body":"y","href":null,"kind":"reminder","read":true,"title":"x","userId":"u-002","createdAt":"2026-10-17T04:27:53.843Z"}'::jsonb, '2026-10-17T04:27:53.407Z', '2026-10-17T04:27:55.360Z') ON CONFLICT DO NOTHING;
 
--- Bảng: trovio.donations (2 dòng)
-INSERT INTO trovio."donations" ("id", "donor_name", "donor_email", "amount", "message", "order_info", "vnp_txn_ref", "vnp_transaction_no", "vnp_bank_code", "vnp_card_type", "vnp_pay_date", "vnp_response_code", "status", "ip_address", "created_at", "updated_at", "paid_at") VALUES ('5ae96c62-da7e-4c35-9141-b55cd487536f', 'Nhà hảo tâm giấu tên', NULL, '20000.00', NULL, 'Ung ho Trieu Nu Cuoi TriOVO - Nhà hảo tâm giấu tên', 'TROVIO_1793680030024_FD7Y7', NULL, NULL, NULL, NULL, NULL, 'pending', '42.116.13.48', '2026-11-03T04:27:10.135Z', '2026-11-03T04:27:10.135Z', NULL) ON CONFLICT DO NOTHING;
-INSERT INTO trovio."donations" ("id", "donor_name", "donor_email", "amount", "message", "order_info", "vnp_txn_ref", "vnp_transaction_no", "vnp_bank_code", "vnp_card_type", "vnp_pay_date", "vnp_response_code", "status", "ip_address", "created_at", "updated_at", "paid_at") VALUES ('d9112bbe-0cf0-47ae-af6f-b225dd6f52dc', 'Nhà hảo tâm giấu tên', NULL, '100000.00', 'Tiếp sức 1 ly cà phê cho TriOVO qua VNPay', 'Ung ho Trieu Nu Cuoi TriOVO - Nhà hảo tâm giấu tên', 'TROVIO_1793943886615_K954M', NULL, NULL, NULL, NULL, NULL, 'pending', '127.0.0.1', '2026-11-06T05:44:46.168Z', '2026-11-06T05:44:46.168Z', NULL) ON CONFLICT DO NOTHING;
-
 -- Bảng: trovio.schema_migrations (17 dòng)
 INSERT INTO trovio."schema_migrations" ("name", "applied_at") VALUES ('20261013_postgres_runtime.sql', '2026-10-14T02:42:38.120Z') ON CONFLICT DO NOTHING;
 INSERT INTO trovio."schema_migrations" ("name", "applied_at") VALUES ('20261018_edudecision_foundation.sql', '2026-10-18T18:05:14.965Z') ON CONFLICT DO NOTHING;
@@ -3206,7 +3135,6 @@ INSERT INTO trovio."schema_migrations" ("name", "applied_at") VALUES ('20261020_
 INSERT INTO trovio."schema_migrations" ("name", "applied_at") VALUES ('20261020_zz_finalize_account_roles.sql', '2026-10-20T13:29:04.631Z') ON CONFLICT DO NOTHING;
 INSERT INTO trovio."schema_migrations" ("name", "applied_at") VALUES ('20261021_remove_quiz_teacher_channel.sql', '2026-10-21T10:34:30.982Z') ON CONFLICT DO NOTHING;
 INSERT INTO trovio."schema_migrations" ("name", "applied_at") VALUES ('20261021_remove_additional_work_style_tables.sql', '2026-10-21T10:38:16.626Z') ON CONFLICT DO NOTHING;
-INSERT INTO trovio."schema_migrations" ("name", "applied_at") VALUES ('20261031_donations_vnpay.sql', '2026-11-03T04:11:05.230Z') ON CONFLICT DO NOTHING;
 
 -- Bảng: trovio.analytics_events (52 dòng)
 INSERT INTO trovio."analytics_events" ("day", "event", "anon_id") VALUES ('2026-10-13T17:00:00.000Z', 'visit', 'a7e64d98-341f-4804-9e74-6a420a97b929') ON CONFLICT DO NOTHING;
@@ -3331,3 +3259,96 @@ INSERT INTO trovio."timeline_events" ("id", "title", "start_date", "end_date", "
 COMMIT;
 
 -- Hoàn tất trích xuất CSDL: 1310 dòng dữ liệu.
+
+-- Remove retired dashboard modules after restoring the snapshot.
+BEGIN;
+SET search_path TO trovio, public;
+
+-- Remove the retired news, recommendation configuration and admission calendar modules.
+DROP VIEW IF EXISTS published_news;
+DROP TABLE IF EXISTS news_post_events;
+DROP TABLE IF EXISTS news_posts;
+DROP TABLE IF EXISTS news_articles;
+DROP TABLE IF EXISTS news_categories;
+DROP FUNCTION IF EXISTS news_post_guard();
+DROP TABLE IF EXISTS recommend_rule_params;
+DROP TABLE IF EXISTS recommend_rules;
+DROP TABLE IF EXISTS recommend_weights;
+DROP TABLE IF EXISTS deadline_reminders;
+DROP TABLE IF EXISTS reminder_log;
+DROP TABLE IF EXISTS timeline_config;
+
+-- Earlier installations archived reminder subscriptions with a foreign key to timeline_events.
+DO $retired_archive$
+DECLARE
+  target TEXT;
+BEGIN
+  IF to_regnamespace('trovio_archive') IS NOT NULL THEN
+    FOREACH target IN ARRAY ARRAY[
+      'deadline_reminders', 'reminder_log', 'timeline_config', 'timeline_events',
+      'recommend_rule_params', 'recommend_rules', 'recommend_weights',
+      'news_post_events', 'news_posts', 'news_articles', 'news_categories'
+    ] LOOP
+      EXECUTE format('DROP TABLE IF EXISTS trovio_archive.%I', target);
+    END LOOP;
+  END IF;
+END
+$retired_archive$;
+
+DROP TABLE IF EXISTS timeline_events;
+ALTER TABLE users DROP COLUMN IF EXISTS email_reminders;
+
+DELETE FROM app_documents
+WHERE collection IN ('recommend-config', 'timeline-config', 'reminder-log', 'news-post', 'news-category')
+   OR (collection = 'notification' AND payload->>'kind' = 'reminder')
+   OR (collection = 'audit' AND payload->>'targetType' IN ('rules', 'timeline'));
+
+UPDATE app_documents
+SET payload = payload - 'reminders', updated_at = now()
+WHERE collection = 'user-data' AND payload ? 'reminders';
+
+DELETE FROM notifications WHERE kind = 'reminder';
+ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_kind_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check
+  CHECK (kind IN ('supplementary', 'qa-answer', 'school-submission'));
+
+COMMIT;
+INSERT INTO trovio.schema_migrations(name) VALUES ('20261115_remove_dashboard_features.sql') ON CONFLICT DO NOTHING;
+
+-- Restore the donations module.
+BEGIN;
+SET search_path TO trovio, public;
+
+CREATE TABLE IF NOT EXISTS donations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  donor_name TEXT NOT NULL,
+  donor_email TEXT,
+  amount NUMERIC(12, 2) NOT NULL CHECK (amount >= 10000),
+  message TEXT,
+  order_info TEXT NOT NULL,
+  vnp_txn_ref TEXT NOT NULL UNIQUE,
+  vnp_transaction_no TEXT,
+  vnp_bank_code TEXT,
+  vnp_card_type TEXT,
+  vnp_pay_date TIMESTAMPTZ,
+  vnp_response_code TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
+  ip_address TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_donations_status ON donations(status);
+CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at DESC);
+
+DO $donations_trigger$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'trovio.donations'::regclass AND tgname = 'trg_donations_touch') THEN
+    CREATE TRIGGER trg_donations_touch BEFORE UPDATE ON donations
+      FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  END IF;
+END
+$donations_trigger$;
+
+COMMIT;
+INSERT INTO trovio.schema_migrations(name) VALUES ('20261115_restore_donations.sql') ON CONFLICT DO NOTHING;

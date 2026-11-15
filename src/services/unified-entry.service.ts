@@ -18,7 +18,7 @@ import { PROVINCES, PROVINCE_REGION } from "../domain/provinces";
 import { repositories } from "@database/repositories";
 import { normalizeVi } from "../lib/text";
 import { slugify } from "./catalog-admin.service";
-import { defaultRiasecForGroup, findMajorForImport, inferMajorGroupId } from "./major-mapping.service";
+import { defaultRiasecForGroup, normalizeAdmissionCode, normalizeMajorCode, resolveMajorForImport, inferMajorGroupId } from "./major-mapping.service";
 
 export interface UnifiedEntryInput {
   id?: string; // Nếu sửa chương trình đã có
@@ -109,9 +109,6 @@ export const unifiedEntryService = {
     if (input.score != null && (scoreInput == null || scoreInput <= 0 || scoreInput > 30)) {
       return { ok: false, status: 400, field: "score", message: "Điểm chuẩn phải lớn hơn 0 và không quá 30." } as const;
     }
-    if (input.majorCode && !isMajorCode(input.majorCode.trim().replace(/^\d+[-._\s]+/, ""))) {
-      return { ok: false, status: 400, field: "majorCode", message: "Mã ngành không hợp lệ." } as const;
-    }
     if (!input.admissionCode?.trim()) {
       return { ok: false, status: 400, field: "admissionCode", message: "Cần mã xét tuyển do trường công bố." } as const;
     }
@@ -198,26 +195,22 @@ export const unifiedEntryService = {
 
     // ── 2. Xử lý Ngành đào tạo ────────────────────────────────────────────────
     const allMajors = ctx ? ctx.majors : await repositories.catalogAdmin.listMajors();
-    let rawMajorCode = str(input.majorCode, 20).trim();
+    let rawMajorCode = str(input.majorCode, 30);
     if (!rawMajorCode && input.admissionCode) {
       const admCandidate = str(input.admissionCode, 30).trim();
-      const admMatch = admCandidate.match(/^(\d+)[-._\s]+([A-Z0-9]+)$/i);
-      const cand = admMatch ? admMatch[2] : admCandidate;
+      const cand = normalizeMajorCode(admCandidate);
       if (/^\d{7}$/.test(cand)) {
         rawMajorCode = cand;
       }
     }
     // Trích xuất mã ngành chuẩn nếu có đánh số chuyên ngành hẹp (VD: "1-7480201", "1 7480201", "1.7480201" -> "7480201")
-    const baseCodeMatch = rawMajorCode.match(/^(\d+)[-._\s]+([A-Z0-9]+)$/i);
-    const baseMajorCode = baseCodeMatch ? baseCodeMatch[2] : rawMajorCode;
+    const resolvedMajor = resolveMajorForImport(allMajors, rawMajorName, rawMajorCode);
+    const baseMajorCode = resolvedMajor.code;
 
     const allPrograms = ctx ? ctx.programs : await repositories.catalogAdmin.listPrograms();
     
     // Chuẩn hóa mã xét tuyển (hỗ trợ đánh số 1 2 3 trước mã ngành cho chuyên ngành hẹp)
-    let rawAdmission = str(input.admissionCode, 30).trim();
-    rawAdmission = rawAdmission.replace(/^\((\d+)\)\s*/, "$1-");
-    rawAdmission = rawAdmission.replace(/^(\d+)[.)\s_-]+([a-zA-Z0-9]+)/, "$1-$2");
-    const admissionCode = rawAdmission.toUpperCase().replace(/\s+/g, "-");
+    const admissionCode = normalizeAdmissionCode(str(input.admissionCode, 30));
     
     // ID is authoritative for edits; imports use school + admission code.
     let existingProgram = input.id ? allPrograms.find((p) => p.id === input.id) :
@@ -230,8 +223,14 @@ export const unifiedEntryService = {
     }
     const finalAdmissionCode = admissionCode;
 
-    let major = existingProgram ? allMajors.find((m) => m.id === existingProgram.majorId) : findMajorForImport(allMajors, rawMajorName, baseMajorCode || rawMajorCode);
+    let major = existingProgram ? allMajors.find((m) => m.id === existingProgram.majorId) : resolvedMajor.major;
     let isNewMajor = false;
+
+    // Existing legacy codes may be preserved, but never used to create a new major.
+    if (baseMajorCode && !isMajorCode(baseMajorCode) &&
+        (!major || major.code.trim().toUpperCase() !== baseMajorCode.toUpperCase())) {
+      return { ok: false, status: 400, field: "majorCode", message: "Mã ngành phải gồm 7 chữ số, hoặc khớp với mã của ngành đã có. Mã xét tuyển riêng của trường cần nhập ở ô Mã xét tuyển." } as const;
+    }
 
     if (!major) {
       isNewMajor = true;

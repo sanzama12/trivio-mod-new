@@ -1,6 +1,6 @@
 # Trovio – Web học sinh (Next.js + Tailwind CSS)
 
-Database đã được tập trung tại [`database/`](database/README.md). Thiết kế ID, migration và trạng thái mã ngành cần đối soát: [`database/IDENTITY-DESIGN.md`](database/IDENTITY-DESIGN.md). Dùng các lệnh `db:*` trong tài liệu này cho cấu trúc hiện hành.
+Toàn bộ SQL và công cụ database được quản lý tại [`database/`](database/README.md). Các lệnh xuất SQL ghi vào thư mục này. Xem hướng dẫn khởi tạo, migration và xuất dữ liệu trong tài liệu database.
 
 Triển khai từ thiết kế Figma **Trovio — EdTech Platform** (trang *Page 1 · Đồng bộ style*, theme **Indigo 2026**).
 Next.js App Router · React 19 · Tailwind CSS v4 · TypeScript · kiến trúc **phân lớp (layered)**.
@@ -38,7 +38,6 @@ Nhập sai mật khẩu 5 lần sẽ khoá tài khoản; đặt lại mật kh�
 | Chia sẻ cho phụ huynh | `/da-luu` › “Chia sẻ với phụ huynh” → `/chia-se/[id]` | Link chỉ xem 7/30 ngày, thu hồi được, tuỳ chọn hiện điểm/ghi chú; người xem gửi góp ý không cần tài khoản |
 | Dành cho bạn | Trang chủ | Kết hợp RIASEC 45% · khả năng trúng tuyển 35% · vị trí 10% · nhóm ngành 10%; mỗi gợi ý kèm lý do. Giải thích ở `/cach-goi-y#danh-cho-ban` |
 | Nhiều phương thức xét tuyển | `/diem-cua-toi`, bộ lọc `/chuong-trinh` | Điểm thi THPT, học bạ (thang 30), ĐGNL ĐHQG-HN (150), ĐGNL ĐHQG-HCM (1200). Ngưỡng & điểm ưu tiên quy đổi theo thang |
-| Mốc tuyển sinh & nhắc hạn | `/moc-tuyen-sinh` | Lịch gốc ở `database/seeds/admission-timeline.ts` (mốc **minh hoạ**); quản trị viên cập nhật lịch thật ở `/quan-tri/moc-tuyen-sinh` (đánh dấu “chính thức” bắt buộc link `https://` tới văn bản của Bộ/ĐHQG). “Nhắc tôi” đồng bộ theo tài khoản, banner nhắc khi còn ≤ 14 ngày, xuất `.ics` / Google Calendar, **email nhắc trước 7 ngày và 1 ngày** (bật “Nhắc qua email”, cần email đã xác thực) |
 | Quản trị dữ liệu | `/quan-tri` (chỉ admin) | Sửa điểm chuẩn, học phí, chỉ tiêu, nguồn; “Đánh dấu đã kiểm tra”; khôi phục gốc; nhật ký ai-sửa-gì. Lưu dạng ghi đè trong DB, không sửa file dữ liệu gốc |
 
 ## Trợ lý hỏi đáp
@@ -104,7 +103,7 @@ Authorization: Bearer <CRON_SECRET>
 
 ## Quản trị A01–A09 & Cổng trường (đồng bộ Figma 10/2026)
 
-`/quan-tri` dùng thanh bên theo Figma: Tổng quan dữ liệu · Trường & Cơ sở · Ngành · Chương trình · Điểm & Học phí · Nhập & Kiểm duyệt (CSV/XLSX) · Người dùng · Quy tắc gợi ý (có chạy thử), cùng nhóm Cộng đồng & vận hành và biểu mẫu **Email khách hàng**. Mọi thao tác lưu vào database và ghi nhật ký; “xoá” trường/ngành/chương trình là **tạm ẩn** (khôi phục được). Kiểm duyệt viên chỉ thấy mục hỏi đáp. Cán bộ tuyển sinh (email đúng tên miền trường, quản trị viên duyệt) xác nhận số liệu hoặc gửi bản sửa ở `/cong-truong`. Bản Mini App: `/zalo`. Chi tiết: `docs/TIEP-TUC-TROVIO.md` mục 11.
+`/quan-tri` dùng thanh bên theo Figma: Tổng quan dữ liệu · Trường & Cơ sở · Ngành · Chương trình · Điểm & Học phí · Nhập & Kiểm duyệt (CSV/XLSX) · Người dùng, cùng nhóm Cộng đồng & vận hành. Mọi thao tác lưu vào database và ghi nhật ký; “xoá” trường/ngành/chương trình là **tạm ẩn** (khôi phục được). Kiểm duyệt viên chỉ thấy mục hỏi đáp. Cán bộ tuyển sinh (email đúng tên miền trường, quản trị viên duyệt) xác nhận số liệu hoặc gửi bản sửa ở `/cong-truong`. Bản Mini App: `/zalo`. Chi tiết: `docs/TIEP-TUC-TROVIO.md` mục 11.
 
 ## Phong cách làm việc · MBTI tham khảo · câu hỏi theo tình huống (10/2026)
 
@@ -211,7 +210,6 @@ Chi tiết kiến trúc và hợp đồng API: `docs/architecture/MVC.md`, `docs
 | S13 Hồ sơ | `/ho-so` | Cần đăng nhập · sửa hồ sơ · phương thức đăng nhập · xoá tài khoản |
 | S14–S16 Xác thực | `/dang-nhap`, `/dang-ky`, `/xac-thuc-email`, `/quen-mat-khau` | Đủ trạng thái lỗi |
 | Onboarding | `/chao-mung` | Hồ sơ tuỳ chọn cho tài khoản mới, rồi màn chào mừng |
-| Mốc tuyển sinh | `/moc-tuyen-sinh` | Nhắc hạn, .ics, nhắc qua email; nhãn minh hoạ / chính thức |
 | Tính tổng chi phí | `/chi-phi` | So sánh chương trình đã lưu + học bổng, miễn giảm, vay vốn, KTX (`#ho-tro`) |
 | N1–N2 Gợi ý có giải thích | `/goi-y` | Ngăn kéo “Vì sao gợi ý?”, chip mục tiêu, nhãn “Chưa đủ dữ liệu” |
 | N3 Đặt mục tiêu | `/muc-tieu` | Hội thoại 4 câu |

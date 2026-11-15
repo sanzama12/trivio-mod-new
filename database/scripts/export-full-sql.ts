@@ -81,9 +81,6 @@ async function dumpFullDatabase() {
       "user_accounts",
       "sessions",
       "app_documents",
-      "materials",
-      "news_articles",
-      "donations",
       "schema_migrations",
     ];
 
@@ -142,15 +139,11 @@ async function dumpFullDatabase() {
     fullSql += `COMMIT;\n\n`;
     fullSql += `-- Hoàn tất trích xuất CSDL: ${totalRowsExported} dòng dữ liệu.\n`;
 
-    const outputPath1 = join(root, "database", "dump_triovo_full.sql");
-    const outputPath2 = join(root, "triovo_database_setup.sql");
-
-    writeFileSync(outputPath1, fullSql, "utf8");
-    writeFileSync(outputPath2, fullSql, "utf8");
+    const outputPath = join(root, "database", "dump_triovo_full.sql");
+    writeFileSync(outputPath, fullSql, "utf8");
 
     console.log(`\n🎉 XUẤT THÀNH CÔNG FILE SQL ĐẦY ĐỦ!`);
-    console.log(`📁 File 1: ${outputPath1}`);
-    console.log(`📁 File 2 (gốc dự án): ${outputPath2}`);
+    console.log(`📁 File SQL: ${outputPath}`);
     console.log(`📊 Tổng số dòng dữ liệu: ${totalRowsExported} dòng trên ${orderedTables.length} bảng.`);
   } finally {
     await client.end();

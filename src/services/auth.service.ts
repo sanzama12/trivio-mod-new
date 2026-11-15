@@ -64,7 +64,6 @@ export interface ProfilePatch {
   under16?: boolean;
   parentConsent?: boolean;
   onboarded?: boolean;
-  emailReminders?: boolean;
 }
 
 type Fail<F extends string = string> = { ok: false; field?: F; message: string };
@@ -341,7 +340,6 @@ export const authService = {
     if (patch.under16 !== undefined) next.under16 = patch.under16;
     if (patch.parentConsent !== undefined) next.parentConsent = patch.parentConsent;
     if (patch.onboarded !== undefined) next.onboarded = patch.onboarded;
-    if (patch.emailReminders !== undefined) next.emailReminders = patch.emailReminders === true;
     const updated = await repositories.users.update(id, next);
     return { ok: true, user: toPublicUser(updated!) };
   },

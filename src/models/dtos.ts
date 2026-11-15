@@ -95,6 +95,16 @@ export interface ProgramSearchResult {
   suggestions: SearchSuggestion[];
 }
 
+export interface SchoolSearchSummary {
+  programCount: number;
+  tuitionMin: number | null;
+  tuitionMax: number | null;
+  cutoffMin: number | null;
+  cutoffMax: number | null;
+  method: AdmissionMethodKey;
+  featuredProgram: { name: string; slug: string } | null;
+}
+
 // ==========================================
 // 3. RECOMMENDATION DTOs
 // ==========================================

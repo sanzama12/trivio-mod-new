@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LuCircleCheck, LuHandHeart, LuLandmark, LuTriangleAlert, LuWallet } from "react-icons/lu";
+import { LuCircleCheck, LuLandmark, LuShieldCheck, LuTriangleAlert } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { dataOpsService } from "@/services/data-ops.service";
-import { donationService } from "@/services/donation.service";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody, AdminStat, Panel, StatGrid, ago } from "@/components/admin/ui";
 import { DataIssues } from "@/components/admin/data-issues";
@@ -17,18 +16,11 @@ const DOT: Record<string, string> = { import: "bg-success-500", program: "bg-pri
 export default async function AdminOverviewPage() {
   const user = await adminPage("/quan-tri");
   if (!user.admin) redirect("/quan-tri/hoi-dap");
-  const [data, donationStats] = await Promise.all([
-    dataOpsService.overview(),
-    donationService.getAdminStats(),
-  ]);
+  const data = await dataOpsService.overview();
   const { stats, progress } = data;
   const total = progress.verified + progress.pending + progress.missing || 1;
   const pct = (n: number) => Math.round((n / total) * 100);
   const now = Date.now();
-
-  const formatVnd = (num: number) => {
-    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(num);
-  };
 
   return (
     <>
@@ -38,14 +30,7 @@ export default async function AdminOverviewPage() {
           <AdminStat label="Tổng trường" value={stats.schools.toLocaleString("vi-VN")} hint={<Link href="/quan-tri/truong" className="font-semibold hover:underline">Quản lý trường ›</Link>} hintTone="success" Icon={LuLandmark} valueTone="primary" />
           <AdminStat label="Tổng chương trình" value={stats.programs.toLocaleString("vi-VN")} hint={`${stats.verifiedPct}% đã xác minh`} Icon={LuCircleCheck} tone="success" valueTone="primary" />
           <AdminStat label="Chờ kiểm duyệt" value={stats.pending.toLocaleString("vi-VN")} hint="Chương trình chưa đối chiếu nguồn trong 12 tháng" Icon={LuTriangleAlert} tone="accent" valueTone="accent" />
-          <AdminStat
-            label="Doanh thu ủng hộ VNPay"
-            value={formatVnd(donationStats.totalRevenue)}
-            hint={<Link href="/quan-tri/doanh-thu" className="font-semibold hover:underline">{donationStats.successCount} lượt ủng hộ thành công ›</Link>}
-            Icon={LuHandHeart}
-            tone="success"
-            valueTone="primary"
-          />
+          <AdminStat label="Tỷ lệ xác minh" value={`${stats.verifiedPct}%`} hint={`${stats.missingSource.toLocaleString("vi-VN")} chương trình thiếu nguồn`} Icon={LuShieldCheck} tone="success" valueTone="primary" />
         </StatGrid>
 
         <Panel className="p-5 sm:p-6" aria-labelledby="issues-h">

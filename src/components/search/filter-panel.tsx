@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { LuListFilter, LuX } from "react-icons/lu";
 import type { AdmissionMethodKey, Combo, MajorGroup, Region, SchoolType, Subject } from "@/domain/types";
 import { ADMISSION_METHODS, METHOD_KEYS } from "@/services/scoring.service";
@@ -18,11 +18,11 @@ import { Checkbox, Input, Label, Radio } from "@/components/ui/field";
 import { MobileFilterSheet } from "./mobile-filter-sheet";
 
 /** Bộ lọc áp dụng NGAY khi thay đổi (không cần nút "Áp dụng"), trạng thái nằm trên URL. */
-export function FilterPanel({ filters, combos, subjects, groups }: { filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; groups: MajorGroup[] }) {
+export function FilterPanel({ filters, combos, subjects, groups, resultKind = "programs" }: { filters: ProgramFilters; combos: Combo[]; subjects: Subject[]; groups: MajorGroup[]; resultKind?: "programs" | "schools" }) {
   const short = (id: string) => subjects.find((s) => s.id === id)?.short ?? id;
   const router = useRouter();
   const pathname = usePathname();
-  const [pending, setPending] = useState(false);
+  const [pending, startTransition] = useTransition();
   const [draft, setDraft] = useState(filters);
   const draftRef = useRef(filters);
   const [score, setScore] = useState(filters.score?.toString() ?? "");
@@ -32,19 +32,17 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
   useEffect(() => {
     draftRef.current = filters;
     setDraft(filters);
-    setPending(false);
   }, [filters]);
 
   useEffect(() => setScore(draft.score?.toString() ?? ""), [draft.score]);
 
-  const apply = (patch: Partial<ProgramFilters>) => {
+  const apply = useCallback((patch: Partial<ProgramFilters>) => {
     const next = { ...draftRef.current, ...patch, page: undefined };
     draftRef.current = next;
     setDraft(next);
     const query = serializeProgramFilters(next);
-    setPending(true);
-    router.push(`${pathname}${query}`, { scroll: false });
-  };
+    startTransition(() => router.push(`${pathname}${query}`, { scroll: false }));
+  }, [pathname, router]);
 
   const toggle = <T extends string>(list: T[] | undefined, v: T) => (list?.includes(v) ? list.filter((x) => x !== v) : [...(list ?? []), v]);
 
@@ -52,11 +50,19 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
 
   const method: AdmissionMethodKey = draft.method ?? "thpt";
   const cfg = ADMISSION_METHODS[method];
-  const commitScore = () => {
+  const commitScore = useCallback(() => {
     const n = Number(score.replace(",", "."));
-    if (!score) return apply({ score: undefined });
-    if (Number.isFinite(n) && n > 0 && n <= cfg.max) apply({ score: Math.round(n * 100) / 100 });
-  };
+    if (!score.trim()) {
+      if (draftRef.current.score != null) apply({ score: undefined });
+      return;
+    }
+    const rounded = Math.round(n * 100) / 100;
+    if (Number.isFinite(n) && n > 0 && n <= cfg.max && rounded !== draftRef.current.score) apply({ score: rounded });
+  }, [score, cfg.max, apply]);
+  useEffect(() => {
+    const timer = setTimeout(commitScore, 350);
+    return () => clearTimeout(timer);
+  }, [commitScore]);
   const scoreInvalid = score !== "" && !(Number(score.replace(",", ".")) > 0 && Number(score.replace(",", ".")) <= cfg.max);
 
   const chips: { label: string; clear: (current: ProgramFilters) => Partial<ProgramFilters> }[] = [
@@ -85,8 +91,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
                 draftRef.current = {};
                 setDraft({});
                 setScore("");
-                setPending(true);
-                router.push(pathname, { scroll: false });
+                startTransition(() => router.push(pathname, { scroll: false }));
               }}
               className="text-[13px] font-semibold text-primary-600 hover:underline"
             >
@@ -111,6 +116,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
         combos={combos}
         subjects={subjects}
         groups={groups}
+        resultKind={resultKind}
         onChange={apply}
       />
       {chips.length > 0 && (
@@ -192,6 +198,7 @@ export function FilterPanel({ filters, combos, subjects, groups }: { filters: Pr
                 ? `Tổng 3 môn + điểm ưu tiên (thang ${cfg.max}).`
                 : `Điểm bài thi + ưu tiên quy đổi (thang ${cfg.max}). Chỉ hiện trường xét phương thức này.`}
           </p>
+          <p className="mt-1.5 text-xs text-slate-500">Chỉ hiện ngành có điểm chuẩn không vượt điểm bạn nhập.</p>
         </div>
 
         {/* 2. Khối / Tổ hợp xét tuyển */}

@@ -277,7 +277,6 @@ CREATE TABLE users (
   under16            BOOLEAN NOT NULL DEFAULT false,
   parent_consent     BOOLEAN NOT NULL DEFAULT false,
   onboarded          BOOLEAN NOT NULL DEFAULT false,
-  email_reminders    BOOLEAN NOT NULL DEFAULT false,              -- nhận email nhắc hạn
   last_login_at      TIMESTAMPTZ,
   data_updated_at    TIMESTAMPTZ,                                 -- UserData.updatedAt (đồng bộ đa thiết bị)
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -406,84 +405,6 @@ CREATE TABLE goal_regions (
 );
 
 -- =====================================================================================================
--- 5. CẤU HÌNH GỢI Ý (A09 Quy tắc gợi ý)
--- =====================================================================================================
-
--- RecommendConfig.weights — 4 tiêu chí, tổng = 1 (mặc định 0,45 / 0,35 / 0,10 / 0,10)
-CREATE TABLE recommend_weights (
-  id          SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),       -- bảng 1 dòng
-  interest    NUMERIC(3, 2) NOT NULL CHECK (interest BETWEEN 0 AND 1),
-  fit         NUMERIC(3, 2) NOT NULL CHECK (fit BETWEEN 0 AND 1),
-  place       NUMERIC(3, 2) NOT NULL CHECK (place BETWEEN 0 AND 1),
-  group_match NUMERIC(3, 2) NOT NULL CHECK (group_match BETWEEN 0 AND 1),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_by  TEXT REFERENCES users (id) ON DELETE SET NULL,
-  CHECK (interest + fit + place + group_match = 1.00)
-);
-
--- RecRule
-CREATE TABLE recommend_rules (
-  id          TEXT PRIMARY KEY,
-  kind        TEXT NOT NULL CHECK (kind IN ('budget', 'diversity', 'goal-priority', 'min-years', 'boost-cutoff', 'boost-school-type')),
-  name        TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  version     TEXT NOT NULL DEFAULT '1.0',
-  status      TEXT NOT NULL CHECK (status IN ('active', 'draft', 'disabled')),
-  builtin     BOOLEAN NOT NULL DEFAULT false,
-  position    SMALLINT NOT NULL DEFAULT 0,
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- RecRule.params (Record<string, number | string>)
-CREATE TABLE recommend_rule_params (
-  rule_id     TEXT NOT NULL REFERENCES recommend_rules (id) ON DELETE CASCADE,
-  key         TEXT NOT NULL,
-  value       TEXT NOT NULL,
-  PRIMARY KEY (rule_id, key)
-);
-
--- =====================================================================================================
--- 8. MỐC TUYỂN SINH & NHẮC HẠN
--- =====================================================================================================
-
--- TimelineConfig (1 mùa đang áp dụng)
-CREATE TABLE timeline_config (
-  id          SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  season      TEXT NOT NULL,                                      -- '2027'
-  official    BOOLEAN NOT NULL DEFAULT false,                     -- lịch chính thức của Bộ hay minh hoạ
-  source_url  TEXT CHECK (source_url IS NULL OR source_url ~ '^https://'),
-  note        TEXT NOT NULL DEFAULT '',
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_by  TEXT REFERENCES users (id) ON DELETE SET NULL
-);
-
--- TimelineEvent
-CREATE TABLE timeline_events (
-  id          TEXT PRIMARY KEY,
-  title       TEXT NOT NULL,
-  start_date  DATE NOT NULL,
-  end_date    DATE,
-  category    TEXT NOT NULL CHECK (category IN ('thi', 'dang-ky', 'ket-qua', 'nhap-hoc', 'dgnl')),
-  description TEXT NOT NULL DEFAULT '',
-  CHECK (end_date IS NULL OR end_date >= start_date)
-);
-CREATE INDEX timeline_events_start_idx ON timeline_events (start_date);
-
--- UserData.reminders[] — mốc học sinh bật "Nhắc tôi" (tối đa 50)
-CREATE TABLE deadline_reminders (
-  user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  event_id    TEXT NOT NULL REFERENCES timeline_events (id) ON DELETE CASCADE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, event_id)
-);
-
--- reminderLog — chống gửi trùng email nhắc hạn (khoá 'user|event|ngày')
-CREATE TABLE reminder_log (
-  key         TEXT PRIMARY KEY,
-  sent_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- =====================================================================================================
 -- 9. CỘNG ĐỒNG: hỏi đáp sinh viên
 -- =====================================================================================================
 
@@ -561,7 +482,7 @@ CREATE TABLE share_comments (
 CREATE TABLE notifications (
   id          TEXT PRIMARY KEY,
   user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  kind        TEXT NOT NULL CHECK (kind IN ('reminder', 'supplementary', 'qa-answer', 'school-submission')),
+  kind        TEXT NOT NULL CHECK (kind IN ('supplementary', 'qa-answer', 'school-submission')),
   title       TEXT NOT NULL,
   body        TEXT NOT NULL,
   href        TEXT CHECK (href IS NULL OR href ~ '^/'),           -- chỉ đường dẫn nội bộ
@@ -576,7 +497,7 @@ CREATE TABLE audit_logs (
   at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   actor_id    TEXT REFERENCES users (id) ON DELETE SET NULL,
   actor_email TEXT NOT NULL,                                      -- giữ lại kể cả khi tài khoản bị xoá
-  target_type TEXT NOT NULL DEFAULT 'program' CHECK (target_type IN ('program', 'qa', 'timeline', 'chat-alias', 'school', 'major', 'rules', 'import', 'user', 'school-submission')),
+  target_type TEXT NOT NULL DEFAULT 'program' CHECK (target_type IN ('program', 'qa', 'chat-alias', 'school', 'major', 'import', 'user', 'school-submission')),
   target_id   TEXT NOT NULL,                                      -- AuditEntry.programId (id đối tượng)
   action      TEXT NOT NULL CHECK (action IN ('update', 'verify', 'reset', 'approve', 'reject', 'delete', 'create'))
 );
@@ -771,41 +692,7 @@ COMMENT ON TABLE programs IS 'Chương trình đào tạo = ngành tại một t
 COMMENT ON TABLE program_cutoffs IS 'Điểm chuẩn theo chương trình × phương thức × năm (ERD cũ: diem_chuan).';
 COMMENT ON TABLE score_profiles IS 'Hồ sơ điểm của học sinh (S07) + kết quả tính điểm xét tuyển.';
 COMMENT ON TABLE wishlist_items IS 'Nguyện vọng dự kiến, thứ tự = position + 1 (ERD cũ: nguyen_vong).';
-COMMENT ON TABLE recommend_weights IS 'Trọng số các tiêu chí gợi ý chương trình.';
 COMMENT ON TABLE audit_logs IS 'Nhật ký mọi thay đổi dữ liệu của quản trị viên / kiểm duyệt viên / cổng trường.';
 COMMENT ON TABLE analytics_events IS 'Phễu hành vi ẩn danh (chỉ gửi sau khi đồng ý cookie), xoá sau 180 ngày.';
-
--- =====================================================================================================
--- 14. ỦNG HỘ & DOANH THU (Donations / VNPay Gateway)
--- =====================================================================================================
-CREATE TABLE donations (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  donor_name          TEXT NOT NULL,
-  donor_email         TEXT,
-  amount              NUMERIC(12, 2) NOT NULL CHECK (amount >= 5000),
-  message             TEXT,
-  order_info          TEXT NOT NULL,
-  vnp_txn_ref         TEXT NOT NULL UNIQUE,
-  vnp_transaction_no  TEXT,
-  vnp_bank_code       TEXT,
-  vnp_card_type       TEXT,
-  vnp_pay_date        TIMESTAMP WITH TIME ZONE,
-  vnp_response_code   TEXT,
-  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
-  ip_address          TEXT,
-  created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  paid_at             TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_donations_status ON donations(status);
-CREATE INDEX idx_donations_vnp_txn_ref ON donations(vnp_txn_ref);
-CREATE INDEX idx_donations_created_at ON donations(created_at DESC);
-
-CREATE TRIGGER trg_donations_touch
-  BEFORE UPDATE ON donations
-  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
-
-COMMENT ON TABLE donations IS 'Giao dịch ủng hộ dự án qua cổng thanh toán VNPay.';
 
 COMMIT;
