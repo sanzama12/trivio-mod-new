@@ -36,7 +36,7 @@ export default async function DonatePage() {
             </div>
             {stats.successCount > 0 && <dl className="mt-6 flex flex-wrap gap-x-10 gap-y-4 border-b border-teal-900/10 pb-6"><div><dt className="text-xs text-slate-500">Đóng góp đã hoàn tất</dt><dd className="mt-1 text-2xl font-extrabold text-teal-900">{money(stats.totalRevenue)}</dd></div><div><dt className="text-xs text-slate-500">Lượt đồng hành</dt><dd className="mt-1 text-2xl font-extrabold text-teal-900">{stats.successCount.toLocaleString("vi-VN")}</dd></div></dl>}
           </div>
-          <div className="lg:sticky lg:top-28 lg:self-start"><DonateForm enabled={isVnpayConfigured()} /><p className="mx-auto mt-5 max-w-sm text-center text-xs leading-6 text-slate-500">Đóng góp là tự nguyện. Bạn cũng có thể giúp Trovio bằng cách gửi góp ý hoặc chia sẻ thông tin tuyển sinh cần cập nhật.</p></div>
+          <div className="lg:sticky lg:top-28 lg:self-start"><DonateForm enabled={isVnpayConfigured()} /><p className="mx-auto mt-5 max-w-sm text-center text-xs leading-6 text-slate-500">Đóng góp là tự nguyện. Bạn cũng có thể giúp Trovio bằng cách gửi góp ý hoặc chia sẻ thông tin tuyển sinh cần cập nhật.</p><p className="mx-auto mt-2 max-w-sm text-center text-xs leading-6 text-slate-500">Đã ủng hộ khi đăng nhập? <Link href="/ung-ho/lich-su" className="font-semibold text-teal-800 underline underline-offset-4">Xem lịch sử đóng góp và trạng thái giao dịch</Link>.</p></div>
         </div>
 
         <section aria-labelledby="donation-purpose" className="mt-16 grid gap-8 border-t border-teal-900/15 pt-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">

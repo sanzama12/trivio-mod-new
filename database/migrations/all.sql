@@ -1209,3 +1209,99 @@ END
 $donations_trigger$;
 
 COMMIT;
+
+-- @migration 20261116_doc_requirements.sql
+BEGIN;
+SET search_path TO trovio, public;
+
+-- Lịch sử đóng góp của từng tài khoản (người chưa đăng nhập vẫn ủng hộ ẩn danh như cũ).
+ALTER TABLE donations ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_donations_user ON donations(user_id, created_at DESC) WHERE user_id IS NOT NULL;
+
+-- Thông tin học thuật và nghề nghiệp của ngành (tách bảng để không đổi bảng majors đang có).
+CREATE TABLE IF NOT EXISTS major_career_info (
+  major_id           TEXT PRIMARY KEY REFERENCES majors(id) ON DELETE CASCADE,
+  knowledge          TEXT NOT NULL DEFAULT '',
+  career_orientation TEXT NOT NULL DEFAULT '',
+  careers            TEXT[] NOT NULL DEFAULT '{}',
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Danh mục sở thích / lĩnh vực nghề nghiệp do quản trị viên quản lý.
+CREATE TABLE IF NOT EXISTS interests (
+  id          TEXT PRIMARY KEY CHECK (id ~ '^[a-z0-9][a-z0-9-]{1,59}$'),
+  name        TEXT NOT NULL CHECK (length(name) BETWEEN 2 AND 80),
+  kind        TEXT NOT NULL CHECK (kind IN ('interest', 'field')),
+  description TEXT NOT NULL DEFAULT '',
+  hidden      BOOLEAN NOT NULL DEFAULT false,
+  position    INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS interest_majors (
+  interest_id TEXT NOT NULL REFERENCES interests(id) ON DELETE CASCADE,
+  major_id    TEXT NOT NULL REFERENCES majors(id) ON DELETE CASCADE,
+  PRIMARY KEY (interest_id, major_id)
+);
+CREATE INDEX IF NOT EXISTS interest_majors_major_idx ON interest_majors(major_id);
+CREATE TABLE IF NOT EXISTS subject_majors (
+  subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  major_id   TEXT NOT NULL REFERENCES majors(id) ON DELETE CASCADE,
+  PRIMARY KEY (subject_id, major_id)
+);
+CREATE INDEX IF NOT EXISTS subject_majors_major_idx ON subject_majors(major_id);
+
+-- Dữ liệu tuyển sinh theo từng năm: mỗi (chương trình, năm) có một dòng, kể cả khi không đổi so với năm trước.
+CREATE TABLE IF NOT EXISTS program_year_data (
+  program_id       TEXT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+  year             SMALLINT NOT NULL CHECK (year BETWEEN 2000 AND 2100),
+  tuition_min      NUMERIC(8, 2) CHECK (tuition_min IS NULL OR tuition_min >= 0),
+  tuition_max      NUMERIC(8, 2) CHECK (tuition_max IS NULL OR tuition_max >= 0),
+  quota            INTEGER CHECK (quota IS NULL OR quota >= 0),
+  admission_status TEXT NOT NULL DEFAULT 'chua-cong-bo' CHECK (admission_status IN ('dang-tuyen', 'tam-dung', 'ngung-tuyen', 'chua-cong-bo')),
+  note             TEXT NOT NULL DEFAULT '',
+  updated_by       TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (program_id, year),
+  CHECK (tuition_min IS NULL OR tuition_max IS NULL OR tuition_max >= tuition_min)
+);
+
+-- Nguồn thông tin bổ sung cho trợ lý AI (câu hỏi thường gặp, ghi chú, đường dẫn tham khảo).
+CREATE TABLE IF NOT EXISTS ai_sources (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title      TEXT NOT NULL CHECK (length(title) BETWEEN 3 AND 120),
+  kind       TEXT NOT NULL CHECK (kind IN ('faq', 'note', 'link')),
+  keywords   TEXT NOT NULL DEFAULT '',
+  content    TEXT NOT NULL CHECK (length(content) BETWEEN 1 AND 4000),
+  url        TEXT CHECK (url IS NULL OR url ~ '^https://'),
+  enabled    BOOLEAN NOT NULL DEFAULT true,
+  hits       INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Lượt quan tâm và tìm kiếm ẩn danh (chỉ ghi khi người dùng đồng ý thống kê).
+CREATE TABLE IF NOT EXISTS usage_events (
+  day       DATE NOT NULL,
+  kind      TEXT NOT NULL CHECK (kind IN ('school_view', 'major_view', 'program_view', 'search')),
+  entity_id TEXT NOT NULL DEFAULT '',
+  anon_id   TEXT NOT NULL CHECK (length(anon_id) BETWEEN 8 AND 64),
+  hits      INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (day, kind, entity_id, anon_id)
+);
+CREATE INDEX IF NOT EXISTS usage_events_kind_idx ON usage_events(kind, day);
+
+DO $doc_triggers$
+DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['major_career_info', 'interests', 'program_year_data', 'ai_sources'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('trovio.' || t)::regclass AND tgname = 'trg_' || t || '_touch') THEN
+      EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION touch_updated_at()', 'trg_' || t || '_touch', t);
+    END IF;
+  END LOOP;
+END
+$doc_triggers$;
+
+COMMIT;

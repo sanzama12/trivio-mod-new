@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { LuBookmark, LuChevronDown, LuDatabase, LuLogOut, LuMenu, LuUser, LuX } from "react-icons/lu";
+import { LuHandHeart, LuBookmark, LuChevronDown, LuDatabase, LuLogOut, LuMenu, LuUser, LuX } from "react-icons/lu";
 import { cn } from "@/lib/cn";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonClass } from "@/components/ui/button";
@@ -184,6 +184,9 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                     </Link>
                     <Link role="menuitem" href="/da-luu" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                       <LuBookmark className="size-4" aria-hidden /> Đã lưu & nguyện vọng
+                    </Link>
+                    <Link role="menuitem" href="/ung-ho/lich-su" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                      <LuHandHeart className="size-4" aria-hidden /> Lịch sử đóng góp
                     </Link>
                     {user.admin ? (
                       <Link role="menuitem" href="/quan-tri" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">

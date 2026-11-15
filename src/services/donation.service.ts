@@ -49,7 +49,8 @@ export const donationService = {
    */
   async createDonation(
     input: CreateDonationInput,
-    clientIp?: string | null
+    clientIp?: string | null,
+    userId?: string | null
   ): Promise<CreateDonationResult> {
     const rawAmount = Number(input.amount);
     if (!Number.isFinite(rawAmount) || rawAmount < 10000) {
@@ -98,6 +99,7 @@ export const donationService = {
       orderInfo,
       vnpTxnRef: txnRef,
       ipAddress: clientIp ?? null,
+      userId: userId ?? null,
     });
 
     // Tạo link thanh toán VNPay 2.1.0
@@ -226,6 +228,14 @@ export const donationService = {
   /**
    * Thống kê tổng hợp doanh thu và số liệu ủng hộ cho quản trị viên (có RAM cache 60s)
    */
+  /** Lịch sử đóng góp của chính tài khoản đang đăng nhập (không chứa IP hay mã nội bộ của cổng thanh toán). */
+  async listForUser(userId: string): Promise<Array<Pick<DonationRecord, "id" | "amount" | "status" | "message" | "vnpTxnRef" | "vnpBankCode" | "vnpTransactionNo" | "createdAt" | "paidAt">>> {
+    const rows = await repositories.donations.listByUser(userId);
+    return rows.map(({ id, amount, status, message, vnpTxnRef, vnpBankCode, vnpTransactionNo, createdAt, paidAt }) => ({
+      id, amount, status, message, vnpTxnRef, vnpBankCode, vnpTransactionNo, createdAt, paidAt,
+    }));
+  },
+
   async getAdminStats(forceRefresh = false): Promise<DonationStats> {
     const now = Date.now();
     if (!forceRefresh && cachedStats && now - statsCachedAt < STATS_CACHE_TTL_MS) {

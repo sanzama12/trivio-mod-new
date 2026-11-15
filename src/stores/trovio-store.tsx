@@ -310,6 +310,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
             groupIds: s.preferences?.groupIds ?? s.profile?.groupIds ?? [],
             strongSubjectIds: s.preferences?.strongSubjectIds ?? [],
             useSavedBehavior: s.preferences?.useSavedBehavior ?? false,
+            ...(s.preferences?.interestIds?.length ? { interestIds: s.preferences.interestIds } : {}),
             interestMajorIds: added ? [id, ...current].slice(0, 20) : current.filter((item) => item !== id),
             updatedAt: new Date().toISOString(),
           },

@@ -17,7 +17,9 @@ import {
   LuLandmark,
   LuLayoutGrid,
   LuLogOut,
+  LuHandHeart,
   LuMenu,
+  LuSparkles,
   LuMessageCircleQuestion,
   LuShieldCheck,
   LuUsers,
@@ -36,12 +38,14 @@ const DATA_ITEMS: Item[] = [
   { key: "majors", href: "/quan-tri/nganh", label: "Ngành đào tạo", Icon: LuFolderOpen },
   { key: "programs", href: "/quan-tri/chuong-trinh", label: "Chương trình đào tạo", Icon: LuBookOpen },
   { key: "scores", href: "/quan-tri/diem-hoc-phi", label: "Điểm & Học phí", Icon: LuChartNoAxesColumn },
+  { key: "suggestions", href: "/quan-tri/goi-y-nganh", label: "Dữ liệu gợi ý ngành", Icon: LuSparkles },
   { key: "import", href: "/quan-tri/nhap-du-lieu", label: "Nhập & Kiểm duyệt", Icon: LuShieldCheck },
   { key: "users", href: "/quan-tri/nguoi-dung", label: "Người dùng", Icon: LuUsers },
 ];
 const OPS_ITEMS: Item[] = [
   { key: "qa", href: "/quan-tri/hoi-dap", label: "Hỏi đáp sinh viên", Icon: LuMessageCircleQuestion },
   { key: "chatbot", href: "/quan-tri/chatbot", label: "Chatbot", Icon: LuBot },
+  { key: "donations", href: "/quan-tri/ung-ho", label: "Giao dịch ủng hộ", Icon: LuHandHeart },
   { key: "stats", href: "/quan-tri/thong-ke", label: "Thống kê & khảo sát", Icon: LuActivity },
 ];
 

@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { adminPage } from "@/lib/admin-page";
-import { adminService } from "@/services";
+import { adminService, programYearService } from "@/services";
 import { formatMonthVi } from "@/lib/format";
 import { ProgramEditor } from "@/components/admin/program-editor";
+import { ProgramYearEditor } from "@/components/admin/program-year-editor";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody } from "@/components/admin/ui";
 import { ProgramVisibility } from "@/components/admin/catalog-actions";
@@ -21,6 +22,7 @@ export default async function AdminProgramPage({ params }: Props) {
   if (!data) notFound();
   const { view, edited } = data;
   const p = view.program;
+  const years = await programYearService.list(id);
   const audit = (await adminService.listAudit(200)).filter((a) => a.programId === id).slice(0, 10);
 
   return (
@@ -52,6 +54,7 @@ export default async function AdminProgramPage({ params }: Props) {
           initial={{ cutoffs: p.cutoffs, altCutoffs: p.altCutoffs, tuitionMin: p.tuitionMin, tuitionMax: p.tuitionMax, quota: p.quota, source: p.source, schoolVerifiedAt: p.schoolVerifiedAt ?? null, schoolVerifiedNote: p.schoolVerifiedNote ?? null }}
           history={audit}
         />
+        <ProgramYearEditor programId={p.id} initial={years} fallback={{ tuitionMin: p.tuitionMin, tuitionMax: p.tuitionMax, quota: p.quota }} />
       </AdminBody>
     </>
   );

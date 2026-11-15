@@ -46,6 +46,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/cn";
+import { InterestPicker } from "@/components/catalog/interest-picker";
 
 export interface AcademicDossierProps {
   combos: Combo[];
@@ -77,6 +78,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
   const [priorityRegion, setPriorityRegion] = useState<PriorityRegion>("KV3");
   const [priorityGroup, setPriorityGroup] = useState<PriorityGroup>("none");
   const [budget, setBudget] = useState<TuitionRange | "">("");
+  const [interestIds, setInterestIds] = useState<string[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolType[]>([]);
 
   // Load existing data into form
@@ -88,6 +90,8 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
 
     const loadedSubjects = prefs?.strongSubjectIds ?? [];
     setStrongSubjects(loadedSubjects);
+
+    setInterestIds(prefs?.interestIds ?? []);
 
     const loadedGroups = prefs?.groupIds?.length ? prefs.groupIds : prof?.groupIds?.length ? prof.groupIds : [];
     setSelectedGroups(loadedGroups);
@@ -140,6 +144,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
       groupIds: selectedGroups,
       interestMajorIds: interestMajors,
       strongSubjectIds: strongSubjects,
+      ...(interestIds.length ? { interestIds } : {}),
       useSavedBehavior: true,
       academicPerformance: academicPerf || null,
       estimatedScore: validEstimatedScore,
@@ -313,6 +318,15 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                 })}
               </div>
             </section>
+
+            {/* Sở thích & lĩnh vực nghề nghiệp (danh mục do quản trị viên quản lý) */}
+            <InterestPicker
+              className="border-t border-slate-100 pt-5"
+              idPrefix="dossier-interest"
+              selected={interestIds}
+              onToggle={(id) => setInterestIds((cur) => toggleArrayItem(cur, id))}
+              onClear={() => setInterestIds([])}
+            />
 
             {/* 2. Lĩnh vực yêu thích */}
             <section className="space-y-3 border-t border-slate-100 pt-5">

@@ -5,10 +5,12 @@ import { analyticsService } from "@/services/analytics.service";
 
 /** POST /api/events { event, anon } — đếm phễu hành vi ẩn danh (không lưu IP, tài khoản). */
 export async function POST(req: Request) {
-  const { body, error } = await jsonBody<{ event?: unknown; anon?: unknown }>(req, 512);
+  const { body, error } = await jsonBody<{ event?: unknown; usage?: unknown; id?: unknown; anon?: unknown }>(req, 512);
   if (error) return error;
   const wait = rateLimit(`events:${clientIp(req)}`, 120, 600);
   if (wait) return tooMany(wait);
-  const ok = await analyticsService.track(body?.event, body?.anon);
+  const ok = body?.usage !== undefined
+    ? await analyticsService.trackUsage(body.usage, body.id, body.anon)
+    : await analyticsService.track(body?.event, body?.anon);
   return NextResponse.json({ ok }, { status: ok ? 200 : 400 });
 }

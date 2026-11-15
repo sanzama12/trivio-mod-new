@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { UsageBeacon } from "@/components/layout/usage-beacon";
 import { LuSearch, LuSearchX } from "react-icons/lu";
 import { catalogService, parseProgramFilters, programService, serializeProgramFilters, SORT_LABELS, type ProgramSort } from "@/services";
 import { cn } from "@/lib/cn";
@@ -28,6 +29,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <div className="bg-paper-50">
+      <UsageBeacon key={filters.q ?? ""} kind="search" active={!!filters.q} />
     <div className="container-page min-w-0 py-6 md:py-10">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Tìm chương trình" }]} />
       <section className="relative isolate mt-4 overflow-hidden rounded-3xl bg-slate-950">

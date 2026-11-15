@@ -347,6 +347,8 @@ export interface RecommendationPreferences {
   groupIds: string[];
   interestMajorIds: string[];
   strongSubjectIds: string[];
+  /** Sở thích / lĩnh vực nghề nghiệp do quản trị viên quản lý (bảng interests). */
+  interestIds?: string[];
   /** Chỉ dùng các chương trình người học chủ động lưu/nguyện vọng khi đã bật. */
   useSavedBehavior: boolean;
   /** Mức học lực tự đánh giá của học sinh. */
@@ -581,3 +583,65 @@ export interface SchoolSubmission {
   resolvedBy: string | null;
   adminNote: string | null;
 }
+
+/** Sở thích hoặc lĩnh vực nghề nghiệp do quản trị viên quản lý, dùng để gợi ý ngành. */
+export interface Interest {
+  id: string;
+  name: string;
+  kind: "interest" | "field";
+  description: string;
+  hidden: boolean;
+  position: number;
+  /** Ngành liên quan đã được liên kết. */
+  majorIds: string[];
+}
+
+/** Liên kết môn học thế mạnh với các ngành liên quan. */
+export interface SubjectMajorLink {
+  subjectId: string;
+  majorIds: string[];
+}
+
+/** Thông tin học thuật và nghề nghiệp của một ngành. */
+export interface MajorCareerInfo {
+  majorId: string;
+  knowledge: string;
+  careerOrientation: string;
+  careers: string[];
+}
+
+export const ADMISSION_STATUSES = ["dang-tuyen", "tam-dung", "ngung-tuyen", "chua-cong-bo"] as const;
+export type AdmissionStatus = (typeof ADMISSION_STATUSES)[number];
+export const ADMISSION_STATUS_LABELS: Record<AdmissionStatus, string> = {
+  "dang-tuyen": "Đang tuyển sinh",
+  "tam-dung": "Tạm dừng tuyển sinh",
+  "ngung-tuyen": "Ngừng tuyển sinh",
+  "chua-cong-bo": "Chưa công bố",
+};
+
+/** Dữ liệu tuyển sinh của một chương trình trong một năm (học phí, chỉ tiêu, trạng thái). */
+export interface ProgramYearData {
+  programId: string;
+  year: number;
+  tuitionMin: number | null;
+  tuitionMax: number | null;
+  quota: number | null;
+  status: AdmissionStatus;
+  note: string;
+}
+
+/** Nguồn thông tin bổ sung cho trợ lý AI. */
+export interface AiSource {
+  id: string;
+  title: string;
+  kind: "faq" | "note" | "link";
+  keywords: string;
+  content: string;
+  url: string | null;
+  enabled: boolean;
+  hits: number;
+  updatedAt: string;
+}
+
+export const USAGE_KINDS = ["school_view", "major_view", "program_view", "search"] as const;
+export type UsageKind = (typeof USAGE_KINDS)[number];

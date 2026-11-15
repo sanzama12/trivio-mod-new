@@ -15,6 +15,7 @@ export function useMajorSmartSuggester() {
 
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<MajorRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"results" | "customize">("results");
@@ -29,10 +30,15 @@ export function useMajorSmartSuggester() {
 
     setSelectedGroups(gIds);
     setSelectedSubjects(sIds);
+    setSelectedInterests(store.preferences?.interestIds ?? []);
   }, [store.hydrated, store.preferences, store.profile]);
 
   const toggleGroup = (id: string) => {
     setSelectedGroups((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  };
+
+  const toggleInterest = (id: string) => {
+    setSelectedInterests((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(0, 20)));
   };
 
   const toggleSubject = (id: string) => {
@@ -41,13 +47,13 @@ export function useMajorSmartSuggester() {
 
   // Tự động gọi API gợi ý khi người dùng thay đổi nhóm ngành hoặc môn thế mạnh
   const queryPayload = useMemo(
-    () => JSON.stringify({ groupIds: selectedGroups, strongSubjectIds: selectedSubjects }),
-    [selectedGroups, selectedSubjects]
+    () => JSON.stringify({ groupIds: selectedGroups, strongSubjectIds: selectedSubjects, interestIds: selectedInterests }),
+    [selectedGroups, selectedSubjects, selectedInterests]
   );
 
   useEffect(() => {
     if (!store.hydrated) return;
-    if (selectedGroups.length === 0 && selectedSubjects.length === 0) {
+    if (selectedGroups.length === 0 && selectedSubjects.length === 0 && selectedInterests.length === 0) {
       setRecommendations([]);
       return;
     }
@@ -61,6 +67,7 @@ export function useMajorSmartSuggester() {
       body: JSON.stringify({
         groupIds: selectedGroups,
         strongSubjectIds: selectedSubjects,
+        interestIds: selectedInterests,
         limit: 6,
       }),
       signal: controller.signal,
@@ -85,6 +92,7 @@ export function useMajorSmartSuggester() {
     store.setRecommendationPreferences({
       groupIds: selectedGroups,
       strongSubjectIds: selectedSubjects,
+      ...(selectedInterests.length ? { interestIds: selectedInterests } : {}),
       interestMajorIds: store.preferences?.interestMajorIds ?? [],
       useSavedBehavior: true,
       academicPerformance: store.preferences?.academicPerformance ?? null,
@@ -107,11 +115,15 @@ export function useMajorSmartSuggester() {
   const resetSelections = () => {
     setSelectedGroups([]);
     setSelectedSubjects([]);
+    setSelectedInterests([]);
   };
 
   return {
     selectedGroups,
     selectedSubjects,
+    selectedInterests,
+    toggleInterest,
+    setSelectedInterests,
     recommendations,
     loading,
     activeTab,
@@ -124,6 +136,6 @@ export function useMajorSmartSuggester() {
     handleSaveToProfile,
     handleToggleHeart,
     isFavorite,
-    hasSelections: selectedGroups.length > 0 || selectedSubjects.length > 0,
+    hasSelections: selectedGroups.length > 0 || selectedSubjects.length > 0 || selectedInterests.length > 0,
   };
 }

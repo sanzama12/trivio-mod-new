@@ -9,6 +9,7 @@ export interface MajorRecommendationInput {
   groupIds: string[];
   interestMajorIds: string[];
   strongSubjectIds: string[];
+  interestIds?: string[];
   behaviorProgramIds: string[];
   query?: string;
 }
@@ -20,6 +21,7 @@ export interface MajorRecommendation {
   reasons: string[];
   knowledge: string;
   careerOrientation: string;
+  careers: string[];
   schoolCount: number;
   programCount: number;
 }
@@ -29,11 +31,27 @@ const unique = (values: string[]) => new Set(values);
 export const majorRecommendationService = {
   async recommend(input: MajorRecommendationInput, limit = 8): Promise<MajorRecommendation[]> {
     const { groups, majors, schools, stats } = await repositories.catalog.findDiscoveryCatalog();
-    const [programs, combos, subjects] = await Promise.all([
+    const [programs, combos, subjects, interests, subjectLinks, careerInfos] = await Promise.all([
       repositories.programs.findAll(),
       repositories.catalog.findCombos(),
       repositories.catalog.findSubjects(),
+      repositories.interests.list(false),
+      repositories.interests.listSubjectLinks(),
+      repositories.majorCareers.getMany(),
     ]);
+    const careerMap = new Map(careerInfos.map((info) => [info.majorId, info]));
+    // Sở thích đã chọn → các ngành được quản trị viên liên kết (mỗi ngành ghi nhớ tên sở thích khớp).
+    const interestsByMajor = new Map<string, string[]>();
+    const selectedInterestIds = unique(input.interestIds ?? []);
+    for (const interest of interests) {
+      if (!selectedInterestIds.has(interest.id)) continue;
+      for (const majorId of interest.majorIds) {
+        const names = interestsByMajor.get(majorId);
+        if (names) names.push(interest.name);
+        else interestsByMajor.set(majorId, [interest.name]);
+      }
+    }
+    const subjectLinkMap = new Map(subjectLinks.map((link) => [link.subjectId, new Set(link.majorIds)]));
 
     const selectedGroups = unique(input.groupIds);
     const selectedMajors = unique(input.interestMajorIds);
@@ -93,6 +111,17 @@ export const majorRecommendationService = {
           reasons.push(`Thuộc lĩnh vực ${group.name} bạn yêu thích`);
         }
 
+        const matchedInterests = interestsByMajor.get(major.id);
+        if (matchedInterests?.length) {
+          score += Math.min(60, 40 + (matchedInterests.length - 1) * 10);
+          reasons.push(`Liên quan sở thích “${matchedInterests.slice(0, 2).join('”, “')}”`);
+        }
+        const linkedSubjects = [...strongSubjects].filter((id) => subjectLinkMap.get(id)?.has(major.id));
+        if (linkedSubjects.length) {
+          score += Math.min(30, 22 + (linkedSubjects.length - 1) * 4);
+          reasons.push(`Môn thế mạnh ${linkedSubjects.map((id) => subjectMap.get(id)?.short ?? id).join(', ')} gắn với ngành này`);
+        }
+
         const relatedPrograms = programsByMajor.get(major.id) ?? [];
         if (matchedSchoolIds.size && relatedPrograms.some((program) => matchedSchoolIds.has(program.schoolId))) {
           score += 30;
@@ -121,14 +150,16 @@ export const majorRecommendationService = {
         }
 
         if (!score) return null;
+        const career = careerMap.get(major.id);
         const riasec = major.riasec.map((type) => RIASEC_INFO[type].label.toLowerCase()).join(', ');
         return {
           major,
           group,
           score: Math.min(100, score),
           reasons: reasons.slice(0, 3),
-          knowledge: major.description || major.summary,
-          careerOrientation: `Định hướng phù hợp với môi trường công việc thiên về ${riasec}.`,
+          knowledge: career?.knowledge || major.description || major.summary,
+          careerOrientation: career?.careerOrientation || `Định hướng phù hợp với môi trường công việc thiên về ${riasec}.`,
+          careers: career?.careers ?? [],
           schoolCount: stats.schoolCountByMajor?.[major.id] ?? 0,
           programCount: stats.programCountByMajor[major.id] ?? 0,
         };

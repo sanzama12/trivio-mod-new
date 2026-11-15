@@ -4,7 +4,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { donationService, DonationUnavailableError, DonationValidationError } from "@/services/donation.service";
-import { requireAdmin } from "@/lib/auth";
+import { getCurrentUser, requireAdmin } from "@/lib/auth";
 import { clientIp } from "@/lib/http";
 
 export class DonationController {
@@ -16,6 +16,7 @@ export class DonationController {
     try {
       const body = await req.json().catch(() => ({}));
       const ip = clientIp(req);
+      const user = await getCurrentUser().catch(() => null);
 
       const result = await donationService.createDonation(
         {
@@ -25,7 +26,8 @@ export class DonationController {
           message: typeof body.message === "string" ? body.message : undefined,
           bankCode: typeof body.bankCode === "string" ? body.bankCode : undefined,
         },
-        ip
+        ip,
+        user?.id ?? null
       );
 
       return NextResponse.json({

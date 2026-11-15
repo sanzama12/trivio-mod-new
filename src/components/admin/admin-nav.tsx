@@ -11,6 +11,8 @@ export type AdminSection =
   | "users"
   | "qa"
   | "chatbot"
+  | "donations"
+  | "suggestions"
   | "stats";
 
 /** Số việc đang chờ xử lý hiển thị trên thanh bên (gọi ở server). */

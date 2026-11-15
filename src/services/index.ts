@@ -21,3 +21,9 @@ export { shareService, SHARE_DAYS, MAX_COMMENTS_PER_SHARE } from "./share.servic
 export type { SharedView } from "./share.service";
 export { adminService, validateProgramEdit } from "./admin.service";
 export type { ProgramEditInput } from "./admin.service";
+
+export { programYearService, validateYearRows } from "./program-year.service";
+export { interestService, validateInterest, validateCareerInfo, slugifyInterest } from "./interest.service";
+export { aiSourceService, matchAiSource, validateAiSource } from "./ai-source.service";
+export { trendService } from "./trend.service";
+export type { ProgramTrendRow, MajorTrendRow } from "./trend.service";

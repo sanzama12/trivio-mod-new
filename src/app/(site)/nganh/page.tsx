@@ -5,6 +5,7 @@ import { NextStepRail } from "@/components/catalog/next-step-rail";
 import { catalogService } from "@/services";
 import { Breadcrumb } from "@/components/ui/misc";
 import { MajorExplorer } from "@/components/catalog/major-explorer";
+import { UsageBeacon } from "@/components/layout/usage-beacon";
 
 export const metadata: Metadata = {
   title: "Tìm ngành học",
@@ -31,6 +32,7 @@ export default async function MajorsPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-screen bg-paper-50 pb-20">
+      <UsageBeacon key={q ?? ""} kind="search" active={!!q} />
       <div className="container-page min-w-0 py-6">
         <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá ngành" }]} />
 

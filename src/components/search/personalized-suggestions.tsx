@@ -21,10 +21,11 @@ export function PersonalizedSuggestions({ query }: { query?: string }) {
   }, [store.preferences?.strongSubjectIds, store.profile?.scores]);
   const groupIds = store.preferences?.groupIds.length ? store.preferences.groupIds : (store.profile?.groupIds ?? []);
   const interestMajorIds = store.preferences?.interestMajorIds.length ? store.preferences.interestMajorIds : (store.profile?.interestMajorIds ?? []);
+  const interestIds = useMemo(() => store.preferences?.interestIds ?? [], [store.preferences?.interestIds]);
   const useSavedBehavior = store.preferences?.useSavedBehavior ?? false;
   const behaviorProgramIds = useSavedBehavior ? Array.from(new Set([...store.saved, ...store.wishlist.map((item) => item.id)])) : [];
-  const requestKey = JSON.stringify([query, groupIds, interestMajorIds, strongSubjectIds, useSavedBehavior, behaviorProgramIds]);
-  const hasSignal = Boolean(query?.trim() || groupIds.length || interestMajorIds.length || strongSubjectIds.length || behaviorProgramIds.length);
+  const requestKey = JSON.stringify([query, groupIds, interestMajorIds, interestIds, strongSubjectIds, useSavedBehavior, behaviorProgramIds]);
+  const hasSignal = Boolean(query?.trim() || groupIds.length || interestMajorIds.length || interestIds.length || strongSubjectIds.length || behaviorProgramIds.length);
 
   useEffect(() => {
     if (!store.hydrated || !hasSignal) {
@@ -36,7 +37,7 @@ export function PersonalizedSuggestions({ query }: { query?: string }) {
     fetch("/api/major-recommendations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, groupIds, interestMajorIds, strongSubjectIds, useSavedBehavior, behaviorProgramIds, limit: 4 }),
+      body: JSON.stringify({ query, groupIds, interestMajorIds, interestIds, strongSubjectIds, useSavedBehavior, behaviorProgramIds, limit: 4 }),
       signal: controller.signal,
     })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
@@ -53,6 +54,7 @@ export function PersonalizedSuggestions({ query }: { query?: string }) {
       groupIds,
       interestMajorIds,
       strongSubjectIds,
+      ...(interestIds.length ? { interestIds } : {}),
       useSavedBehavior: enabled,
       updatedAt: new Date().toISOString(),
     });

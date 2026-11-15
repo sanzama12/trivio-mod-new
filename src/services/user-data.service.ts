@@ -72,6 +72,8 @@ export function sanitizeRecommendationPreferences(input: unknown): Recommendatio
     updatedAt: new Date(Date.parse(input.updatedAt)).toISOString(),
   };
 
+  const interestIds = ids(input.interestIds, 20);
+  if (interestIds.length) res.interestIds = interestIds;
   if (perf) res.academicPerformance = perf;
   if (estScore != null) res.estimatedScore = estScore;
   if (estCombo) res.estimatedCombo = estCombo;

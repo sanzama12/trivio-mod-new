@@ -26,9 +26,21 @@ import { postgresAdminDashboardRepository } from "./postgres-admin-dashboard";
 
 import { postgresProgramAdminRepository } from "./postgres-program-admin";
 import { postgresDonationsRepository } from "./postgres-donations";
+import {
+  postgresAiSourceRepository,
+  postgresInterestRepository,
+  postgresMajorCareerRepository,
+  postgresProgramYearRepository,
+  postgresUsageRepository,
+} from "./postgres-extras";
 
 export const repositories = {
   donations: postgresDonationsRepository,
+  aiSources: postgresAiSourceRepository,
+  interests: postgresInterestRepository,
+  majorCareers: postgresMajorCareerRepository,
+  programYears: postgresProgramYearRepository,
+  usage: postgresUsageRepository,
   adminDashboard: postgresAdminDashboardRepository,
   schools: postgresSchoolRepository,
   majors: postgresMajorRepository,

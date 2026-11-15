@@ -8,7 +8,7 @@
  *   ở trang Chính sách quyền riêng tư (khoá `trovio_no_stats`).
  * - Mọi lỗi (chế độ riêng tư chặn storage, mất mạng…) đều bị bỏ qua: đo lường không bao giờ làm hỏng tính năng.
  */
-import type { FunnelEvent } from "@/domain/types";
+import type { FunnelEvent, UsageKind } from "@/domain/types";
 import { readConsent, writeConsent } from "./consent";
 
 const ANON_KEY = "trovio_anon";
@@ -72,6 +72,44 @@ export function track(event: FunnelEvent): void {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event, anon }),
+      keepalive: true,
+    }).catch(() => null);
+  } catch {
+    /* bỏ qua */
+  }
+}
+
+/**
+ * Ghi nhận lượt quan tâm ẩn danh tới một trường / ngành / chương trình hoặc một lượt tìm kiếm.
+ * Cùng quy tắc riêng tư như `track`: không gửi nội dung tìm kiếm, chỉ gửi loại sự kiện và mã đối tượng.
+ * Lượt xem cùng một đối tượng chỉ gửi một lần mỗi ngày; tìm kiếm gửi tối đa 30 lần mỗi ngày.
+ */
+export function trackUsage(kind: UsageKind, id = ""): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (trackingDisabled()) return;
+    let anon = window.localStorage.getItem(ANON_KEY);
+    if (!anon || !/^[a-z0-9-]{8,40}$/i.test(anon)) {
+      anon = randomId();
+      window.localStorage.setItem(ANON_KEY, anon);
+    }
+    const key = "trovio_usage";
+    const day = vnDay();
+    const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as { day?: string; seen?: string[]; searches?: number } | null;
+    const state = raw?.day === day ? { seen: raw.seen ?? [], searches: raw.searches ?? 0 } : { seen: [] as string[], searches: 0 };
+    if (kind === "search") {
+      if (state.searches >= 30) return;
+      state.searches += 1;
+    } else {
+      const mark = `${kind}:${id}`;
+      if (state.seen.includes(mark)) return;
+      state.seen = [...state.seen, mark].slice(-200);
+    }
+    window.localStorage.setItem(key, JSON.stringify({ day, ...state }));
+    void fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usage: kind, id, anon }),
       keepalive: true,
     }).catch(() => null);
   } catch {

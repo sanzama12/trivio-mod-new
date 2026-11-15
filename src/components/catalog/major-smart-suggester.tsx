@@ -17,6 +17,7 @@ import {
 import type { MajorGroup, Subject } from "@/domain/types";
 import { useMajorSmartSuggester } from "./use-major-smart-suggester";
 import { buttonClass } from "@/components/ui/button";
+import { InterestPicker } from "./interest-picker";
 import { cn } from "@/lib/cn";
 
 export interface MajorSmartSuggesterProps {
@@ -28,6 +29,9 @@ export function MajorSmartSuggester({ groups, subjects }: MajorSmartSuggesterPro
   const {
     selectedGroups,
     selectedSubjects,
+    selectedInterests,
+    toggleInterest,
+    setSelectedInterests,
     recommendations,
     loading,
     activeTab,
@@ -58,6 +62,9 @@ export function MajorSmartSuggester({ groups, subjects }: MajorSmartSuggesterPro
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-primary-100 max-w-2xl">
               Chọn lĩnh vực bạn yêu thích và các môn học sở trường. Hệ thống kết nối trực tiếp với danh mục ngành đào tạo, kiến thức và cơ hội nghề nghiệp mà không cần làm bài trắc nghiệm tâm lý.
+            </p>
+            <p className="mt-2 text-xs sm:text-sm text-primary-100">
+              Muốn được hướng dẫn từng bước? <Link href="/dinh-huong-nghe-nghiep" className="font-semibold text-white underline underline-offset-4">Làm khảo sát định hướng nghề nghiệp</Link>.
             </p>
           </div>
 
@@ -166,6 +173,9 @@ export function MajorSmartSuggester({ groups, subjects }: MajorSmartSuggesterPro
               })}
             </div>
           </div>
+
+          {/* Sở thích & lĩnh vực nghề nghiệp do quản trị viên quản lý */}
+          <InterestPicker selected={selectedInterests} onToggle={toggleInterest} onClear={() => setSelectedInterests([])} idPrefix="suggest-interest" />
         </div>
 
         {/* Danh sách các ngành học gợi ý */}

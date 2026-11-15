@@ -31,6 +31,7 @@ export class RecommendationController {
         groupIds: ids(source.groupIds, 12),
         interestMajorIds: ids(source.interestMajorIds, 20),
         strongSubjectIds: ids(source.strongSubjectIds, 12),
+        interestIds: ids(source.interestIds, 20),
         behaviorProgramIds: useSavedBehavior ? ids(source.behaviorProgramIds, 200) : [],
         query: typeof source.query === "string" ? source.query.trim().slice(0, 100) : undefined,
       },

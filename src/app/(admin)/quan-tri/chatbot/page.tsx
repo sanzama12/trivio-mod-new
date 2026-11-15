@@ -7,6 +7,8 @@ import { chatbotService } from "@/services/chatbot.service";
 import { llmEnabled } from "@/services/chatbot-llm";
 import { catalogService } from "@/services";
 import { AliasManager } from "@/components/admin/alias-manager";
+import { AiSourceManager } from "@/components/admin/ai-source-manager";
+import { aiSourceService } from "@/services";
 import { StatTile } from "@/components/ui/misc";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 
@@ -43,6 +45,7 @@ const INTENT_LABELS: Record<string, string> = {
   combos: "Tổ hợp xét tuyển",
   scholarship: "Học bổng",
   compare: "So sánh",
+  "ai-source": "Trả lời từ nguồn bổ sung",
   unknown: "Không nhận diện được",
 };
 
@@ -50,7 +53,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { dateStyle: 
 
 export default async function AdminChatbotPage() {
   await adminPage("/quan-tri/chatbot");
-  const [stats, aliases, majors, schools] = await Promise.all([chatbotService.stats(500), chatbotService.listAliases(), catalogService.listMajors(), catalogService.listSchools()]);
+  const [stats, aliases, majors, schools, aiSources] = await Promise.all([chatbotService.stats(500), chatbotService.listAliases(), catalogService.listMajors(), catalogService.listSchools(), aiSourceService.list()]);
   const rated = stats.positive + stats.negative;
   return (
     <>
@@ -75,6 +78,10 @@ export default async function AdminChatbotPage() {
           majors={majors.map(({ major: m }) => ({ id: m.id, name: m.name }))}
           schools={schools.map((s) => ({ id: s.id, name: s.shortName }))}
         />
+      </div>
+
+      <div className="mt-6">
+        <AiSourceManager sources={aiSources} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">

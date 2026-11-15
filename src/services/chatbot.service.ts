@@ -21,6 +21,7 @@ import { matchMajor, riasecService, sanitizeRiasec } from "./riasec.service";
 import { polishWithLlm } from "./chatbot-llm";
 import { majorRecommendationService } from "./major-recommendation.service";
 import { userDataService } from "./user-data.service";
+import { aiSourceService } from "./ai-source.service";
 
 export { MAX_QUESTION } from "../domain/chat";
 export type { ChatAnswer, ChatItem, ChatKind, ChatSource } from "../domain/chat";
@@ -315,6 +316,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
         groupIds: preferences?.groupIds.length ? preferences.groupIds : (data.profile?.groupIds ?? []),
         interestMajorIds: preferences?.interestMajorIds.length ? preferences.interestMajorIds : (data.profile?.interestMajorIds ?? []),
         strongSubjectIds,
+        interestIds: preferences?.interestIds ?? [],
         behaviorProgramIds: preferences?.useSavedBehavior ? Array.from(new Set([...data.saved, ...data.wishlist.map((item) => item.id)])) : [],
       }, 5);
       if (recommendations.length) {
@@ -735,6 +737,20 @@ export const chatbotService = {
     if (q.length < 2) return { ok: false, message: "Bạn hãy nhập câu hỏi nhé." };
     if (q.length > MAX_QUESTION) return { ok: false, message: `Câu hỏi tối đa ${MAX_QUESTION} ký tự.` };
     let answer = await answerQuestion(q, ctx, history?.userId);
+    // Chưa có dữ liệu có cấu trúc → thử nguồn thông tin do quản trị viên biên soạn (không dùng cho câu bị từ chối).
+    if (answer.kind === "unknown") {
+      const source = await aiSourceService.answerFor(q).catch(() => null);
+      if (source) {
+        answer = {
+          ...answer,
+          kind: "answer",
+          intent: "ai-source",
+          text: source.content,
+          note: "Nội dung do đội ngũ Trovio biên soạn; hãy đối chiếu với nguồn chính thức của trường.",
+          sources: source.url ? [{ label: source.title, href: source.url, external: true }] : [{ label: source.title, href: "/tro-giup" }],
+        };
+      }
+    }
     if (answer.kind === "answer") {
       const polished = await polishWithLlm(q, answer).catch(() => null);
       if (polished) answer = { ...answer, text: polished, polished: true };

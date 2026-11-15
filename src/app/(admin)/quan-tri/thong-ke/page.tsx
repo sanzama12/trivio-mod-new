@@ -18,7 +18,7 @@ export default async function AdminStatsPage({ searchParams }: { searchParams: P
   await adminPage("/quan-tri/thong-ke");
   const { ngay } = await searchParams;
   const days = (RANGES as readonly number[]).includes(Number(ngay)) ? Number(ngay) : 30;
-  const [funnel, sus] = await Promise.all([analyticsService.report(days), analyticsService.surveyReport()]);
+  const [funnel, sus, usage] = await Promise.all([analyticsService.report(days), analyticsService.surveyReport(), analyticsService.usageReport(days)]);
   const recent = [...funnel.daily].reverse().slice(0, 14);
 
   return (
@@ -137,6 +137,57 @@ export default async function AdminStatsPage({ searchParams }: { searchParams: P
         <p className="mt-3 flex items-start gap-2 text-xs text-slate-500">
           <LuShieldCheck className="mt-0.5 size-4 shrink-0 text-success-700" aria-hidden />
           Chỉ lưu ngày, tên bước và một mã ngẫu nhiên do trình duyệt tạo; không lưu IP, tài khoản, nội dung hay đường dẫn. Dữ liệu tự xoá sau 180 ngày. Người dùng có thể tắt ở trang Chính sách quyền riêng tư.
+        </p>
+      </section>
+
+      <section aria-labelledby="interest-h" className="mt-10">
+        <h2 id="interest-h" className="text-lg font-bold text-slate-900">Trường và ngành được quan tâm</h2>
+        <p className="text-[13px] text-slate-600">
+          Số trình duyệt (ẩn danh) đã xem trang trường, ngành hoặc chương trình từ {fmtDay(usage.from)} đến {fmtDay(usage.to)}. Xem một chương trình tính cả trường và ngành của nó.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <Card className="p-5">
+            <p className="text-sm text-slate-600">Lượt tìm kiếm</p>
+            <p className="mt-1 text-3xl font-extrabold text-slate-900 tabular-nums">{usage.totals.search.hits.toLocaleString("vi-VN")}</p>
+            <p className="text-xs text-slate-600">từ {usage.totals.search.people.toLocaleString("vi-VN")} trình duyệt (không lưu nội dung tìm kiếm)</p>
+          </Card>
+          <Card className="p-5">
+            <p className="text-sm text-slate-600">Lượt tư vấn với trợ lý AI</p>
+            <p className="mt-1 text-3xl font-extrabold text-slate-900 tabular-nums">{funnel.chat.toLocaleString("vi-VN")}</p>
+            <p className="text-xs text-slate-600">trình duyệt đã hỏi trợ lý · <Link href="/quan-tri/chatbot" className="font-semibold text-primary-700 underline underline-offset-2">xem chi tiết</Link></p>
+          </Card>
+          <Card className="p-5">
+            <p className="text-sm text-slate-600">Trang được xem</p>
+            <p className="mt-1 text-3xl font-extrabold text-slate-900 tabular-nums">{(usage.totals.school_view.people + usage.totals.major_view.people).toLocaleString("vi-VN")}</p>
+            <p className="text-xs text-slate-600">{usage.totals.school_view.people.toLocaleString("vi-VN")} lượt người xem trường · {usage.totals.major_view.people.toLocaleString("vi-VN")} xem ngành</p>
+          </Card>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {[
+            { title: "Trường được quan tâm nhất", rows: usage.topSchools, href: (id: string) => `/quan-tri/truong?q=${id}` },
+            { title: "Ngành được quan tâm nhất", rows: usage.topMajors, href: (id: string) => `/quan-tri/nganh?q=${id}` },
+            { title: "Chương trình được xem nhiều nhất", rows: usage.topPrograms, href: (id: string) => `/quan-tri/chuong-trinh/${id}` },
+          ].map((list) => (
+            <Card key={list.title} className="p-5">
+              <h3 className="font-bold text-slate-900">{list.title}</h3>
+              {list.rows.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-600">Chưa có dữ liệu trong khoảng này.</p>
+              ) : (
+                <ol className="mt-3 space-y-2">
+                  {list.rows.map((r, i) => (
+                    <li key={r.id} className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate text-slate-800"><span className="mr-2 text-slate-500 tabular-nums">{i + 1}.</span><Link href={list.href(r.id)} className="hover:underline">{r.name}</Link></span>
+                      <span className="shrink-0 font-semibold text-slate-900 tabular-nums">{r.people.toLocaleString("vi-VN")}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Card>
+          ))}
+        </div>
+        <p className="mt-3 flex items-start gap-2 text-xs text-slate-600">
+          <LuShieldCheck className="mt-0.5 size-4 shrink-0 text-success-700" aria-hidden />
+          Chỉ ghi nhận khi người dùng đồng ý thống kê; lưu ngày, loại sự kiện, mã trường/ngành và mã ngẫu nhiên của trình duyệt, tự xoá sau 180 ngày.
         </p>
       </section>
 

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { catalogService, programService } from "@/services";
+import { UsageBeacon } from "@/components/layout/usage-beacon";
+import { catalogService, interestService, programService } from "@/services";
 import { formatScore, formatTuition } from "@/lib/format";
 import { buttonClass } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/misc";
@@ -32,12 +33,14 @@ export default async function MajorPage({ params }: Props) {
   const data = await catalogService.getMajorBySlug((await params).slug);
   if (!data) notFound();
   const { major, group } = data;
-  const programs = await programService.listByMajor(major.id);
+  const [programs, extra] = await Promise.all([programService.listByMajor(major.id), interestService.forMajor(major.id)]);
+  const { career, interests } = extra;
   const combos = [...new Set(programs.flatMap(({ program }) => program.combos))].sort();
   const scores = programs.flatMap(({ program }) => program.cutoffs.map((cutoff) => cutoff.score)).filter(Number.isFinite);
 
   return (
     <>
+      <UsageBeacon kind="major_view" id={major.id} />
       {/* Banner tràn màn hình */}
       <section className="relative isolate overflow-hidden bg-primary-900">
         <Image
@@ -69,6 +72,35 @@ export default async function MajorPage({ params }: Props) {
 
 
       <section className="container-page py-8">
+        {(career && (career.knowledge || career.careerOrientation || career.careers.length > 0)) || interests.length > 0 ? (
+          <div className="mb-8 grid gap-4 md:grid-cols-2" aria-label="Thông tin đào tạo và nghề nghiệp">
+            {career?.knowledge ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h2 className="font-bold">Kiến thức đào tạo</h2>
+                <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-slate-700">{career.knowledge}</p>
+              </div>
+            ) : null}
+            {career && (career.careerOrientation || career.careers.length > 0) ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h2 className="font-bold">Định hướng nghề nghiệp</h2>
+                {career.careerOrientation ? <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-slate-700">{career.careerOrientation}</p> : null}
+                {career.careers.length > 0 ? (
+                  <ul className="mt-3 flex flex-wrap gap-2" aria-label="Vị trí nghề nghiệp tiêu biểu">
+                    {career.careers.map((c) => <li key={c} className="rounded-full bg-primary-50 px-3 py-1 text-sm font-semibold text-primary-700">{c}</li>)}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+            {interests.length > 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 md:col-span-2">
+                <h2 className="font-bold">Phù hợp với bạn nếu thích</h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {interests.map((i) => <li key={i.id} className="rounded-full bg-accent-50 px-3 py-1 text-sm font-semibold text-accent-800">{i.name}</li>)}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {(combos.length > 0 || scores.length > 0) && <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-bold">Thông tin xét tuyển</h2>{combos.length > 0 && <p className="mt-2 text-sm text-slate-700">Tổ hợp xét tuyển: {combos.join(", ")}</p>}{scores.length > 0 && <p className="mt-2 text-sm text-slate-700">Khoảng điểm chuẩn THPT trong dữ liệu: {formatScore(Math.min(...scores))} – {formatScore(Math.max(...scores))}</p>}</div>}
         <p className="text-xs font-semibold tracking-wide text-accent-800">Danh sách khuyến dùng</p>
         <div className="mt-1 flex flex-wrap items-end justify-between gap-2">

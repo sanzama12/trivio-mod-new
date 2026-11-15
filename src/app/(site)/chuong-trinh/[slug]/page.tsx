@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { UsageBeacon } from "@/components/layout/usage-beacon";
 import { LuBadgeCheck, LuFileText, LuShieldCheck } from "react-icons/lu";
 import type { AdmissionMethodKey, Program, VerifyField } from "@/domain/types";
-import { ADMISSION_METHODS, cutoffFor, formatMethodScore, programService, SCHOOL_TYPE_LABELS } from "@/services";
+import { ADMISSION_METHODS, cutoffFor, formatMethodScore, programService, programYearService, SCHOOL_TYPE_LABELS } from "@/services";
 import { formatMonthVi, formatScore, formatTuition, hasTuitionData } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,8 @@ import { CompetitionBadge } from "@/components/program/fit-badge";
 import { FitPanel } from "@/components/program/fit-panel";
 import { CompareButton, SaveButton, WishlistButton } from "@/components/program/program-actions";
 import { CutoffHistory } from "@/components/program/cutoff-history";
+import { YearDataTable } from "@/components/program/year-data-table";
+import { CutoffTrend } from "@/components/program/cutoff-trend";
 import { SchoolCode } from "@/components/program/program-card";
 import { QaSection } from "@/components/program/qa-section";
 import { FinanceBlock } from "@/components/program/finance-block";
@@ -36,6 +39,7 @@ const sections = [
 export default async function ProgramDetailPage({ params }: Props) {
   const detail = await programService.getBySlug((await params).slug);
   if (!detail) notFound();
+  const yearRows = await programYearService.list(detail.program.id);
   const { program, school, major, similar } = detail;
   const latest = program.cutoffs[0];
   const verified = verifiedStatus(program);
@@ -47,6 +51,9 @@ export default async function ProgramDetailPage({ params }: Props) {
 
   return (
     <div className="container-page py-8">
+      <UsageBeacon kind="program_view" id={program.id} />
+      <UsageBeacon kind="school_view" id={school.id} />
+      <UsageBeacon kind="major_view" id={major.id} />
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: "/" },
@@ -138,6 +145,8 @@ export default async function ProgramDetailPage({ params }: Props) {
           </Card>
 
           <Card id="tuyen-sinh" className="p-6">
+            <YearDataTable rows={yearRows} />
+            <CutoffTrend cutoffs={program.cutoffs} />
             {program.cutoffs.length > 0 && (
               <div className="mb-6 border-b border-slate-200 pb-6">
                 <h3 className="mb-3 font-semibold text-slate-900">Điểm chuẩn 3 năm gần nhất</h3>

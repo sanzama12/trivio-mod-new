@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { UsageBeacon } from "@/components/layout/usage-beacon";
 import { catalogService, programService } from "@/services";
 import { Breadcrumb } from "@/components/ui/misc";
 import { SchoolDetailView } from "@/components/school/school-detail-view";
@@ -24,6 +25,7 @@ export default async function SchoolPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-paper-50 pb-20">
+      <UsageBeacon kind="school_view" id={school.id} />
       <div className="container-page py-6">
         <Breadcrumb
           items={[

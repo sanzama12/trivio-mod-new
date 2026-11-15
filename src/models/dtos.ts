@@ -116,6 +116,8 @@ export interface MajorRecommendation {
   reasons: string[];
   knowledge: string;
   careerOrientation: string;
+  /** Vị trí nghề nghiệp tiêu biểu do quản trị viên nhập. */
+  careers: string[];
   schoolCount: number;
   programCount: number;
 }
@@ -124,6 +126,7 @@ export interface MajorRecommendationFilter {
   groupIds?: string[];
   strongSubjectIds?: string[];
   interestMajorIds?: string[];
+  interestIds?: string[];
   limit?: number;
 }
 

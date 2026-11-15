@@ -18,6 +18,7 @@ export interface DonationRecord {
   createdAt: string;
   updatedAt: string;
   paidAt: string | null;
+  userId?: string | null;
 }
 
 export interface DonationStats {
@@ -47,6 +48,7 @@ const cols = `
   vnp_response_code AS "vnpResponseCode",
   status,
   ip_address AS "ipAddress",
+  user_id AS "userId",
   created_at::text AS "createdAt",
   updated_at::text AS "updatedAt",
   paid_at::text AS "paidAt"
@@ -61,11 +63,12 @@ export const postgresDonationsRepository = {
     orderInfo: string;
     vnpTxnRef: string;
     ipAddress?: string | null;
+    userId?: string | null;
   }): Promise<DonationRecord> {
     const rows = await query<DonationRecord>(
       `INSERT INTO trovio.donations (
-        donor_name, donor_email, amount, message, order_info, vnp_txn_ref, ip_address, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+        donor_name, donor_email, amount, message, order_info, vnp_txn_ref, ip_address, user_id, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
       RETURNING ${cols}`,
       [
         data.donorName,
@@ -75,6 +78,7 @@ export const postgresDonationsRepository = {
         data.orderInfo,
         data.vnpTxnRef,
         data.ipAddress ?? null,
+        data.userId ?? null,
       ]
     );
     return rows[0];
@@ -86,6 +90,13 @@ export const postgresDonationsRepository = {
       [vnpTxnRef]
     );
     return rows[0] ?? null;
+  },
+
+  async listByUser(userId: string, limit = 50): Promise<DonationRecord[]> {
+    return query<DonationRecord>(
+      `SELECT ${cols} FROM trovio.donations WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [userId, Math.max(1, Math.min(Math.floor(limit), 100))]
+    );
   },
 
   async getById(id: string): Promise<DonationRecord | null> {

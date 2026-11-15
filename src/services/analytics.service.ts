@@ -5,7 +5,7 @@
  * nội dung, URL. Trình duyệt bật "Do Not Track" / "Global Privacy Control" thì không gửi (xem lib/track.ts).
  */
 import { randomUUID } from "node:crypto";
-import { FUNNEL_EVENTS, type FunnelEvent, type SusResponse } from "../domain/types";
+import { FUNNEL_EVENTS, USAGE_KINDS, type FunnelEvent, type SusResponse, type UsageKind } from "../domain/types";
 import { repositories } from "@database/repositories";
 import { SUS_QUESTIONS, SUS_ROLES, susGrade, susScore } from "../domain/sus";
 
@@ -39,6 +39,44 @@ export const analyticsService = {
     if (typeof anonId !== "string" || !/^[a-z0-9-]{8,40}$/i.test(anonId)) return false;
     await repositories.analytics.record(vnDay(), event as FunnelEvent, anonId.toLowerCase());
     return true;
+  },
+
+  /** Lượt quan tâm tới trường/ngành/chương trình hoặc tìm kiếm (ẩn danh, chỉ khi người dùng đồng ý thống kê). */
+  async trackUsage(kind: unknown, entityId: unknown, anonId: unknown): Promise<boolean> {
+    if (typeof kind !== "string" || !(USAGE_KINDS as readonly string[]).includes(kind)) return false;
+    if (typeof anonId !== "string" || !/^[a-z0-9-]{8,40}$/i.test(anonId)) return false;
+    const id = typeof entityId === "string" ? entityId : "";
+    if (kind === "search" ? id !== "" : !/^[a-z0-9][a-z0-9-]{0,99}$/.test(id)) return false;
+    await repositories.usage.record(vnDay(), kind as UsageKind, id, anonId.toLowerCase());
+    return true;
+  },
+
+  /** Trường, ngành được quan tâm nhiều nhất và tổng lượt tìm kiếm trong khoảng ngày. */
+  async usageReport(days = 30) {
+    const to = vnDay();
+    const from = vnDay(new Date(Date.now() - (days - 1) * 86400_000));
+    const [totals, schoolTop, majorTop, programTop, schools, majors, programs] = await Promise.all([
+      repositories.usage.totals(from, to),
+      repositories.usage.top("school_view", from, to, 30),
+      repositories.usage.top("major_view", from, to, 30),
+      repositories.usage.top("program_view", from, to, 30),
+      repositories.schools.findAll(),
+      repositories.majors.findAll(),
+      repositories.programs.findAll(),
+    ]);
+    const schoolName = new Map(schools.map((s) => [s.id, s.name]));
+    const majorName = new Map(majors.map((m) => [m.id, m.name]));
+    const programName = new Map(programs.map((p) => [p.id, p.name]));
+    const named = (rows: { entityId: string; people: number; hits: number }[], names: Map<string, string>) =>
+      rows.filter((r) => names.has(r.entityId)).slice(0, 10).map((r) => ({ id: r.entityId, name: names.get(r.entityId)!, people: r.people, hits: r.hits }));
+    return {
+      from,
+      to,
+      totals,
+      topSchools: named(schoolTop, schoolName),
+      topMajors: named(majorTop, majorName),
+      topPrograms: named(programTop, programName),
+    };
   },
 
   async report(days = 30) {

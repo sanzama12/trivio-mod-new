@@ -16,6 +16,8 @@ const cols = [
   {
     title: "Quy tắc gợi ý & Dữ liệu",
     links: [
+      { label: "Xu hướng điểm chuẩn", href: "/xu-huong-diem-chuan" },
+      { label: "Khảo sát định hướng nghề nghiệp", href: "/dinh-huong-nghe-nghiep" },
       { label: "Nguồn dữ liệu đề án", href: "/cach-goi-y#nguon-du-lieu" },
     ],
   },
