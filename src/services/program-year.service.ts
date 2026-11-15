@@ -45,6 +45,15 @@ const describe = (r: ProgramYearData | undefined) =>
 export const programYearService = {
   list: (programId: string) => repositories.programYears.listByProgram(programId),
 
+  /** Dữ liệu theo năm của nhiều chương trình (tối đa 12), gom theo mã chương trình; dùng cho trang so sánh. */
+  async listMany(programIds: string[]): Promise<Record<string, ProgramYearData[]>> {
+    const ids = Array.from(new Set(programIds.filter((id) => /^[a-z0-9][a-z0-9-]{0,99}$/.test(id)))).slice(0, 12);
+    const rows = await repositories.programYears.listByPrograms(ids);
+    const result: Record<string, ProgramYearData[]> = Object.fromEntries(ids.map((id) => [id, []]));
+    for (const row of rows) result[row.programId]?.push(row);
+    return result;
+  },
+
   /** Lưu mọi năm được gửi lên, kể cả năm không đổi so với trước đó, để giữ đủ lịch sử từng năm. */
   async save(actor: PublicUser, programId: string, input: unknown): Promise<{ ok: true; saved: number; changed: number } | Fail> {
     const program = await repositories.catalogAdmin.getProgram(programId);

@@ -135,6 +135,7 @@ const BULK_IMPORT_COLUMNS: { key: keyof ImportRowData; label: string; required?:
   { key: "phuong_thuc", label: "phương thức" },
   { key: "diem_rieng", label: "điểm riêng" },
   { key: "ghi_chu", label: "ghi chú" },
+  { key: "trang_thai", label: "trạng thái tuyển sinh" },
 ];
 
 const BULK_IMPORT_EXAMPLES: ImportRowData[] = [
@@ -156,6 +157,7 @@ const BULK_IMPORT_EXAMPLES: ImportRowData[] = [
     phuong_thuc: "Điểm thi THPT",
     diem_rieng: "",
     ghi_chu: "",
+    trang_thai: "",
   },
   {
     ma_xet_tuyen: "7340115",
@@ -175,6 +177,7 @@ const BULK_IMPORT_EXAMPLES: ImportRowData[] = [
     phuong_thuc: "Điểm học bạ",
     diem_rieng: "24",
     ghi_chu: "",
+    trang_thai: "",
   },
 ];
 

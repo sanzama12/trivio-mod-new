@@ -194,6 +194,7 @@ export interface QaRepository {
 export interface CatalogAdminRepository {
   listSchools(): Promise<School[]>;
   saveSchool(school: School): Promise<void>;
+  deleteSchool(id: string): Promise<{ ok: true } | { ok: false; programs: number; referenced: boolean }>;
   saveSchoolsBatch(schools: School[]): Promise<void>;
   listMajors(): Promise<Major[]>;
   saveMajor(major: Major): Promise<void>;

@@ -143,7 +143,7 @@ export default async function AdminStatsPage({ searchParams }: { searchParams: P
       <section aria-labelledby="interest-h" className="mt-10">
         <h2 id="interest-h" className="text-lg font-bold text-slate-900">Trường và ngành được quan tâm</h2>
         <p className="text-[13px] text-slate-600">
-          Số trình duyệt (ẩn danh) đã xem trang trường, ngành hoặc chương trình từ {fmtDay(usage.from)} đến {fmtDay(usage.to)}. Xem một chương trình tính cả trường và ngành của nó.
+          Số trình duyệt (ẩn danh) đã xem hoặc lưu trường, ngành, chương trình từ {fmtDay(usage.from)} đến {fmtDay(usage.to)}; thêm vào nguyện vọng tính cho chương trình. Xem một chương trình tính cả trường và ngành của nó.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <Card className="p-5">
@@ -187,7 +187,7 @@ export default async function AdminStatsPage({ searchParams }: { searchParams: P
         </div>
         <p className="mt-3 flex items-start gap-2 text-xs text-slate-600">
           <LuShieldCheck className="mt-0.5 size-4 shrink-0 text-success-700" aria-hidden />
-          Chỉ ghi nhận khi người dùng đồng ý thống kê; lưu ngày, loại sự kiện, mã trường/ngành và mã ngẫu nhiên của trình duyệt, tự xoá sau 180 ngày.
+          Chỉ ghi nhận khi người dùng đồng ý thống kê; lưu ngày, loại sự kiện (xem, lưu, thêm nguyện vọng), mã trường/ngành/chương trình và mã ngẫu nhiên của trình duyệt, tự xoá sau 180 ngày.
         </p>
       </section>
 

@@ -643,5 +643,5 @@ export interface AiSource {
   updatedAt: string;
 }
 
-export const USAGE_KINDS = ["school_view", "major_view", "program_view", "search"] as const;
+export const USAGE_KINDS = ["school_view", "major_view", "program_view", "search", "school_save", "major_save", "program_save", "wishlist_add"] as const;
 export type UsageKind = (typeof USAGE_KINDS)[number];

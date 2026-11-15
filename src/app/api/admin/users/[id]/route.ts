@@ -13,7 +13,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   return data ? NextResponse.json({ ok: true, ...data }) : NextResponse.json({ ok: false, message: "Không tìm thấy tài khoản." }, { status: 404 });
 }
 
-/** { action: lock | unlock | delete (confirm=email) | invite } */
+/** { action: lock | unlock | delete (confirm=email) | invite | set-role (role=admin|user) } */
 export async function POST(req: Request, ctx: Ctx) {
   const { user, error } = await requireAdmin();
   if (error) return error;

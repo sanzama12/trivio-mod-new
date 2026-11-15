@@ -101,6 +101,18 @@ export const userAdminService = {
       await audit(actor, id, "delete", "Xoá tài khoản", user.email, "—");
       return { ok: true };
     }
+    if (action === "set-role") {
+      const role = input.role === "admin" ? "admin" : input.role === "user" ? "user" : null;
+      if (!role) return { ok: false, status: 400, field: "role", message: "Vai trò phải là học sinh (user) hoặc quản trị viên (admin)." };
+      if (self) return { ok: false, status: 400, message: "Không thể tự đổi vai trò của chính mình." };
+      if ((role === "admin") === target.admin) return { ok: true };
+      if (role === "admin" && !user.verified) return { ok: false, status: 400, message: "Chỉ cấp quyền quản trị cho tài khoản đã xác thực email." };
+      if (role === "admin" && user.disabled) return { ok: false, status: 400, message: "Không cấp quyền quản trị cho tài khoản đang bị khoá." };
+      // Hạ quyền thì đăng xuất mọi thiết bị của tài khoản đó để quyền cũ không còn hiệu lực.
+      await repositories.users.update(id, role === "user" ? { admin: false, role: "user", sessionVersion: (user.sessionVersion ?? 0) + 1 } : { admin: true, role: "admin" });
+      await audit(actor, id, "update", `Vai trò ${user.email}`, target.admin ? "Quản trị viên" : "Học sinh", role === "admin" ? "Quản trị viên" : "Học sinh");
+      return { ok: true };
+    }
     if (action === "invite") {
       await authService.requestPasswordReset(user.email, resetUrl);
       await audit(actor, id, "update", `Gửi link đặt mật khẩu ${user.email}`, "—", "Đã gửi");

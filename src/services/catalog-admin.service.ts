@@ -177,6 +177,27 @@ export const catalogAdminService = {
     return { ok: true };
   },
 
+  /** Xoá hẳn trường. Chỉ được phép khi trường không còn chương trình nào (kể cả đang ẩn) và không có cán bộ gắn với trường. */
+  async deleteSchool(actor: PublicUser, id: string, confirmCode: unknown): Promise<{ ok: true } | Fail> {
+    const s = (await repositories.catalogAdmin.listSchools()).find((x) => x.id === id);
+    if (!s) return { ok: false, status: 404, message: "Không tìm thấy trường." };
+    if (typeof confirmCode !== "string" || confirmCode.trim().toUpperCase() !== s.code.toUpperCase()) {
+      return { ok: false, status: 400, field: "confirm", message: "Nhập đúng mã trường để xác nhận xoá." };
+    }
+    const res = await repositories.catalogAdmin.deleteSchool(id);
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: 409,
+        message: res.programs
+          ? `Trường còn ${res.programs} chương trình. Hãy xoá hoặc chuyển chúng trước, hoặc chỉ tạm ẩn trường.`
+          : "Trường còn dữ liệu khác tham chiếu tới. Hãy chỉ tạm ẩn trường.",
+      };
+    }
+    await audit(actor, "school", id, "delete", [{ field: "Trường", before: `${s.name} (${s.code})`, after: "đã xoá" }]);
+    return { ok: true };
+  },
+
   async majors(): Promise<MajorRow[]> {
     const [majors, groups, programs] = await Promise.all([repositories.catalogAdmin.listMajors(), repositories.majors.findGroups(), repositories.catalogAdmin.listPrograms()]);
     const groupNameById = new Map(groups.map((group) => [group.id, group.name]));

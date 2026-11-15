@@ -11,7 +11,7 @@ import { withAtomicResult } from "@database/client";
 import { isMajorCode } from "@database/identity";
 import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
-import type { AdmissionMethod, AdmissionMethodKey, MethodCutoff, Program, PublicUser } from "../domain/types";
+import type { AdmissionMethod, AdmissionMethodKey, AdmissionStatus, MethodCutoff, Program, ProgramYearData, PublicUser } from "../domain/types";
 import { PROVINCE_REGION } from "../domain/provinces";
 import { repositories } from "@database/repositories";
 import { MAX_SHEET_ROWS, parseCsv, parseXlsx } from "../lib/sheet";
@@ -41,10 +41,61 @@ export const IMPORT_COLUMNS = [
   "phuong_thuc",
   "diem_rieng",
   "ghi_chu",
+  "trang_thai",
 ] as const;
 
 export type ImportColumn = (typeof IMPORT_COLUMNS)[number];
 export type ImportRowData = Record<ImportColumn, string>;
+
+/** Đọc trạng thái tuyển sinh từ ô Excel: null = để trống, undefined = giá trị không nhận ra. */
+export function parseAdmissionStatus(raw: string | undefined): AdmissionStatus | null | undefined {
+  const v = normalizeVi(String(raw ?? "")).replace(/[^a-z0-9 -]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!v) return null;
+  if (v === "dang-tuyen" || v.includes("dang tuyen") || v === "mo" || v.includes("con tuyen")) return "dang-tuyen";
+  if (v === "tam-dung" || v.includes("tam dung") || v.includes("tam ngung")) return "tam-dung";
+  if (v === "ngung-tuyen" || v.includes("ngung tuyen") || v.includes("dung tuyen") || v.includes("khong tuyen")) return "ngung-tuyen";
+  if (v === "chua-cong-bo" || v.includes("chua cong bo") || v.includes("chua co")) return "chua-cong-bo";
+  return undefined;
+}
+
+type YearPatch = { tuitionMin?: number | null; tuitionMax?: number | null; quota?: number | null; status?: AdmissionStatus };
+
+/** Gom các dòng nhập của một chương trình thành dữ liệu theo năm; dòng sau ghi đè dòng trước, ô trống không xoá dữ liệu cũ. */
+export function collectYearPatches(rows: { data: Pick<ImportRowData, "nam" | "hoc_phi_min" | "hoc_phi_max" | "chi_tieu" | "trang_thai"> }[], fallbackYear = new Date().getFullYear()): Map<number, YearPatch> {
+  const byYear = new Map<number, YearPatch>();
+  for (const { data } of rows) {
+    const year = Number(data.nam) || fallbackYear;
+    const tuitionMin = data.hoc_phi_min ? num(data.hoc_phi_min) : null;
+    const tuitionMax = data.hoc_phi_max ? num(data.hoc_phi_max) : tuitionMin;
+    const quota = data.chi_tieu ? num(data.chi_tieu) : null;
+    const status = parseAdmissionStatus(data.trang_thai) ?? undefined;
+    if (tuitionMin == null && quota == null && !status) continue;
+    const cur = byYear.get(year) ?? {};
+    if (tuitionMin != null) { cur.tuitionMin = tuitionMin; cur.tuitionMax = tuitionMax ?? tuitionMin; }
+    if (quota != null) cur.quota = quota;
+    if (status) cur.status = status;
+    byYear.set(year, cur);
+  }
+  return byYear;
+}
+
+/** Trộn dữ liệu nhập vào dữ liệu theo năm đã có để các trường không được nhập giữ nguyên. */
+export function mergeYearData(programId: string, patches: Map<number, YearPatch>, existing: ProgramYearData[]): ProgramYearData[] {
+  const old = new Map(existing.filter((r) => r.programId === programId).map((r) => [r.year, r]));
+  return [...patches].map(([year, p]) => {
+    const prev = old.get(year);
+    return {
+      programId,
+      year,
+      tuitionMin: p.tuitionMin !== undefined ? p.tuitionMin : prev?.tuitionMin ?? null,
+      tuitionMax: p.tuitionMax !== undefined ? p.tuitionMax : prev?.tuitionMax ?? null,
+      quota: p.quota !== undefined ? p.quota : prev?.quota ?? null,
+      status: p.status ?? prev?.status ?? "chua-cong-bo",
+      note: prev?.note ?? "",
+    };
+  });
+}
+
 export const REQUIRED_COLUMNS: ImportColumn[] = ["ma_xet_tuyen"];
 
 /** Mã trường có thể lặp; chỉ cặp trường + ID ngành phải duy nhất. Năm không thuộc khóa ID ngành. */
@@ -339,6 +390,13 @@ const COLUMN_ALIASES: Record<string, ImportColumn> = {
   ghichu: "ghi_chu",
   ghi_chú: "ghi_chu",
   note: "ghi_chu",
+  trang_thai: "trang_thai",
+  trangthai: "trang_thai",
+  trạng_thái: "trang_thai",
+  trạng_thái_tuyển_sinh: "trang_thai",
+  tình_trạng: "trang_thai",
+  tinh_trang: "trang_thai",
+  admission_status: "trang_thai",
 };
 
 /** Đọc file thành dòng dữ liệu theo tên cột (hỗ trợ tiếng Việt và tiếng Anh). */
@@ -584,6 +642,10 @@ function validateRows(input: ImportRowData[], ctx: Ctx): ImportRow[] {
       errors.push({ field: "chi_tieu", message: "Chỉ tiêu phải là số nguyên dương" });
     }
 
+    if (parseAdmissionStatus(data.trang_thai) === undefined) {
+      errors.push({ field: "trang_thai", message: "Trạng thái không nhận ra; dùng: Đang tuyển sinh, Tạm dừng tuyển sinh, Ngừng tuyển sinh hoặc Chưa công bố" });
+    }
+
     const combos = data.to_hop ? data.to_hop.toUpperCase().split(/[\s,;/]+/).filter(Boolean) : [];
     const unknownCombos = combos.filter((combo) => !ctx.comboCodes.has(combo));
     if (unknownCombos.length) warnings.push({ field: "to_hop", message: `Tổ hợp chưa chuẩn: ${unknownCombos.join(", ")}` });
@@ -778,6 +840,7 @@ export const importService = {
       skipAudit: true,
     };
 
+    const yearEntries: { programId: string; rows: ImportRow[] }[] = [];
     const updatedPrograms: string[] = [];
     const overrideBatch: Parameters<typeof repositories.programAdmin.patchProgramsBatch>[0] = [];
 
@@ -793,6 +856,7 @@ export const importService = {
       let altCutoffs = [...p.altCutoffs];
       let methods = [...p.methods];
       const imported = collectImportDetails(rows);
+      yearEntries.push({ programId, rows });
 
       for (const cutoff of imported.cutoffs) {
         const before = cutoffs.find((item) => item.year === cutoff.year)?.score;
@@ -944,6 +1008,7 @@ export const importService = {
         message: `Dòng ${rows[0].line} (${first.ma_truong} / ${first.ma_xet_tuyen}): ${res.message} Chưa lưu thay đổi của lần nhập này.`,
       };
       if (res.ok) {
+        yearEntries.push({ programId: res.programId, rows });
         const createdProgram = batchCtx.programs.find((program) => program.id === res.programId);
         if (createdProgram) {
           createdProgram.cutoffs = imported.cutoffs;
@@ -968,6 +1033,18 @@ export const importService = {
     }
     if (overrideBatch.length > 0) {
       await repositories.programAdmin.patchProgramsBatch(overrideBatch);
+    }
+
+    // Dữ liệu theo năm (trạng thái, học phí, chỉ tiêu): mỗi năm có trong file được lưu thành một dòng riêng.
+    const yearPatches = yearEntries
+      .map((entry) => ({ programId: entry.programId, patches: collectYearPatches(entry.rows) }))
+      .filter((entry) => entry.patches.size > 0);
+    let yearRecords = 0;
+    if (yearPatches.length > 0) {
+      const existingYears = await repositories.programYears.listByPrograms(yearPatches.map((entry) => entry.programId));
+      const toSave = yearPatches.flatMap((entry) => mergeYearData(entry.programId, entry.patches, existingYears));
+      await repositories.programYears.upsertMany(toSave, actor.id);
+      yearRecords = toSave.length;
     }
 
     const batch = {
@@ -1000,9 +1077,9 @@ export const importService = {
       updated,
       batchId: batch.id,
       updatedPrograms,
-      message: updated > 0
+      message: (updated > 0
         ? `Đã cập nhật ${updated} bản ghi khớp ID và tạo mới ${created} bản ghi thành công!`
-        : `Đã công bố thành công ${created} ngành mới!`,
+        : `Đã công bố thành công ${created} ngành mới!`) + (yearRecords ? ` Đã lưu ${yearRecords} dòng dữ liệu tuyển sinh theo năm.` : ""),
     };
   },
 
@@ -1010,7 +1087,7 @@ export const importService = {
 
   /** File CSV mẫu đầy đủ; giữ lại để tương thích với các liên kết/công cụ cũ. */
   templateCsv() {
-    return `﻿${IMPORT_COLUMNS.join(",")}\n7480201,Công nghệ thông tin,CEA,Trường Đại học Nghệ An,Nghệ An,,7480201,2026,17,,,,A00 A01,,Điểm thi THPT,,\n7340115,Marketing,CEA,Trường Đại học Nghệ An,Nghệ An,,7340115,2026,24,,,,A00 A01,,Điểm học bạ,,\n`;
+    return `﻿${IMPORT_COLUMNS.join(",")}\n7480201,Công nghệ thông tin,CEA,Trường Đại học Nghệ An,Nghệ An,,7480201,2026,17,,,,A00 A01,,Điểm thi THPT,,,Đang tuyển sinh\n7340115,Marketing,CEA,Trường Đại học Nghệ An,Nghệ An,,7340115,2026,24,,,,A00 A01,,Điểm học bạ,,,\n`;
   },
 
   /** Tên cũ được giữ để không làm hỏng đường dẫn CSV đã lưu trước đây. */
@@ -1047,6 +1124,7 @@ export const importService = {
       { header: "phuong_thuc", key: "phuong_thuc", width: 22 },
       { header: "diem_rieng", key: "diem_rieng", width: 14 },
       { header: "ghi_chu", key: "ghi_chu", width: 28 },
+      { header: "trang_thai", key: "trang_thai", width: 20 },
     ];
 
     sheet.addRows([
@@ -1068,6 +1146,7 @@ export const importService = {
         phuong_thuc: "Điểm thi THPT",
         diem_rieng: "",
         ghi_chu: "",
+        trang_thai: "Đang tuyển sinh",
       },
       {
         ma_xet_tuyen: "7340115",
@@ -1087,6 +1166,7 @@ export const importService = {
         phuong_thuc: "Điểm học bạ",
         diem_rieng: 68,
         ghi_chu: "",
+        trang_thai: "",
       },
     ]);
 
@@ -1144,6 +1224,7 @@ export const importService = {
       { column: "diem_chuan", required: "Tùy chọn", description: "Điểm thang 30. Để trống khi chưa công bố." },
       { column: "hoc_phi_min, hoc_phi_max", required: "Tùy chọn", description: "Đơn vị triệu đồng/năm. Có thể để trống và nhập sau." },
       { column: "chi_tieu, to_hop, nguon", required: "Tùy chọn", description: "Có thể để trống. Tổ hợp cách nhau bằng dấu cách, ví dụ A00 A01 D01." },
+      { column: "trang_thai", required: "Tùy chọn", description: "Trạng thái tuyển sinh của năm ở cột nam: Đang tuyển sinh, Tạm dừng tuyển sinh, Ngừng tuyển sinh hoặc Chưa công bố. Cùng hoc_phi và chi_tieu, hệ thống lưu thành dữ liệu riêng của năm đó; mỗi năm một dòng, kể cả năm không đổi." },
       { column: "phuong_thuc", required: "Tùy chọn", description: "Thuộc khóa dòng cùng mã trường và ID ngành. Khác phương thức vẫn được nhận; chỉ trùng cả ba giá trị mới bị bỏ qua." },
       { column: "diem_rieng", required: "Tùy chọn", description: "Điểm học bạ (thang 30) khi phương thức là Điểm học bạ." },
       { column: "ghi_chu", required: "Tùy chọn", description: "Thông tin bổ sung cho phương thức; có thể để trống." },

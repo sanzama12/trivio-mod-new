@@ -3,7 +3,7 @@
 /** A02 — danh sách trường + ngăn kéo "Thêm trường mới / Sửa trường" (kiểm tra từng ô như Figma). */
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { LuCheck, LuPencil, LuPlus, LuSearch, LuTrash2, LuTriangleAlert, LuUndo2, LuX } from "react-icons/lu";
+import { LuCheck, LuPencil, LuPlus, LuSearch, LuTrash2, LuTriangleAlert, LuUndo2, LuX, LuEyeOff } from "react-icons/lu";
 import type { Region, SchoolType } from "@/domain/types";
 import { PROVINCES } from "@/domain/provinces";
 import { SCHOOL_TYPE_LABELS } from "@/services/program.filters";
@@ -85,6 +85,9 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
   const [touched, setTouched] = useState<Set<keyof Form>>(new Set());
   const [serverErr, setServerErr] = useState<{ field?: string; message?: string } | null>(null);
   const [confirm, setConfirm] = useState<SchoolItem | null>(null);
+  const [removing, setRemoving] = useState<SchoolItem | null>(null);
+  const [removeCode, setRemoveCode] = useState("");
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const nq = normalizeVi(q.trim());
@@ -263,10 +266,13 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
                         <LuUndo2 className="size-4" aria-hidden />
                       </button>
                     ) : (
-                      <button type="button" onClick={() => setConfirm(r)} className="rounded-md p-1.5 text-danger-600 hover:bg-danger-50" aria-label={`Tạm ẩn ${r.name}`}>
-                        <LuTrash2 className="size-4" aria-hidden />
+                      <button type="button" onClick={() => setConfirm(r)} className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100" aria-label={`Tạm ẩn ${r.name}`} title="Tạm ẩn">
+                        <LuEyeOff className="size-4" aria-hidden />
                       </button>
                     )}
+                    <button type="button" onClick={() => { setRemoving(r); setRemoveCode(""); setRemoveError(null); }} className="rounded-md p-1.5 text-danger-600 hover:bg-danger-50" aria-label={`Xoá hẳn ${r.name}`} title="Xoá hẳn">
+                      <LuTrash2 className="size-4" aria-hidden />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -401,6 +407,40 @@ export function SchoolManager({ rows }: { rows: SchoolItem[] }) {
           </form>
         )}
       </Drawer>
+
+      <Dialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        title="Xoá hẳn trường này?"
+        subtitle={removing?.name}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setRemoving(null)}>
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              disabled={busy || !removeCode.trim()}
+              onClick={async () => {
+                if (!removing) return;
+                setRemoveError(null);
+                const res = await post("/api/admin/catalog", { entity: "school", action: "delete", id: removing.id, confirm: removeCode }, { success: "Đã xoá trường." });
+                if (res.ok) setRemoving(null);
+                else setRemoveError(res.message ?? "Không xoá được trường.");
+              }}
+            >
+              Xoá hẳn
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Thao tác này <strong>không hoàn tác được</strong>. Chỉ xoá được trường không còn chương trình nào (kể cả chương trình đang ẩn). Nếu chỉ muốn học sinh không thấy trường, hãy chọn “Tạm ẩn”.
+        </p>
+        <label htmlFor="school-delete-code" className="mt-4 block text-sm font-semibold text-slate-700">Nhập mã trường <span className="font-mono">{removing?.code}</span> để xác nhận</label>
+        <input id="school-delete-code" value={removeCode} onChange={(e) => setRemoveCode(e.target.value)} autoComplete="off" className={`${inputCls} mt-1.5`} />
+        {removeError && <p role="alert" className="mt-2 text-sm font-medium text-danger-700">{removeError}</p>}
+      </Dialog>
 
       <Dialog
         open={!!confirm}

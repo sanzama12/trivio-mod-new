@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { LuArrowLeftRight, LuArrowRight, LuPlus, LuScale, LuSearch, LuSparkles, LuX } from "react-icons/lu";
 import { ADMISSION_METHODS, cutoffFor, fitForProfile, formatMethodScore, profileScore } from "@/services/scoring.service";
-import type { AltMethodKey } from "@/domain/types";
+import { ADMISSION_STATUS_LABELS, type AltMethodKey, type ProgramYearData } from "@/domain/types";
 import type { ProgramView } from "@/services/program.service";
 import { formatScore, formatTuition } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/misc";
 import { CompetitionBadge } from "./fit-badge";
 import { WishlistButton } from "./program-actions";
 import { useProgramViews } from "./use-program-views";
+import { useProgramYears } from "./use-program-years";
 
 type Row = { label: string; value: (v: ProgramView) => ReactNode; raw: (v: ProgramView) => string };
 
@@ -22,6 +23,7 @@ export function CompareView() {
   const { compare, toggleCompare, profile, hydrated } = useTrovio();
   const items = useProgramViews(compare, hydrated);
   const [diffOnly, setDiffOnly] = useState(false);
+  const yearData = useProgramYears(compare);
 
   if (!hydrated || items === null) return <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />;
 
@@ -91,6 +93,8 @@ export function CompareView() {
   const mine = profile ? profileScore(profile) : null;
   const altKeys = (["hocba"] as AltMethodKey[]).filter((k) => items.some((v) => cutoffFor(v.program, k)));
   const cut = (v: ProgramView, i: number) => v.program.cutoffs[i];
+  const yearOf = (v: ProgramView): ProgramYearData[] => yearData[v.program.id] ?? [];
+  const hasYearData = items.some((v) => yearOf(v).length > 0);
 
   const rows: Row[] = [
     { label: "Trường / Cơ sở", value: (v) => v.program.campus, raw: (v) => v.program.campus },
@@ -138,6 +142,32 @@ export function CompareView() {
     { label: "Phương thức", value: (v) => v.program.methods.map((m) => m.tag).join(", "), raw: (v) => v.program.methods.map((m) => m.tag).join(",") },
     { label: "Chỉ tiêu", value: (v) => `${v.program.quota}`, raw: (v) => String(v.program.quota) },
     { label: "Cạnh tranh", value: (v) => <CompetitionBadge level={v.program.competition} />, raw: (v) => v.program.competition },
+    ...(hasYearData
+      ? [
+          {
+            label: "Trạng thái tuyển sinh",
+            value: (v: ProgramView) => {
+              const latest = yearOf(v)[0];
+              return latest ? <span>{ADMISSION_STATUS_LABELS[latest.status]} <span className="text-slate-600">({latest.year})</span></span> : <span className="text-slate-500 italic">Chưa có dữ liệu</span>;
+            },
+            raw: (v: ProgramView) => yearOf(v)[0]?.status ?? "-",
+          },
+          {
+            label: "Chỉ tiêu và học phí theo năm",
+            value: (v: ProgramView) =>
+              yearOf(v).length === 0 ? (
+                <span className="text-slate-500 italic">Chưa có dữ liệu</span>
+              ) : (
+                <ul className="space-y-0.5 text-left">
+                  {yearOf(v).slice(0, 4).map((y) => (
+                    <li key={y.year}><strong>{y.year}:</strong> {y.quota != null ? `${y.quota} chỉ tiêu` : "chưa có chỉ tiêu"} · {y.tuitionMin != null ? formatTuition(y.tuitionMin, y.tuitionMax ?? y.tuitionMin) : "chưa có học phí"}</li>
+                  ))}
+                </ul>
+              ),
+            raw: (v: ProgramView) => yearOf(v).map((y) => `${y.year}:${y.quota}:${y.tuitionMin}-${y.tuitionMax}`).join("|"),
+          },
+        ]
+      : []),
   ];
   const visibleRows = diffOnly ? rows.filter((r) => new Set(items.map(r.raw)).size > 1) : rows;
   const cols = items.length + (items.length < MAX_COMPARE ? 1 : 0);

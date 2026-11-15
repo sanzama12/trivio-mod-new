@@ -3,7 +3,7 @@
  * dữ liệu tuyển sinh theo năm, nguồn thông tin cho AI và lượt quan tâm ẩn danh.
  */
 import { query, withTransaction } from "@database/client";
-import type { AdmissionStatus, AiSource, Interest, MajorCareerInfo, ProgramYearData, SubjectMajorLink, UsageKind } from "@/domain/types";
+import { USAGE_KINDS, type AdmissionStatus, type AiSource, type Interest, type MajorCareerInfo, type ProgramYearData, type SubjectMajorLink, type UsageKind } from "@/domain/types";
 
 const toNumber = (value: unknown): number | null => (value == null ? null : Number(value));
 
@@ -158,12 +158,13 @@ export const postgresUsageRepository = {
     // Dữ liệu ẩn danh tự xoá sau 180 ngày, dọn thỉnh thoảng để không tốn thêm tác vụ định kỳ.
     if (Math.random() < 0.01) await query("DELETE FROM trovio.usage_events WHERE day < (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 180");
   },
-  async top(kind: UsageKind, from: string, to: string, limit: number): Promise<{ entityId: string; people: number; hits: number }[]> {
+  /** Xếp hạng theo số trình duyệt khác nhau có ít nhất một sự kiện thuộc các loại được chọn (xem hoặc lưu). */
+  async top(kinds: UsageKind[], from: string, to: string, limit: number): Promise<{ entityId: string; people: number; hits: number }[]> {
     const rows = await query<{ entityId: string; people: string; hits: string }>(
       `SELECT entity_id AS "entityId", count(DISTINCT anon_id)::text AS people, sum(hits)::text AS hits
-       FROM trovio.usage_events WHERE kind = $1 AND day BETWEEN $2::date AND $3::date AND entity_id <> ''
+       FROM trovio.usage_events WHERE kind = ANY($1::text[]) AND day BETWEEN $2::date AND $3::date AND entity_id <> ''
        GROUP BY entity_id ORDER BY count(DISTINCT anon_id) DESC, sum(hits) DESC LIMIT $4`,
-      [kind, from, to, limit],
+      [kinds, from, to, limit],
     );
     return rows.map((r) => ({ entityId: r.entityId, people: Number(r.people), hits: Number(r.hits) }));
   },
@@ -173,7 +174,7 @@ export const postgresUsageRepository = {
        FROM trovio.usage_events WHERE day BETWEEN $1::date AND $2::date GROUP BY kind`,
       [from, to],
     );
-    const result = { school_view: { people: 0, hits: 0 }, major_view: { people: 0, hits: 0 }, program_view: { people: 0, hits: 0 }, search: { people: 0, hits: 0 } };
+    const result = Object.fromEntries(USAGE_KINDS.map((k) => [k, { people: 0, hits: 0 }])) as Record<UsageKind, { people: number; hits: number }>;
     for (const r of rows) result[r.kind] = { people: Number(r.people), hits: Number(r.hits) };
     return result;
   },

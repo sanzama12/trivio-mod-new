@@ -57,9 +57,9 @@ export const analyticsService = {
     const from = vnDay(new Date(Date.now() - (days - 1) * 86400_000));
     const [totals, schoolTop, majorTop, programTop, schools, majors, programs] = await Promise.all([
       repositories.usage.totals(from, to),
-      repositories.usage.top("school_view", from, to, 30),
-      repositories.usage.top("major_view", from, to, 30),
-      repositories.usage.top("program_view", from, to, 30),
+      repositories.usage.top(["school_view", "school_save"], from, to, 30),
+      repositories.usage.top(["major_view", "major_save"], from, to, 30),
+      repositories.usage.top(["program_view", "program_save", "wishlist_add"], from, to, 30),
       repositories.schools.findAll(),
       repositories.majors.findAll(),
       repositories.programs.findAll(),

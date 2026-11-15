@@ -10,7 +10,7 @@
  *    nếu không sẽ dùng câu trả lời gốc (xem chatbot-llm.ts).
  */
 import { randomUUID } from "node:crypto";
-import type { ChatAlias, Major, Program, PublicUser, RiasecResult, School } from "../domain/types";
+import { ADMISSION_STATUS_LABELS, type ChatAlias, type Major, type Program, type PublicUser, type RiasecResult, type School } from "../domain/types";
 import { MAX_QUESTION, type ChatAnswer, type ChatConversationView, type ChatHistoryMessage, type ChatItem, type ChatKind, type ChatSource } from "../domain/chat";
 import { RIASEC_INFO } from "../domain/riasec";
 import { repositories } from "@database/repositories";
@@ -511,11 +511,20 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     const quota = has(n, I.quota);
     const list = programsOf(major?.id, school?.id);
     if (list.length === 0) return base(quota ? "quota" : "duration", "unknown", `Trovio chưa có chương trình nào cho ${subjectOf(major, school)}.`, { context: ctx });
+    const yearRows = quota ? await repositories.programYears.listByPrograms(list.slice(0, 6).map((p) => p.id)) : [];
+    const latestQuota = (programId: string) => yearRows.find((r) => r.programId === programId && r.quota != null);
     return base(quota ? "quota" : "duration", "answer", quota ? `Chỉ tiêu tuyển sinh của ${subjectOf(major, school)} trên Trovio:` : `Thời gian đào tạo của ${subjectOf(major, school)}:`, {
       context: ctx,
       items: list.slice(0, 6).map((p) => ({
         title: `${p.name} – ${schoolName(p.schoolId)}`,
-        meta: quota ? `${p.quota.toLocaleString("vi-VN")} chỉ tiêu · cập nhật ${p.updatedAt.split("-").reverse().join("/")}` : `${vn(p.durationYears)} năm · ${p.trainingType}`,
+        meta: quota
+          ? (() => {
+              const y = latestQuota(p.id);
+              return y
+                ? `${y.quota!.toLocaleString("vi-VN")} chỉ tiêu năm ${y.year} · ${ADMISSION_STATUS_LABELS[y.status].toLowerCase()}`
+                : `${p.quota.toLocaleString("vi-VN")} chỉ tiêu · cập nhật ${p.updatedAt.split("-").reverse().join("/")}`;
+            })()
+          : `${vn(p.durationYears)} năm · ${p.trainingType}`,
         href: `/chuong-trinh/${p.slug}`, programId: p.id,
       })),
       note: quota ? `${DATA_NOTE} Chỉ tiêu có thể chia theo phương thức xét tuyển.` : "Thời gian đào tạo theo chương trình chuẩn; có thể rút ngắn hoặc kéo dài theo tiến độ tích luỹ tín chỉ.",
@@ -529,13 +538,19 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
       .filter((p) => hasTuitionData(p.tuitionMin, p.tuitionMax))
       .sort((a, b) => a.tuitionMin - b.tuitionMin);
     if (list.length === 0) return base("tuition", "unknown", "Trovio chưa có dữ liệu học phí cho lựa chọn này.", { context: ctx });
+    const tuitionYears = await repositories.programYears.listByPrograms(list.slice(0, 6).map((p) => p.id));
     return base("tuition", "answer", `Học phí đang có dữ liệu (triệu đồng/năm) của ${subjectOf(major, school)}:`, {
       context: ctx,
-      items: list.slice(0, 6).map((p) => ({
+      items: list.slice(0, 6).map((p) => {
+        const y = tuitionYears.find((r) => r.programId === p.id && r.tuitionMin != null);
+        const lo = y ? y.tuitionMin! : p.tuitionMin;
+        const hi = y ? (y.tuitionMax ?? y.tuitionMin!) : p.tuitionMax;
+        return {
         title: `${p.name} – ${schoolName(p.schoolId)}`,
-        meta: p.tuitionMin === p.tuitionMax ? `${vn(p.tuitionMin)} triệu/năm` : `${vn(p.tuitionMin)}–${vn(p.tuitionMax)} triệu/năm`,
+        meta: `${lo === hi ? `${vn(lo)} triệu/năm` : `${vn(lo)}–${vn(hi)} triệu/năm`}${y ? ` (năm ${y.year})` : ""}`,
         href: `/chuong-trinh/${p.slug}`, programId: p.id,
-      })),
+        };
+      }),
       note: `${DATA_NOTE} Học phí có thể tăng theo lộ trình của trường.`,
       suggestions: [major ? `Trường nào đào tạo ngành ${major.name}?` : `Học bổng ${school!.shortName}`],
     });
@@ -629,9 +644,15 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   }
 
   if (major && (has(n, I.info) || (!explicitSchool && words.length <= 8))) {
+    const career = await repositories.majorCareers.get(major.id).catch(() => null);
+    const careerItems: ChatItem[] = [
+      ...(career?.knowledge ? [{ title: "Kiến thức đào tạo", meta: career.knowledge.slice(0, 300) }] : []),
+      ...(career?.careerOrientation ? [{ title: "Định hướng nghề nghiệp", meta: career.careerOrientation.slice(0, 300) }] : []),
+      ...(career?.careers.length ? [{ title: "Vị trí nghề nghiệp tiêu biểu", meta: career.careers.join(", ") }] : []),
+    ];
     return base("major-info", "answer", `${major.name}: ${major.summary}`, {
       context: ctx,
-      items: [{ title: "Hợp với xu hướng", meta: major.riasec.map((t) => `${t} – ${RIASEC_INFO[t].label}`).join(", ") }],
+      items: [...careerItems, ...(major.riasec.length ? [{ title: "Hợp với xu hướng", meta: major.riasec.map((t) => `${t} – ${RIASEC_INFO[t].label}`).join(", ") }] : [])],
       sources: [{ label: `Chi tiết ngành ${major.name}`, href: `/nganh/${major.slug}` }],
       suggestions: [`Điểm chuẩn ngành ${major.name}`, `Học phí ngành ${major.name}`, `Trường nào đào tạo ngành ${major.name}?`],
     });

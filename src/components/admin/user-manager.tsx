@@ -37,6 +37,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
   const [detail, setDetail] = useState<Detail | null>(null);
   const [lockTarget, setLockTarget] = useState<AdminUserRow | null>(null);
   const [delTarget, setDelTarget] = useState<AdminUserRow | null>(null);
+  const [roleTarget, setRoleTarget] = useState<AdminUserRow | null>(null);
   const [delConfirm, setDelConfirm] = useState("");
   const [delErr, setDelErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -202,12 +203,49 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
                 </p>
               </div>
             )}
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="text-sm font-semibold text-slate-900">Vai trò: {view.admin ? "Quản trị viên" : "Học sinh"}</p>
+              <p className="mt-1 text-xs text-slate-600">
+                {view.id === meId ? "Bạn không thể tự đổi vai trò của mình." : view.admin ? "Hạ xuống học sinh sẽ đăng xuất mọi thiết bị của tài khoản này." : "Quản trị viên xem và sửa được toàn bộ dữ liệu. Chỉ cấp cho tài khoản đã xác thực email."}
+              </p>
+              <Button className="mt-3" variant="outline" size="sm" disabled={busy || view.id === meId} onClick={() => setRoleTarget(view)}>
+                {view.admin ? "Hạ xuống học sinh" : "Cấp quyền quản trị"}
+              </Button>
+            </div>
             <Button variant="outline" size="sm" disabled={busy} onClick={() => act(view, { action: "invite" }, "Đã gửi email đặt lại mật khẩu.")}>
               Gửi link đặt lại mật khẩu
             </Button>
           </div>
         )}
       </Drawer>
+
+      <Dialog
+        open={!!roleTarget}
+        onClose={() => setRoleTarget(null)}
+        title={roleTarget?.admin ? "Hạ xuống học sinh?" : "Cấp quyền quản trị?"}
+        subtitle={roleTarget?.email}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setRoleTarget(null)}>Hủy</Button>
+            <Button
+              disabled={busy}
+              onClick={async () => {
+                const r = roleTarget;
+                setRoleTarget(null);
+                if (!r) return;
+                const res = await act(r, { action: "set-role", role: r.admin ? "user" : "admin" }, r.admin ? "Đã hạ xuống học sinh." : "Đã cấp quyền quản trị.");
+                if (res.ok) setView(null);
+              }}
+            >
+              Xác nhận
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          {roleTarget?.admin ? "Tài khoản sẽ mất quyền vào khu quản trị và bị đăng xuất khỏi mọi thiết bị." : "Tài khoản sẽ vào được khu quản trị và sửa được toàn bộ dữ liệu của hệ thống."}
+        </p>
+      </Dialog>
 
       <Dialog
         open={!!lockTarget}

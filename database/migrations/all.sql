@@ -1305,3 +1305,14 @@ END
 $doc_triggers$;
 
 COMMIT;
+
+-- @migration 20261117_usage_interest_actions.sql
+BEGIN;
+SET search_path TO trovio, public;
+
+-- Ngoài lượt xem, ghi nhận cả lượt lưu trường/ngành/chương trình và thêm nguyện vọng để thống kê mức quan tâm.
+ALTER TABLE usage_events DROP CONSTRAINT IF EXISTS usage_events_kind_check;
+ALTER TABLE usage_events ADD CONSTRAINT usage_events_kind_check
+  CHECK (kind IN ('school_view', 'major_view', 'program_view', 'search', 'school_save', 'major_save', 'program_save', 'wishlist_add'));
+
+COMMIT;

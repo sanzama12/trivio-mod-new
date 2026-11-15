@@ -5,12 +5,13 @@ import { catalogAdminService } from "@/services/catalog-admin.service";
 
 /**
  * Quản trị danh mục (A02–A04).
- * { entity: "school" | "major" | "program", action: "save" | "hide" | "show", id?, data? }
+ * { entity: "school" | "major" | "program", action: "save" | "hide" | "show" | "delete", id?, data? }
+ * Xoá hẳn chỉ áp dụng cho trường: { entity: "school", action: "delete", id, confirm: <mã trường> }
  */
 export async function POST(req: Request) {
   const { user, error } = await requireAdmin();
   if (error) return error;
-  const parsed = await jsonBody<{ entity?: unknown; action?: unknown; id?: unknown; data?: Record<string, unknown> }>(req, 16 * 1024);
+  const parsed = await jsonBody<{ entity?: unknown; action?: unknown; id?: unknown; confirm?: unknown; data?: Record<string, unknown> }>(req, 16 * 1024);
   if (parsed.error) return parsed.error;
   const { entity, action, id, data } = parsed.body ?? {};
   const sid = typeof id === "string" ? id : "";
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
     else if (entity === "major") res = await catalogAdminService.setMajorHidden(user, sid, hidden);
     else if (entity === "program") res = await catalogAdminService.setProgramHidden(user, sid, hidden);
     else return NextResponse.json({ ok: false, message: "Đối tượng không hợp lệ." }, { status: 400 });
+  } else if (action === "delete") {
+    if (entity !== "school") return NextResponse.json({ ok: false, message: "Chỉ xoá hẳn được trường; ngành và chương trình dùng tạm ẩn." }, { status: 400 });
+    res = await catalogAdminService.deleteSchool(user, sid, parsed.body?.confirm);
   } else if (action === "save") {
     const input = data && typeof data === "object" ? data : {};
     if (entity === "school") res = await catalogAdminService.saveSchool(user, input);

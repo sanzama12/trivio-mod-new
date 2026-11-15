@@ -402,6 +402,24 @@ async function saveSchool(school: School): Promise<void> {
   afterCommit(invalidateDiscoveryStats);
 }
 
+/** Xoá hẳn một trường; từ chối nếu còn chương trình hoặc dữ liệu khác tham chiếu tới trường (khi đó chỉ nên ẩn). */
+async function deleteSchool(id: string): Promise<{ ok: true } | { ok: false; programs: number; referenced: boolean }> {
+  try {
+    return await withTransaction(async (client) => {
+      const programs = Number((await client.query(`SELECT count(*)::int AS n FROM trovio.programs WHERE school_id = $1`, [id])).rows[0].n);
+      if (programs > 0) return { ok: false as const, programs, referenced: false };
+      await client.query(`DELETE FROM trovio.schools WHERE id = $1`, [id]);
+      afterCommit(invalidatePostgresCache);
+      afterCommit(invalidateDiscoveryStats);
+      return { ok: true as const };
+    });
+  } catch (error) {
+    // 23503 = foreign_key_violation: còn bảng khác trỏ tới trường này.
+    if ((error as { code?: string }).code === "23503") return { ok: false, programs: 0, referenced: true };
+    throw error;
+  }
+}
+
 async function saveSchoolsBatch(schools: School[]): Promise<void> {
   if (schools.length === 0) return;
   const payload = JSON.stringify(schools.map((school) => ({
@@ -668,6 +686,7 @@ async function listAllMajorsAdmin(): Promise<Major[]> {
 export const postgresCatalogAdminRepository: CatalogAdminRepository = {
   listSchools: listAllSchoolsAdmin,
   saveSchool,
+  deleteSchool,
   saveSchoolsBatch,
   listMajors: listAllMajorsAdmin,
   saveMajor,

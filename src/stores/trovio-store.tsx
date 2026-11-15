@@ -10,7 +10,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Goal, RecommendationPreferences, StoredProfile, UserData, WishlistItem } from "@/domain/types";
-import { track } from "@/lib/track";
+import { track, trackUsage } from "@/lib/track";
 import { useToast } from "@/components/ui/toast";
 
 export type { Goal, StoredProfile, WishlistItem } from "@/domain/types";
@@ -159,11 +159,12 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         );
         toast("Đã thêm vào nguyện vọng dự kiến", "success");
         track("wishlist_added");
+        trackUsage("wishlist_add", intent.id);
       } else if (intent.kind === "save") {
         update((s) => (s.saved.includes(intent.id) ? s : { ...s, saved: [intent.id, ...s.saved] }));
         toast("Đã lưu chương trình vào tài khoản", "success");
         track("program_saved");
-
+        trackUsage("program_save", intent.id);
       }
     },
     [toast, update],
@@ -256,12 +257,22 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       toggleSaved: (id) => {
         const willSave = !state.saved.includes(id);
         update((s) => ({ ...s, saved: willSave ? [id, ...s.saved] : s.saved.filter((x) => x !== id) }));
-        if (willSave) track("program_saved");
+        if (willSave) {
+          // Trường được lưu với tiền tố "school:"; chương trình lưu bằng mã chương trình.
+          if (id.startsWith("school:")) trackUsage("school_save", id.slice(7));
+          else {
+            track("program_saved");
+            trackUsage("program_save", id);
+          }
+        }
         return willSave;
       },
       inWishlist: (id) => state.wishlist.some((w) => w.id === id),
       addWishlist: (id) => {
-        if (!state.wishlist.some((w) => w.id === id)) track("wishlist_added");
+        if (!state.wishlist.some((w) => w.id === id)) {
+          track("wishlist_added");
+          trackUsage("wishlist_add", id);
+        }
         update((s) =>
           s.wishlist.some((w) => w.id === id)
             ? s
@@ -304,6 +315,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       toggleInterestedMajor: (id) => {
         const current = state.preferences?.interestMajorIds ?? [];
         const added = !current.includes(id);
+        if (added) trackUsage("major_save", id);
         update((s) => ({
           ...s,
           preferences: {
