@@ -62,7 +62,7 @@ export function SusSurvey({ questions, roles }: { questions: readonly string[]; 
           <p className="text-lg font-bold">Cảm ơn bạn đã góp ý!</p>
           <p className="mt-1 text-sm text-slate-700">Câu trả lời đã được ghi nhận ẩn danh và giúp nhóm cải thiện Trovio.</p>
           <button type="button" onClick={reset} className="mt-3 text-sm font-semibold text-primary-700 hover:underline">
-            Điền phiếu mới (cho người tham gia tiếp theo)
+            Điền phiếu mới
           </button>
         </div>
       </div>
@@ -95,7 +95,7 @@ export function SusSurvey({ questions, roles }: { questions: readonly string[]; 
               <legend className="sr-only">
                 Câu {i + 1}: {q}
               </legend>
-              <p aria-hidden className="text-[15px] font-semibold text-slate-900">
+              <p aria-hidden className="text-base font-semibold text-slate-900">
                 <span className="text-primary-700">{i + 1}.</span> {q}
               </p>
               <div className="mt-3 grid grid-cols-5 gap-1 sm:gap-2">
@@ -118,14 +118,14 @@ export function SusSurvey({ questions, roles }: { questions: readonly string[]; 
                         onChange={() => setAnswers((a) => a.map((x, j) => (j === i ? v : x)))}
                         className="sr-only"
                       />
-                      <span className="text-base font-bold">{v}</span>
-                      <span className={cn("hidden text-[11px] leading-tight sm:block", checked ? "text-white" : "text-slate-600")}>{label}</span>
+                      <span className="text-base font-semibold">{v}</span>
+                      <span className={cn("hidden text-xs leading-tight sm:block", checked ? "text-white" : "text-slate-600")}>{label}</span>
                       <span className="sr-only sm:hidden"> – {label}</span>
                     </label>
                   );
                 })}
               </div>
-              <div aria-hidden className="mt-1.5 flex justify-between text-[11px] text-slate-600 sm:hidden">
+              <div aria-hidden className="mt-1.5 flex justify-between text-xs text-slate-600 sm:hidden">
                 <span>{SCALE[0]}</span>
                 <span>{SCALE[4]}</span>
               </div>

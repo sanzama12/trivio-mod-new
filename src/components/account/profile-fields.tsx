@@ -42,7 +42,7 @@ export function ProfileFields({ value, onChange, error }: { value: ProfileFormVa
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">Dùng để ưu tiên gợi ý trường gần bạn.</p>
+          <p className="mt-1 text-xs text-slate-600">Dùng để ưu tiên gợi ý trường gần bạn.</p>
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export function ProfileFields({ value, onChange, error }: { value: ProfileFormVa
               label={
                 <>
                   Cha mẹ hoặc người giám hộ của tôi đã đồng ý cho tôi sử dụng Trovio.{" "}
-                  <span className="text-slate-500">(Theo Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân của trẻ em.)</span>
+                  <span className="text-slate-600">(Theo Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân của trẻ em.)</span>
                 </>
               }
               checked={value.parentConsent}

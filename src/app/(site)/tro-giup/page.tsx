@@ -1,3 +1,4 @@
+import { siteContact } from "@/lib/site-contact";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LuMail, LuPhone } from "react-icons/lu";
@@ -17,8 +18,8 @@ export default async function HelpPage() {
         <div className="container-page pt-6 pb-10">
           <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Trợ giúp" }]} />
           <div className="mt-8 text-center">
-            <span className="inline-flex rounded-full bg-primary-600 px-3 py-1 text-[11px] font-bold tracking-wider text-white uppercase">Trung tâm trợ giúp Trovio</span>
-            <h1 className="mt-5 text-3xl font-bold tracking-tight md:text-4xl">Bạn cần Trovio hỗ trợ gì?</h1>
+            <span className="inline-flex rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold tracking-wide text-white">Trung tâm trợ giúp Trovio</span>
+            <h1 className="mt-5 text-3xl md:text-4xl font-bold tracking-tight">Bạn cần Trovio hỗ trợ gì?</h1>
             <div id="huong-dan" className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
               <span>Lần đầu dùng Trovio?</span>
               <RestartTourButton />
@@ -29,31 +30,25 @@ export default async function HelpPage() {
 
       <div className="container-page py-10">
         <div className="mx-auto max-w-3xl">
-          <SectionHeading title="Các câu hỏi thường gặp" subtitle="Bấm vào câu hỏi để xem câu trả lời." />
+          <SectionHeading title="Các câu hỏi thường gặp" subtitle={faq.some((g) => g.items.length > 0) ? "Bấm vào câu hỏi để xem câu trả lời." : undefined} />
           <div className="mt-6">
             <FaqSearch groups={faq} />
           </div>
         </div>
 
         <section id="lien-he" className="mt-16">
-          <SectionHeading title="Vẫn cần hỗ trợ trực tiếp từ ban biên tập?" subtitle="Kết nối với đội ngũ hỗ trợ của Trovio qua các kênh chính thức." />
+          <SectionHeading title="Vẫn cần hỗ trợ trực tiếp từ ban biên tập?" subtitle="Kết nối với đội ngũ hỗ trợ của Trovio qua email." />
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <Card className="p-6">
               <LuMail className="size-6 text-primary-600" aria-hidden />
               <h3 className="mt-3 font-bold">Gửi email hỗ trợ</h3>
               <p className="mt-1 text-sm text-slate-600">Nhận giải đáp chi tiết về cách dùng nền tảng, thắc mắc về dữ liệu.</p>
-              <a href="mailto:support@trovio.vn" className="mt-3 inline-block font-semibold text-primary-600 hover:underline">
-                support@trovio.vn
+              <a href={`mailto:${siteContact.email}`} className="mt-3 inline-block font-semibold text-primary-600 hover:underline">
+                {siteContact.email}
               </a>
+              {siteContact.demo && <p className="text-xs text-slate-600">(email demo của đồ án)</p>}
             </Card>
-            <Card className="p-6">
-              <LuPhone className="size-6 text-primary-600" aria-hidden />
-              <h3 className="mt-3 font-bold">Tổng đài tư vấn</h3>
-              <p className="mt-1 text-sm text-slate-600">Hỗ trợ nhanh qua điện thoại trong giờ hành chính.</p>
-              <a href="tel:19008198" className="mt-3 inline-block font-semibold text-slate-900">
-                1900 8198 (8:00 – 18:00)
-              </a>
-            </Card>
+{siteContact.phone && <Card className="p-6"><LuPhone className="size-6 text-primary-600" /><a href={`tel:${siteContact.phone}`}>{siteContact.phone}</a></Card>}
           </div>
         </section>
 

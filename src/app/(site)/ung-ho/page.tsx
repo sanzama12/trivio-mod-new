@@ -22,7 +22,7 @@ const money = (amount: number) => `${amount.toLocaleString("vi-VN")} ₫`;
 export default async function DonatePage() {
   const [donors, stats] = await Promise.all([donationService.getRecentDonors(), donationService.getAdminStats()]);
   return (
-    <div className="bg-[#f7f7f0]">
+    <div className="bg-paper-50">
       <div className="container-page pb-16 pt-8 sm:pb-24 sm:pt-12">
         <nav aria-label="Đường dẫn" className="mb-8 text-xs text-slate-500"><Link href="/" className="hover:text-teal-800">Trang chủ</Link><span className="mx-2" aria-hidden>/</span><span aria-current="page">Ủng hộ</span></nav>
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.85fr)] lg:gap-14">

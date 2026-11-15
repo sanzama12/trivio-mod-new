@@ -41,7 +41,7 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
       }
     }
     const arr = Array.from(yearSet).sort((a, b) => a - b);
-    return arr.length > 0 ? arr : [2023, 2024, 2025];
+    return arr;
   }, [schools, selectedMajorId]);
 
   // Compute points for each school
@@ -86,8 +86,8 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
 
   if (allScores.length === 0) {
     return (
-      <div className="flex h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-6 text-center">
-        <p className="text-sm font-medium text-stone-500">
+      <div className="flex h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+        <p className="text-sm font-medium text-slate-600">
           Chưa có đủ dữ liệu điểm chuẩn các năm để dựng biểu đồ cho lựa chọn này.
         </p>
       </div>
@@ -130,14 +130,14 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
   ];
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-base font-bold text-stone-900">
+          <h3 className="text-base font-bold text-slate-900">
             {selectedMajorId ? "Xu hướng điểm chuẩn ngành qua các năm" : "Điểm chuẩn trung bình toàn trường qua các năm"}
           </h3>
-          <p className="text-xs text-stone-500 mt-0.5">
-            Thang điểm 30 phương thức xét điểm thi THPT (2023 – 2025)
+          <p className="text-xs text-slate-600 mt-0.5">
+            Thang điểm 30 phương thức xét điểm thi THPT {years.length > 0 && `(${years[0]} – ${years[years.length - 1]})`}
           </p>
         </div>
 
@@ -146,7 +146,7 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
           {seriesData.map((s) => (
             <div key={s.school.id} className="flex items-center gap-1.5">
               <span className="size-3 rounded-full" style={{ backgroundColor: s.color.stroke }} />
-              <span className="text-stone-700">{s.school.shortName || s.school.name}</span>
+              <span className="text-slate-700">{s.school.shortName || s.school.name}</span>
             </div>
           ))}
         </div>
@@ -170,7 +170,7 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
                   y1={y}
                   x2={width - paddingRight}
                   y2={y}
-                  stroke="#E7E5E4"
+                  stroke="var(--color-slate-200)"
                   strokeDasharray="4 4"
                   strokeWidth="1"
                 />
@@ -178,7 +178,7 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
                   x={paddingLeft - 10}
                   y={y + 4}
                   textAnchor="end"
-                  className="fill-stone-400 text-[11px] font-semibold"
+                  className="fill-slate-400 text-xs font-semibold"
                 >
                   {tickVal.toFixed(1)}
                 </text>
@@ -196,14 +196,14 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
                   y1={height - paddingBottom}
                   x2={x}
                   y2={height - paddingBottom + 5}
-                  stroke="#A8A29E"
+                  stroke="var(--color-slate-400)"
                   strokeWidth="1.5"
                 />
                 <text
                   x={x}
                   y={height - paddingBottom + 20}
                   textAnchor="middle"
-                  className="fill-stone-600 text-[12px] font-bold"
+                  className="fill-slate-600 text-xs font-semibold"
                 >
                   {y}
                 </text>
@@ -276,8 +276,8 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
                         y={py - 10}
                         textAnchor="middle"
                         className={cn(
-                          "text-[11px] font-extrabold transition-all",
-                          isHovered ? "fill-stone-950 scale-110" : "fill-stone-700"
+                          "text-xs font-semibold transition-all",
+                          isHovered ? "fill-slate-950 scale-110" : "fill-slate-700"
                         )}
                       >
                         {p.score.toFixed(2)}
@@ -293,7 +293,7 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
         {/* Tooltip khi rê chuột vào điểm */}
         {hoveredPoint && (
           <div
-            className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white shadow-lg transition-transform"
+            className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-lg transition-transform"
             style={{
               left: `${(hoveredPoint.x / width) * 100}%`,
               top: `${(hoveredPoint.y / height) * 100 - 14}%`,
@@ -305,7 +305,7 @@ export function SchoolCutoffChart({ schools, selectedMajorId }: SchoolCutoffChar
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-[11px] text-stone-500 border-t border-stone-100 pt-2.5">
+      <div className="mt-3 flex items-center justify-between text-xs text-slate-600 border-t border-slate-100 pt-2.5">
         <span>* Điểm số lấy theo đề án tuyển sinh chính thức từng năm của các trường.</span>
         <span>Rê chuột vào điểm để xem chi tiết</span>
       </div>

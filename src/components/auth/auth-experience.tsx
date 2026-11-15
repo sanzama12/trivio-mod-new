@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
@@ -61,7 +62,7 @@ export function AuthExperience({ next, error, demo, initialMode = "login" }: { n
       const response = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase() }) });
       const data = await response.json();
       if (response.ok && data.ok) {
-        router.push(data.user.onboarded ? next : `/chao-mung?next=${encodeURIComponent(next)}`);
+        router.push(register ? `/xac-thuc-email?email=${encodeURIComponent(form.email)}&next=${encodeURIComponent(next)}` : data.user.onboarded ? next : `/chao-mung?next=${encodeURIComponent(next)}`);
         router.refresh(); return;
       }
       if (response.status === 429 || response.status >= 500) { setMessage(data.message ?? "Hệ thống đang bận. Vui lòng thử lại sau."); return; }
@@ -92,7 +93,7 @@ export function AuthExperience({ next, error, demo, initialMode = "login" }: { n
           <button type="button" aria-pressed={!register} disabled={loading} onClick={() => switchMode("login")}>Đăng nhập</button>
           <button type="button" aria-pressed={register} disabled={loading} onClick={() => switchMode("register")}>Đăng ký</button>
         </div>
-        <div className={styles.formHeading}><span className={styles.kicker}>{register ? "MỘT KHỞI ĐẦU MỚI" : "RẤT VUI ĐƯỢC GẶP LẠI BẠN"}</span><h1>{register ? "Tương lai đang chờ bạn." : "Chào bạn trở lại!"}</h1><p>{register ? "Tạo tài khoản miễn phí, khám phá lối đi của riêng mình." : "Đăng nhập để tiếp tục hành trình của riêng mình."}</p></div>
+        <div className={styles.formHeading}><span className={styles.kicker}>{register ? "Một khởi đầu mới" : "Rất vui được gặp lại bạn"}</span><h1>{register ? "Tương lai đang chờ bạn." : "Chào bạn trở lại!"}</h1><p>{register ? "Tạo tài khoản miễn phí, khám phá lối đi của riêng mình." : "Đăng nhập để tiếp tục hành trình của riêng mình."}</p></div>
         <GoogleButton next={next} />
         <div className={styles.divider}><span />hoặc sử dụng email<span /></div>
         {message && <div className={styles.alert} role="alert">{message}{locked && <p><Link href="/quen-mat-khau">Khôi phục mật khẩu</Link> · <Link href="/tro-giup#lien-he">Liên hệ hỗ trợ</Link></p>}</div>}
@@ -102,7 +103,7 @@ export function AuthExperience({ next, error, demo, initialMode = "login" }: { n
             <div><Label htmlFor="auth-email">Email của bạn</Label><Input {...fieldProps("email")} type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="ban@example.com" maxLength={200} value={form.email} onFocus={() => setFocus("email")} onBlur={() => { setFocus(""); setErrors((old) => ({ ...old, email: emailError(form.email) })); }} onChange={(e) => change("email", e.target.value)} /><FieldError id="auth-email-error">{errors.email}{register && errors.email === "Email này đã được đăng ký." && <> <button type="button" className={styles.textButton} onClick={() => switchMode("login")}>Đăng nhập ngay</button></>}</FieldError></div>
             <div><div className={styles.labelRow}><Label htmlFor="auth-password">{register ? "Tạo mật khẩu" : "Mật khẩu"}</Label>{!register && <Link href="/quen-mat-khau">Quên mật khẩu?</Link>}</div><div onFocus={() => setFocus("password")} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocus(""); }}><PasswordInput {...fieldProps("password")} autoComplete={register ? "new-password" : "current-password"} placeholder={register ? "Ít nhất 8 ký tự, 1 chữ hoa, 1 số" : "Nhập mật khẩu của bạn"} maxLength={200} value={form.password} onChange={(e) => change("password", e.target.value)} /></div><FieldError id="auth-password-error">{errors.password}</FieldError>{register && <PasswordStrength value={form.password} />}</div>
             {register && <><div><Label htmlFor="auth-confirm">Nhập lại mật khẩu</Label><div onFocus={() => setFocus("confirm")} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocus(""); }}><PasswordInput {...fieldProps("confirm")} autoComplete="new-password" placeholder="Nhập lại mật khẩu vừa tạo" maxLength={200} value={form.confirm} onChange={(e) => change("confirm", e.target.value)} /></div><FieldError id="auth-confirm-error">{errors.confirm}</FieldError></div><div><Checkbox id="auth-terms" checked={form.terms} aria-invalid={!!errors.terms} aria-describedby={errors.terms ? "auth-terms-error" : undefined} onChange={(e) => change("terms", e.target.checked)} label={<>Tôi đồng ý với <Link href="/dieu-khoan">Điều khoản sử dụng</Link> và <Link href="/chinh-sach-rieng-tu">Chính sách riêng tư</Link>.</>} /><FieldError id="auth-terms-error">{errors.terms}</FieldError></div></>}
-            <button type="submit" className={styles.submit} disabled={loading}>{loading ? "Đang xử lý…" : register ? "Bắt đầu hành trình" : "Đăng nhập"}<LuArrowRight aria-hidden /></button>
+            <button type="submit" className={buttonClass({ full: true })} disabled={loading}>{loading ? "Đang xử lý…" : register ? "Bắt đầu hành trình" : "Đăng nhập"}<LuArrowRight aria-hidden /></button>
           </fieldset>
         </form>
         <p className={styles.switchHint}>{register ? "Đã có tài khoản?" : "Bạn mới đến Trovio?"} <button type="button" disabled={loading} onClick={() => switchMode(register ? "login" : "register")}>{register ? "Đăng nhập" : "Đăng ký miễn phí"}</button></p>

@@ -237,14 +237,14 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-5 sm:px-6">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-md bg-primary-100 text-xs font-bold text-primary-800">
+            <span className="flex size-6 items-center justify-center rounded-md bg-primary-100 text-xs font-semibold text-primary-800">
               02
             </span>
-            <p className="text-xs font-black tracking-[0.14em] text-primary-700 uppercase">
+            <p className="text-xs font-semibold tracking-wide text-primary-700">
               Hồ sơ định hướng & Học tập
             </p>
           </div>
-          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
             Học lực, thế mạnh & Nguyện vọng
           </h2>
         </div>
@@ -283,11 +283,11 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                     <LuStar className="size-4 text-accent-500 fill-accent-500" aria-hidden />
                     Môn học thế mạnh của bạn
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-600 mt-0.5">
                     Chọn các môn bạn tự tin nhất hoặc có điểm số cao nhất (khuyên chọn 2 – 4 môn).
                   </p>
                 </div>
-                <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-bold text-primary-700">
+                <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-700">
                   {strongSubjects.length} môn đã chọn
                 </span>
               </div>
@@ -300,7 +300,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                       type="button"
                       onClick={() => setStrongSubjects((cur) => toggleArrayItem(cur, sub.id))}
                       className={cn(
-                        "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all",
+                        "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all",
                         active
                           ? "border-primary-600 bg-primary-600 text-white shadow-sm"
                           : "border-slate-200 bg-white text-slate-700 hover:border-primary-400 hover:bg-slate-50",
@@ -322,11 +322,11 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                     <LuCompass className="size-4 text-primary-600" aria-hidden />
                     Lĩnh vực & Nhóm ngành yêu thích
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-600 mt-0.5">
                     Chọn các khối ngành bạn có hứng thú hoặc muốn gắn bó nghề nghiệp tương lai.
                   </p>
                 </div>
-                <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-bold text-primary-700">
+                <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-700">
                   {selectedGroups.length} nhóm ngành
                 </span>
               </div>
@@ -339,16 +339,16 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                       type="button"
                       onClick={() => setSelectedGroups((cur) => toggleArrayItem(cur, grp.id))}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-xl border p-2.5 text-left text-xs font-bold transition-all",
+                        "flex items-center gap-2.5 rounded-xl border p-2.5 text-left text-xs font-semibold transition-all",
                         active
-                          ? "border-accent-500 bg-accent-50 text-slate-950 ring-2 ring-accent-400/50"
+                          ? "border-accent-500 bg-accent-50 text-slate-950 ring-2 ring-accent-500/50"
                           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
                       )}
                     >
                       <span
                         className={cn(
                           "flex size-6 shrink-0 items-center justify-center rounded-lg text-xs",
-                          active ? "bg-accent-500 text-slate-950 font-black" : "bg-slate-100 text-slate-500",
+                          active ? "bg-accent-500 text-slate-950 font-bold" : "bg-slate-100 text-slate-600",
                         )}
                       >
                         {active ? "✓" : "•"}
@@ -366,7 +366,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                 <LuBookOpen className="size-4 text-primary-600" aria-hidden />
                 Ngành học cụ thể quan tâm (tùy chọn)
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-600">
                 Gõ tên ngành bạn đang cân nhắc để nhận thông tin tuyển sinh sát nhất.
               </p>
               <div className="relative max-w-md">
@@ -402,13 +402,13 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                     return (
                       <span
                         key={mId}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-800 ring-1 ring-primary-200"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800 ring-1 ring-primary-200"
                       >
                         {mObj?.name ?? mId}
                         <button
                           type="button"
                           onClick={() => setInterestMajors((cur) => cur.filter((x) => x !== mId))}
-                          className="hover:text-danger-600"
+                          className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center hover:text-danger-600"
                           aria-label={`Xoá ${mObj?.name}`}
                         >
                           <LuX className="size-3" />
@@ -427,13 +427,13 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                   <LuGraduationCap className="size-4 text-primary-600" aria-hidden />
                   Học lực & Điểm xét tuyển dự kiến (không bắt buộc)
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-600 mt-0.5">
                   Giúp hệ thống chia nhóm trường An toàn, Vừa sức và Thử sức sát thực tế nhất.
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Mức học lực tự đánh giá
                 </label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -452,8 +452,8 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                             : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
                         )}
                       >
-                        <p className="text-xs font-black">{item.label}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
+                        <p className="text-xs font-semibold">{item.label}</p>
+                        <p className="text-xs text-slate-600 mt-0.5">{item.desc}</p>
                       </button>
                     );
                   })}
@@ -462,7 +462,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label htmlFor="pf-est-score" className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="pf-est-score" className="block text-xs font-semibold text-slate-700 mb-1">
                     Tổng điểm xét tuyển dự kiến
                   </label>
                   <input
@@ -476,11 +476,11 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                     onChange={(e) => setEstimatedScoreStr(e.target.value)}
                     className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs text-slate-900 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-100"
                   />
-                  <p className="mt-1 text-[11px] text-slate-400">Thang 30 (điểm thi THPT hoặc học bạ).</p>
+                  <p className="mt-1 text-xs text-slate-600">Thang 30 (điểm thi THPT hoặc học bạ).</p>
                 </div>
 
                 <div>
-                  <label htmlFor="pf-est-combo" className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="pf-est-combo" className="block text-xs font-semibold text-slate-700 mb-1">
                     Tổ hợp môn dự kiến
                   </label>
                   <select
@@ -505,7 +505,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                 </div>
 
                 <div>
-                  <label htmlFor="pf-priority-reg" className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="pf-priority-reg" className="block text-xs font-semibold text-slate-700 mb-1">
                     Khu vực ưu tiên
                   </label>
                   <select
@@ -531,7 +531,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                   <LuMapPin className="size-4 text-primary-600" aria-hidden />
                   Địa điểm mong muốn học tập
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-600 mt-0.5">
                   Chọn các miền bạn sẵn sàng học đại học (nơi sinh sống hiện tại:{" "}
                   <strong>{userProvince || "Chưa khai báo"}</strong>).
                 </p>
@@ -552,7 +552,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
                       )}
                     >
-                      <span className="text-xs font-bold">{REGION_LABELS[r]}</span>
+                      <span className="text-xs font-semibold">{REGION_LABELS[r]}</span>
                       {active && <LuCheck className="size-4 text-primary-600" />}
                     </button>
                   );
@@ -567,7 +567,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                   <LuWallet className="size-4 text-primary-600" aria-hidden />
                   Điều kiện tài chính & Mức học phí mong muốn
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-600 mt-0.5">
                   Mức trần học phí gia đình dự kiến chi trả mỗi năm.
                 </p>
               </div>
@@ -577,7 +577,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                   type="button"
                   onClick={() => setBudget("")}
                   className={cn(
-                    "rounded-xl border p-2.5 text-center text-xs font-bold transition-all",
+                    "rounded-xl border p-2.5 text-center text-xs font-semibold transition-all",
                     budget === ""
                       ? "border-primary-600 bg-primary-50 text-primary-900 ring-2 ring-primary-400/50"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
@@ -593,7 +593,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                       type="button"
                       onClick={() => setBudget(tr)}
                       className={cn(
-                        "rounded-xl border p-2.5 text-center text-xs font-bold transition-all",
+                        "rounded-xl border p-2.5 text-center text-xs font-semibold transition-all",
                         active
                           ? "border-primary-600 bg-primary-50 text-primary-900 ring-2 ring-primary-400/50"
                           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
@@ -606,7 +606,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
               </div>
 
               <div className="pt-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Loại hình trường mong muốn
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -618,7 +618,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                         type="button"
                         onClick={() => setSchoolTypes((cur) => toggleArrayItem(cur, st))}
                         className={cn(
-                          "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all",
+                          "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all",
                           active
                             ? "border-primary-600 bg-primary-600 text-white"
                             : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
@@ -665,7 +665,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
               <div className="rounded-2xl border-2 border-dashed border-slate-200 px-5 py-8 text-center">
                 <LuCompass className="mx-auto size-10 text-primary-600" aria-hidden />
                 <h3 className="mt-3 font-bold text-slate-900">Chưa khai báo hồ sơ học tập & nguyện vọng</h3>
-                <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-500">
+                <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-600">
                   Khai báo môn học thế mạnh, sở thích nhóm ngành, học lực hoặc điểm dự kiến và ngân sách học phí để Trovio tự động lọc và gợi ý các ngành, trường phù hợp nhất cho bạn.
                 </p>
                 <Button size="sm" className="mt-4" onClick={() => setEditing(true)}>
@@ -683,15 +683,15 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                         <LuGraduationCap className="size-4" aria-hidden />
                       </span>
                       {currentAcademicPerf && (
-                        <span className="rounded-full bg-accent-500 px-2.5 py-0.5 text-[11px] font-black text-slate-950">
+                        <span className="rounded-full bg-accent-500 px-2.5 py-0.5 text-xs font-semibold text-slate-950">
                           {ACADEMIC_PERFORMANCE_LABELS[currentAcademicPerf].label}
                         </span>
                       )}
                     </div>
-                    <p className="mt-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <p className="mt-3 text-xs font-semibold text-slate-600 tracking-wide">
                       Điểm & Xét tuyển
                     </p>
-                    <p className="mt-1 text-2xl font-black text-slate-950">
+                    <p className="mt-1 text-2xl font-bold text-slate-950">
                       {profile?.admission?.total != null
                         ? formatMethodScore(profile.admission.total, profileMethod(profile))
                         : currentEstScore != null
@@ -710,11 +710,11 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                       <span className="flex size-8 items-center justify-center rounded-lg bg-primary-100 text-primary-700">
                         <LuStar className="size-4" aria-hidden />
                       </span>
-                      <span className="text-xs font-bold text-slate-400">
+                      <span className="text-xs font-semibold text-slate-600">
                         {strongSubjectObjects.length} môn
                       </span>
                     </div>
-                    <p className="mt-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <p className="mt-3 text-xs font-semibold text-slate-600 tracking-wide">
                       Môn học thế mạnh
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -722,13 +722,13 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                         strongSubjectObjects.map((s) => (
                           <span
                             key={s.id}
-                            className="rounded-lg bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700"
+                            className="rounded-lg bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700"
                           >
                             {s.name}
                           </span>
                         ))
                       ) : (
-                        <p className="text-xs text-slate-400 italic">Chưa chọn môn thế mạnh</p>
+                        <p className="text-xs text-slate-600 italic">Chưa chọn môn thế mạnh</p>
                       )}
                     </div>
                   </div>
@@ -739,19 +739,19 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                       <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
                         <LuWallet className="size-4" aria-hidden />
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                         {budgetLabel(currentBudgetMax)}
                       </span>
                     </div>
-                    <p className="mt-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <p className="mt-3 text-xs font-semibold text-slate-600 tracking-wide">
                       Địa điểm học tập
                     </p>
-                    <p className="mt-1 text-sm font-bold text-slate-900">
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
                       {currentRegions.length > 0
                         ? currentRegions.map((r) => REGION_LABELS[r]).join(", ")
                         : "Toàn quốc (mọi khu vực)"}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-slate-600">
                       Khu vực sống: <strong>{userProvince || "Chưa cập nhật"}</strong>
                     </p>
                   </div>
@@ -760,7 +760,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                 {/* Groups & Specific Majors */}
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black tracking-wider text-slate-500 uppercase">
+                    <h4 className="text-xs font-semibold tracking-wide text-slate-600">
                       Lĩnh vực & Ngành học yêu thích ({selectedGroupObjects.length + selectedMajorObjects.length})
                     </h4>
                   </div>
@@ -768,7 +768,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                     {selectedGroupObjects.map((g) => (
                       <span
                         key={g.id}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-accent-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 shadow-xs"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-accent-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-xs"
                       >
                         <span className="size-2 rounded-full bg-accent-500" />
                         {g.name}
@@ -777,34 +777,34 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                     {selectedMajorObjects.map((m) => (
                       <span
                         key={m.id}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-800"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-800"
                       >
                         <LuBookOpen className="size-3 text-primary-600" />
                         {m.name}
                       </span>
                     ))}
                     {selectedGroupObjects.length === 0 && selectedMajorObjects.length === 0 && (
-                      <p className="text-xs text-slate-400 italic">Chưa chọn nhóm ngành hay ngành yêu thích.</p>
+                      <p className="text-xs text-slate-600 italic">Chưa chọn nhóm ngành hay ngành yêu thích.</p>
                     )}
                   </div>
                 </div>
 
                 {/* Quick Navigation actions */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-600">
                     Hồ sơ được cập nhật tự động khi bạn thay đổi và đồng bộ trên mọi thiết bị.
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href="/nganh"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 hover:underline"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
                     >
                       Khám phá ngành phù hợp <LuArrowUpRight className="size-3.5" />
                     </Link>
                     <span className="text-slate-300">·</span>
                     <Link
                       href="/chuong-trinh"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 hover:underline"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
                     >
                       Xem chương trình đào tạo <LuArrowUpRight className="size-3.5" />
                     </Link>

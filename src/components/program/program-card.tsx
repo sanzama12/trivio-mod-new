@@ -85,7 +85,7 @@ export function ProgramCard({ view }: { view: ProgramView }) {
       </div>
 
       {/* 2. Khối thông số ở giữa: thiết kế rộng chia cột có vạch ngăn cách */}
-      <div className="mt-5 grid grid-cols-1 gap-4 rounded-xl bg-[#fafaf7] p-4 sm:grid-cols-2 md:grid-cols-[130px_1px_1fr_1fr] md:items-center md:gap-5">
+      <div className="mt-5 grid grid-cols-1 gap-4 rounded-xl bg-paper-50 p-4 sm:grid-cols-2 md:grid-cols-[130px_1px_1fr_1fr] md:items-center md:gap-5">
         {/* Cột 1: Khu vực & Loại hình */}
         <div className="space-y-2">
           <div>

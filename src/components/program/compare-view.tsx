@@ -27,44 +27,44 @@ export function CompareView() {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-3xl border border-stone-200 bg-white p-8 sm:p-12 text-center shadow-sm">
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 text-center shadow-sm">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
           <LuScale className="size-7" aria-hidden />
         </div>
-        <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-600">
+        <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
           Chưa có chương trình nào được chọn
         </span>
-        <h2 className="mt-3 text-2xl font-black text-stone-900 sm:text-3xl">
+        <h2 className="mt-3 text-2xl font-black text-slate-900 sm:text-3xl">
           Hãy chọn các chương trình ở bên ngoài trước khi so sánh
         </h2>
-        <p className="mx-auto mt-2 max-w-xl text-sm sm:text-base text-stone-600">
+        <p className="mx-auto mt-2 max-w-xl text-sm sm:text-base text-slate-600">
           Mục so sánh này giúp bạn đặt cạnh nhau tối đa {MAX_COMPARE} chương trình đào tạo để phân tích điểm chuẩn 3 năm, học phí, tổ hợp môn và màu sắc phân biệt khác biệt.
         </p>
 
         {/* 3 bước hướng dẫn trực quan */}
         <div className="mx-auto mt-8 grid max-w-2xl gap-4 text-left sm:grid-cols-3">
-          <div className="rounded-2xl border border-stone-100 bg-stone-50/70 p-4">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <span className="flex size-7 items-center justify-center rounded-full bg-teal-800 text-xs font-black text-white">
               1
             </span>
-            <p className="mt-3 font-bold text-sm text-stone-900">Tìm kiếm chương trình</p>
-            <p className="mt-1 text-xs text-stone-500">Mở trang Tìm trường để duyệt danh sách ngành và trường bạn quan tâm.</p>
+            <p className="mt-3 font-bold text-sm text-slate-900">Tìm kiếm chương trình</p>
+            <p className="mt-1 text-xs text-slate-600">Mở trang Tìm trường để duyệt danh sách ngành và trường bạn quan tâm.</p>
           </div>
 
-          <div className="rounded-2xl border border-stone-100 bg-stone-50/70 p-4">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <span className="flex size-7 items-center justify-center rounded-full bg-teal-800 text-xs font-black text-white">
               2
             </span>
-            <p className="mt-3 font-bold text-sm text-stone-900">Bấm nút "So sánh"</p>
-            <p className="mt-1 text-xs text-stone-500">Ở góc dưới mỗi thẻ chương trình, bấm nút ⚖️ So sánh để thêm vào danh sách (tối đa {MAX_COMPARE}).</p>
+            <p className="mt-3 font-bold text-sm text-slate-900">Bấm nút "So sánh"</p>
+            <p className="mt-1 text-xs text-slate-600">Ở góc dưới mỗi thẻ chương trình, bấm nút ⚖️ So sánh để thêm vào danh sách (tối đa {MAX_COMPARE}).</p>
           </div>
 
-          <div className="rounded-2xl border border-stone-100 bg-stone-50/70 p-4">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <span className="flex size-7 items-center justify-center rounded-full bg-teal-800 text-xs font-black text-white">
               3
             </span>
-            <p className="mt-3 font-bold text-sm text-stone-900">Xem bảng đối chiếu</p>
-            <p className="mt-1 text-xs text-stone-500">Quay lại đây để xem bảng phân tích điểm chuẩn, học phí và điểm khác biệt.</p>
+            <p className="mt-3 font-bold text-sm text-slate-900">Xem bảng đối chiếu</p>
+            <p className="mt-1 text-xs text-slate-600">Quay lại đây để xem bảng phân tích điểm chuẩn, học phí và điểm khác biệt.</p>
           </div>
         </div>
 
@@ -79,7 +79,7 @@ export function CompareView() {
           </Link>
           <Link
             href="/nganh"
-            className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-5 py-3.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             Khám phá danh mục ngành
           </Link>

@@ -64,7 +64,7 @@ export function AboutTimeline() {
       onMouseLeave={() => setPaused(false)}
     >
       <header className="mx-auto flex max-w-2xl flex-col items-center">
-        <div className="border-2 border-slate-900 border-b-0 bg-[#f7fff0] px-3 py-0.5 text-xl font-bold tracking-wide text-slate-900">沿革</div>
+        <div className="border-2 border-slate-900 border-b-0 bg-paper-50 px-3 py-0.5 text-xl font-bold tracking-wide text-slate-900">沿革</div>
         <div className="flex w-full items-center gap-4 border-t-2 border-slate-900 pt-4">
           <h2 className="mx-auto text-center text-2xl font-bold tracking-[-.02em] text-slate-900 uppercase sm:text-4xl">Lịch sử phát triển</h2>
         </div>

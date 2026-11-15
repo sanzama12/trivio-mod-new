@@ -5,7 +5,7 @@ import { catalogService } from "@/services";
 import { CompareTabsClient } from "@/components/compare/compare-tabs-client";
 
 export const metadata: Metadata = {
-  title: "So sánh trường đại học & chương trình đào tạo | Trovio",
+  title: "So sánh trường đại học & chương trình đào tạo",
   description:
     "So sánh trực quan từ 2 đến 4 trường đại học hoặc chương trình đào tạo theo học phí, địa điểm, phương thức tuyển sinh và biểu đồ điểm chuẩn qua các năm.",
 };
@@ -18,7 +18,7 @@ export default async function ComparePage({ searchParams }: Props) {
   const schools = await catalogService.listSchools();
 
   return (
-    <div className="min-h-screen bg-[#fafaf6] pb-20">
+    <div className="min-h-screen bg-paper-50 pb-20">
       <div className="container-page min-w-0 py-6 md:py-10">
         <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "So sánh" }]} />
 

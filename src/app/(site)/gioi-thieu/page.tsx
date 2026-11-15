@@ -106,7 +106,7 @@ function SectionBand({ label, title, description }: { label: string; title: stri
   // title uppercase có gạch trên 2px chạy hết chiều rộng 80%.
   return (
     <header className="mx-auto flex max-w-2xl flex-col items-center">
-      <div className="border-2 border-slate-900 border-b-0 bg-[#f7fff0] px-3 py-0.5 text-xl font-bold tracking-wide text-slate-900">{label}</div>
+      <div className="border-2 border-slate-900 border-b-0 bg-paper-50 px-3 py-0.5 text-xl font-bold tracking-wide text-slate-900">{label}</div>
       <div className="flex w-full items-center gap-4 border-t-2 border-slate-900 pt-4">
         <h2 className="mx-auto text-center text-2xl font-bold tracking-[-.02em] text-slate-900 uppercase sm:text-4xl">{title}</h2>
       </div>
@@ -137,7 +137,7 @@ export default function AboutPage() {
 
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {foundations.map(({ icon: Icon, title, description }) => (
-              <article key={title} className="flex min-h-[22rem] flex-col items-center rounded-[2.5rem] border border-dashed border-slate-400 bg-[#fbfdf8] p-7 text-center transition hover:border-primary-500 hover:shadow-lg">
+              <article key={title} className="flex min-h-[22rem] flex-col items-center rounded-[2.5rem] border border-dashed border-slate-400 bg-paper-50 p-7 text-center transition hover:border-primary-500 hover:shadow-lg">
                 <h3 className="text-2xl font-black text-slate-950">{title}</h3>
                 <div className="mt-8 flex size-24 items-center justify-center rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-100"><Icon className="size-11 text-primary-700" aria-hidden /></div>
                 <div className="mt-8 text-sm leading-6 text-slate-600">{description}</div>
@@ -188,7 +188,7 @@ export default function AboutPage() {
                   </div>
                 </div>
                 <div className={index % 2 ? "lg:order-1" : undefined}>
-                  <div className="flex items-stretch overflow-hidden rounded-r-3xl border border-primary-300 bg-[#f4fbe9]">
+                  <div className="flex items-stretch overflow-hidden rounded-r-3xl border border-primary-300 bg-paper-50">
                     <div className="flex w-24 shrink-0 items-center justify-center bg-primary-400"><Icon className="size-10 text-slate-950" aria-hidden /></div>
                     <h3 className="flex items-center px-5 py-4 text-xl font-black text-slate-950 sm:text-2xl">{title}</h3>
                   </div>

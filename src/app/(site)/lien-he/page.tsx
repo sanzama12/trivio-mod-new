@@ -12,7 +12,7 @@ import { EnterpriseContactForm } from "@/components/contact/contact-form";
 import { Breadcrumb } from "@/components/ui/misc";
 
 export const metadata: Metadata = {
-  title: "Liên hệ | Trovio",
+  title: "Liên hệ",
   description:
     "Cổng tiếp nhận thông tin hợp tác, ký kết đề án tuyển sinh số và hỗ trợ học sinh – phụ huynh của Công ty Cổ phần Công nghệ & Giáo dục Trovio.",
 };
@@ -69,7 +69,7 @@ const locations = [
 function SectionTitle({ label, title }: { label: string; title: string }) {
   return (
     <header className="flex flex-col items-center">
-      <div className="border-2 border-slate-900 border-b-0 bg-[#f7fff0] px-3 py-0.5 text-lg font-bold tracking-wide text-slate-900">{label}</div>
+      <div className="border-2 border-slate-900 border-b-0 bg-paper-50 px-3 py-0.5 text-lg font-bold tracking-wide text-slate-900">{label}</div>
       <div className="w-full border-t-2 border-slate-900 pt-4">
         <h2 className="text-center text-2xl font-bold tracking-[-.02em] text-slate-900 uppercase sm:text-4xl">{title}</h2>
       </div>
@@ -79,7 +79,7 @@ function SectionTitle({ label, title }: { label: string; title: string }) {
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-[#fafaf6]">
+    <div className="min-h-screen bg-paper-50">
       <div className="container-page min-w-0 py-6">
         <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Liên hệ" }]} />
 
@@ -189,7 +189,7 @@ export default function ContactPage() {
                 { tag: "Khối Truyền thông", name: "Quan hệ Báo chí & Sự kiện", desc: "Báo chí, bảo trợ truyền thông ngày hội hướng nghiệp, tài trợ học bổng.", email: "media@trovio.vn", phone: "1900 6868" },
                 { tag: "Dịch vụ Học sinh", name: "Hỗ trợ Học sinh & Phụ huynh", desc: "Giải đáp điểm chuẩn, hướng dẫn tính điểm và trắc nghiệm RIASEC.", email: "hotro@trovio.vn", phone: "1900 6868 (Nhánh 3)" },
               ].map((dept) => (
-                <article key={dept.email} className="flex min-h-56 flex-col justify-between rounded-[1.8rem] border border-dashed border-slate-400 bg-[#fbfdf8] p-5 text-center transition hover:border-primary-500 hover:shadow-lg">
+                <article key={dept.email} className="flex min-h-56 flex-col justify-between rounded-[1.8rem] border border-dashed border-slate-400 bg-paper-50 p-5 text-center transition hover:border-primary-500 hover:shadow-lg">
                   <div>
                     <span className="inline-block rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{dept.tag}</span>
                     <h3 className="mt-2.5 text-base font-extrabold text-slate-900">{dept.name}</h3>

@@ -44,7 +44,6 @@ export default async function ProgramDetailPage({ params }: Props) {
     (["cutoff", "tuition", "quota", "combos"] as VerifyField[]).map((field) => [field, dataEvidenceFor(program, field)]),
   ) as Record<VerifyField, ReturnType<typeof dataEvidenceFor>>;
   const sourceUrl = resolvedSourceUrl(program);
-  const fieldMark = (field: VerifyField) => <DataStatusBadge evidence={evidence[field]} className="mt-1" />;
 
   return (
     <div className="container-page py-8">
@@ -63,10 +62,10 @@ export default async function ProgramDetailPage({ params }: Props) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-[28px]">
+                <h1 className="text-slate-900 text-3xl md:text-4xl font-bold tracking-tight">
                   {program.name} – {school.shortName}
                 </h1>
-                <p className="mt-1.5 text-sm text-slate-500">
+                <p className="mt-1.5 text-sm text-slate-600">
                   {program.campus} · Mã xét tuyển: <strong className="text-slate-700">{program.admissionCode}</strong>
                 </p>
               </div>
@@ -74,7 +73,7 @@ export default async function ProgramDetailPage({ params }: Props) {
                 {verified.active && (
                   <span
                     title={program.schoolVerifiedNote ?? "Trường đã đối chiếu và xác nhận dữ liệu tuyển sinh"}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-success-500 bg-white px-3 py-1 text-[13px] font-semibold whitespace-nowrap text-success-700"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-success-500 bg-white px-3 py-1 text-sm font-semibold whitespace-nowrap text-success-700"
                   >
                     <LuShieldCheck className="size-4" aria-hidden /> Trường đã xác nhận · {verified.dateLabel}
                   </span>
@@ -84,26 +83,28 @@ export default async function ProgramDetailPage({ params }: Props) {
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Badge tone="slate">Cập nhật: {formatMonthVi(program.updatedAt)}</Badge>
-              <DataStatusBadge evidence={evidence.cutoff} showSource />
               <CompetitionBadge level={program.competition} />
             </div>
           </div>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label={latest ? `Điểm chuẩn ${latest.year}` : "Điểm chuẩn"} value={<>{latest ? `${formatScore(latest.score)} điểm` : "Chưa có dữ liệu chính thức"}{fieldMark("cutoff")}</>} tone="primary" />
-          <StatTile label="Học phí" value={<>{formatTuition(program.tuitionMin, program.tuitionMax)}{fieldMark("tuition")}</>} />
+          <StatTile label={latest ? `Điểm chuẩn ${latest.year}` : "Điểm chuẩn"} value={<>{latest ? `${formatScore(latest.score)} điểm` : "Chưa có dữ liệu chính thức"}</>} tone="primary" />
+          <StatTile label="Học phí" value={formatTuition(program.tuitionMin, program.tuitionMax)} />
           <StatTile label="Thời gian đào tạo" value={`${program.durationYears} năm`} />
-          <StatTile label="Chỉ tiêu" value={<>{program.quota > 0 ? `${program.quota} sinh viên` : "Chưa có dữ liệu"}{fieldMark("quota")}</>} />
+          <StatTile label="Chỉ tiêu" value={<>{program.quota > 0 ? `${program.quota} sinh viên` : "Chưa có dữ liệu"}</>} />
         </div>
+        <p className="mt-3 text-xs text-slate-600">
+          Nguồn: {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer" className="text-primary-700 hover:underline">{new URL(sourceUrl).hostname}</a> : "Chưa có nguồn tham khảo"} · cập nhật {formatMonthVi(program.updatedAt)}
+        </p>
       </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="min-w-0 space-y-6">
+        <div className="order-2 min-w-0 space-y-6 lg:order-1">
           <nav aria-label="Mục trong trang" className="sticky top-16 z-10 -mx-1 overflow-x-auto rounded-xl border border-slate-200 bg-white/95 p-1.5 backdrop-blur md:top-20">
             <ul className="flex gap-1">
               {sections.map((s) => (
                 <li key={s.id}>
-                  <a href={`#${s.id}`} className="block rounded-lg px-4 py-2 text-[13px] font-semibold whitespace-nowrap text-slate-600 hover:bg-primary-50 hover:text-primary-700">
+                  <a href={`#${s.id}`} className="block rounded-lg px-4 py-2 text-sm font-semibold whitespace-nowrap text-slate-600 hover:bg-primary-50 hover:text-primary-700">
                     {s.label}
                   </a>
                 </li>
@@ -112,23 +113,23 @@ export default async function ProgramDetailPage({ params }: Props) {
           </nav>
 
           <Card id="tong-quan" className="p-6">
-            <h2 className="text-lg font-bold">Tổng quan chương trình</h2>
+            <h2 className="text-lg font-semibold">Tổng quan chương trình</h2>
             <div className="mt-4 grid gap-6 md:grid-cols-[1fr_240px]">
-              <div className="space-y-3 text-[15px] leading-relaxed text-slate-600">
+              <div className="max-w-prose space-y-3 text-base leading-relaxed text-slate-600">
                 <p>{program.overview}</p>
                 <p>{major.description}</p>
               </div>
               <dl className="h-fit rounded-xl bg-slate-50 p-4 text-sm">
-                <p className="mb-3 text-xs font-bold tracking-wider text-primary-600 uppercase">Thông tin nhanh</p>
+                <p className="mb-3 text-xs font-semibold tracking-wide text-primary-600">Thông tin nhanh</p>
                 {[
                   ["Mã xét tuyển", program.admissionCode],
                   ["Mã ngành", major.code],
                   ["Hệ đào tạo", program.trainingType],
                   ["Tổ hợp", program.combos.join(", ") || "Chưa có dữ liệu"],
                   ["Khu vực", school.city],
-                ].map(([k, v]) => (
+                ].filter(([, value]) => value != null && String(value).trim() !== "").map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3 border-b border-slate-200/70 py-2 last:border-0">
-                    <dt className="text-slate-500">{k}</dt>
+                    <dt className="text-slate-600">{k}</dt>
                     <dd className="text-right font-semibold text-slate-900">{v}</dd>
                   </div>
                 ))}
@@ -137,9 +138,15 @@ export default async function ProgramDetailPage({ params }: Props) {
           </Card>
 
           <Card id="tuyen-sinh" className="p-6">
+            {program.cutoffs.length > 0 && (
+              <div className="mb-6 border-b border-slate-200 pb-6">
+                <h3 className="mb-3 font-semibold text-slate-900">Điểm chuẩn 3 năm gần nhất</h3>
+                <CutoffHistory cutoffs={program.cutoffs} />
+              </div>
+            )}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">Tuyển sinh</h2>
-              <span className="text-[13px] text-slate-500">{program.methods.length} phương thức</span>
+              <h2 className="text-lg font-semibold">Tuyển sinh</h2>
+              <span className="text-sm text-slate-600">{program.methods.length} phương thức</span>
             </div>
             <div className="mt-4 space-y-3">
               {program.methods.map((m) => (
@@ -149,7 +156,7 @@ export default async function ProgramDetailPage({ params }: Props) {
                     <Badge tone={m.tag === "Điểm thi" || m.tag === "Học bạ" ? "primary" : m.tag === "Ưu tiên" ? "accent" : "success"}>{m.tag}</Badge>
                   </div>
                   <p className="mt-1.5 text-sm text-slate-600">{m.desc}</p>
-                  <p className="mt-2 text-[13px] text-slate-500">
+                  <p className="mt-2 text-sm text-slate-600">
                     {m.key && (m.key === "thpt" || m.key === "hocba") ? (
                       <MethodRequirement program={program} methodKey={m.key} />
                     ) : (
@@ -161,16 +168,10 @@ export default async function ProgramDetailPage({ params }: Props) {
                 </div>
               ))}
             </div>
-            {program.cutoffs.length > 0 && (
-              <div className="mt-6 border-t border-slate-100 pt-6">
-                <h3 className="mb-3 font-semibold text-slate-900">Điểm chuẩn 3 năm gần nhất</h3>
-                <CutoffHistory cutoffs={program.cutoffs} />
-              </div>
-            )}
           </Card>
 
           <Card id="hoc-phi" className="p-6">
-            <h2 className="text-lg font-bold">Học phí</h2>
+            <h2 className="text-lg font-semibold">Học phí</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <StatTile label="Học phí / năm" value={formatTuition(program.tuitionMin, program.tuitionMax)} tone="primary" />
               <StatTile
@@ -179,7 +180,7 @@ export default async function ProgramDetailPage({ params }: Props) {
               />
             </div>
             {tuitionKnown ? (
-              <p className="mt-3 text-xs text-slate-500">Đây là phép nhân từ mức học phí đang lưu, chưa bao gồm điều chỉnh theo lộ trình và các khoản sinh hoạt.</p>
+              <p className="mt-3 text-xs text-slate-600">Đây là phép nhân từ mức học phí đang lưu, chưa bao gồm điều chỉnh theo lộ trình và các khoản sinh hoạt.</p>
             ) : (
               <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Trovio chưa có dữ liệu học phí cho chương trình này; giá trị trống không được hiểu là miễn học phí.</p>
             )}
@@ -190,35 +191,37 @@ export default async function ProgramDetailPage({ params }: Props) {
           <QaSection programId={program.id} schoolName={school.shortName} />
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start" aria-label="Hành động">
-          <FitPanel program={{ cutoffs: program.cutoffs, altCutoffs: program.altCutoffs, combos: program.combos, methods: program.methods }} />
-          <Card className="space-y-3 p-5">
-            <p className="text-sm font-bold text-slate-900">Hành động của bạn</p>
+        <aside className="contents lg:order-2 lg:block lg:space-y-4 lg:sticky lg:top-24 lg:self-start" aria-label="Hành động">
+          <div className="order-1">
+            <FitPanel program={{ cutoffs: program.cutoffs, altCutoffs: program.altCutoffs, combos: program.combos, methods: program.methods }} />
+          </div>
+          <Card className="order-1 space-y-3 p-5">
+            <p className="text-lg font-semibold text-slate-900">Hành động của bạn</p>
             <WishlistButton id={program.id} />
             <SaveButton id={program.id} variant="full" />
             <CompareButton id={program.id} full />
           </Card>
-          <Card className="border-l-4 border-l-primary-600 p-5">
-            <p className="flex items-center gap-2 text-sm font-bold text-slate-900">
+          <Card className="order-3 p-5">
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <LuFileText className="size-4 text-primary-600" aria-hidden /> Nguồn dữ liệu & minh bạch
             </p>
-            <p className="mt-1 text-xs text-slate-500">Kiểm tra lần cuối: {formatMonthVi(program.updatedAt)}</p>
+            <p className="mt-1 text-xs text-slate-600">Kiểm tra lần cuối: {formatMonthVi(program.updatedAt)}</p>
             {verified.active ? (
-              <p className="mt-2 flex items-start gap-1.5 text-[13px] font-semibold text-success-700">
+              <p className="mt-2 flex items-start gap-1.5 text-sm font-semibold text-success-700">
                 <LuBadgeCheck className="mt-0.5 size-4 shrink-0" aria-hidden /> Trường đã xác nhận ngày {verified.dateLabel}
                 {program.schoolVerifiedNote ? ` · ${program.schoolVerifiedNote}` : ""}
               </p>
             ) : (
-              <p className="mt-2 text-[13px] text-slate-500">{verified.expired ? `Xác nhận của trường đã quá 12 tháng (${verified.dateLabel}).` : "Trường chưa xác nhận dữ liệu này."}</p>
+              <p className="mt-2 text-sm text-slate-600">{verified.expired ? `Xác nhận của trường đã quá 12 tháng (${verified.dateLabel}).` : "Trường chưa xác nhận dữ liệu này."}</p>
             )}
             <div className="mt-3 grid gap-2">
               {(["cutoff", "tuition", "quota", "combos"] as VerifyField[]).map((field) => (
-                <div key={field} className="flex items-center justify-between gap-3 text-[13px]">
+                <div key={field} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
                   <span className="text-slate-600">{field === "cutoff" ? "Điểm chuẩn" : field === "tuition" ? "Học phí" : field === "quota" ? "Chỉ tiêu" : "Tổ hợp"}</span>
-                  <DataStatusBadge evidence={evidence[field]} showSource />
+                  <DataStatusBadge evidence={evidence[field]} compact showSource />
                 </div>
               ))}
-            </div>            <div className="mt-3 flex flex-col gap-2 text-[13px] font-semibold">
+            </div>            <div className="mt-3 flex flex-col gap-2 text-sm font-semibold">
               {sourceUrl ? (
                 <a href={sourceUrl} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">
                   Mở nguồn dữ liệu ↗
@@ -236,7 +239,7 @@ export default async function ProgramDetailPage({ params }: Props) {
 
       {similar.length > 0 && (
         <section className="mt-12">
-          <h2 className="text-xl font-bold text-slate-900">Chương trình tương tự tại các trường khác</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Chương trình tương tự tại các trường khác</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             {similar.map((v) => (
               <Link
@@ -248,16 +251,16 @@ export default async function ProgramDetailPage({ params }: Props) {
                   <SchoolCode code={v.school.code} />
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900">{v.program.name}</p>
-                    <p className="truncate text-[13px] text-slate-500">{v.school.shortName}</p>
+                    <p className="truncate text-sm text-slate-600">{v.school.shortName}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex justify-between text-[13px]">
+                <div className="mt-4 flex justify-between text-sm">
                   <span>
-                    <span className="block text-slate-500">Điểm chuẩn {v.program.cutoffs[0]?.year ?? ""}</span>
+                    <span className="block text-slate-600">Điểm chuẩn {v.program.cutoffs[0]?.year ?? ""}</span>
                     <strong className="text-primary-700">{v.latestCutoff != null ? formatScore(v.latestCutoff) : "Chưa có dữ liệu chính thức"}</strong>
                   </span>
                   <span className="text-right">
-                    <span className="block text-slate-500">Học phí</span>
+                    <span className="block text-slate-600">Học phí</span>
                     <strong className="text-slate-900">{formatTuition(v.program.tuitionMin, v.program.tuitionMax)}</strong>
                   </span>
                 </div>

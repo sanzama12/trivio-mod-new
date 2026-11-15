@@ -14,7 +14,7 @@ export function PasswordInput({ invalid, ...rest }: InputHTMLAttributes<HTMLInpu
       <button
         type="button"
         onClick={() => setShow((v) => !v)}
-        className="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+        className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center absolute top-1/2 right-2 size-10 -translate-y-1/2 rounded-md text-slate-600 hover:bg-slate-100"
         aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
       >
         {show ? <LuEyeOff className="size-4" /> : <LuEye className="size-4" />}
@@ -35,7 +35,7 @@ export function PasswordStrength({ value }: { value: string }) {
           <span key={i} className={cn("h-1.5 flex-1 rounded-full", i <= s ? color : "bg-slate-200")} />
         ))}
       </div>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-slate-600">
         Độ mạnh: <strong className="text-slate-700">{STRENGTH_LABELS[s]}</strong>
       </p>
     </div>
@@ -44,9 +44,9 @@ export function PasswordStrength({ value }: { value: string }) {
 
 export function PasswordChecklist({ value }: { value: string }) {
   return (
-    <ul className="mt-3 space-y-1.5 rounded-lg bg-slate-50 p-3 text-[13px]" aria-label="Yêu cầu mật khẩu">
+    <ul className="mt-3 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm" aria-label="Yêu cầu mật khẩu">
       {checkPassword(value).map((c) => (
-        <li key={c.id} className={cn("flex items-center gap-2", c.passed ? "text-success-700" : "text-slate-500")}>
+        <li key={c.id} className={cn("flex items-center gap-2", c.passed ? "text-success-700" : "text-slate-600")}>
           {c.passed ? <LuCheck className="size-4" aria-hidden /> : <LuX className="size-4" aria-hidden />}
           {c.label}
           <span className="sr-only">{c.passed ? " – đạt" : " – chưa đạt"}</span>

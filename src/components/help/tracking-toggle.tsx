@@ -29,7 +29,7 @@ export function TrackingToggle() {
           setTrackingOptOut(on);
           setState(on ? "off" : "on");
         }}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${on ? "bg-primary-600" : "bg-slate-500"}`}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors before:absolute before:-inset-y-2.5 before:inset-x-0 ${on ? "bg-primary-600" : "bg-slate-500"}`}
       >
         <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-5" : ""}`} />
       </button>

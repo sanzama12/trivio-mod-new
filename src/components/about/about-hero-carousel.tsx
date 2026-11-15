@@ -54,7 +54,7 @@ export function AboutHeroCarousel() {
     <section
       aria-roledescription="carousel"
       aria-label="Giới thiệu Trovio"
-      className="relative overflow-hidden rounded-[2.25rem] border border-primary-200 bg-[#fbfdf8] p-3 shadow-[0_22px_60px_-42px_rgba(15,93,94,.55)] sm:p-5"
+      className="relative overflow-hidden rounded-[2.25rem] border border-primary-200 bg-paper-50 p-3 shadow-[0_22px_60px_-42px_rgba(15,93,94,.55)] sm:p-5"
       onMouseEnter={() => setInteracting(true)}
       onMouseLeave={() => setInteracting(false)}
       onFocusCapture={() => setInteracting(true)}

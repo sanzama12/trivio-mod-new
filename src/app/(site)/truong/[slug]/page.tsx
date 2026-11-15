@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const school = await catalogService.getSchoolBySlug((await params).slug);
   if (!school) return { title: "Không tìm thấy trường" };
   return {
-    title: `${school.name} (${school.code}) | Trovio`,
+    title: `${school.name} (${school.code})`,
     description: `Giới thiệu ${school.name}, thông tin cơ sở, các ngành đào tạo, điểm chuẩn, học phí và phương thức xét tuyển.`,
   };
 }
@@ -23,7 +23,7 @@ export default async function SchoolPage({ params }: Props) {
   const programs = await programService.listBySchool(school.id);
 
   return (
-    <div className="min-h-screen bg-[#FAF9F5] pb-20">
+    <div className="min-h-screen bg-paper-50 pb-20">
       <div className="container-page py-6">
         <Breadcrumb
           items={[

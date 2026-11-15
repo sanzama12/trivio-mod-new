@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/button";
 import Link from "next/link";
 import { LuArrowUpRight, LuHeart, LuMapPin, LuScale } from "react-icons/lu";
 import type { School } from "@/domain/types";

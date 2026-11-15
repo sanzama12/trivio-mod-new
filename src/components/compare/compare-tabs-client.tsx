@@ -24,16 +24,16 @@ export function CompareTabsClient({
   return (
     <div className="space-y-6">
       {/* Chuyển đổi tab: Ưu tiên So sánh chương trình đã chọn ở ngoài */}
-      <div className="flex border-b border-stone-200">
+      <div className="flex border-b border-slate-200">
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setTab("chuong-trinh")}
             className={cn(
-              "flex items-center gap-2.5 border-b-2 px-5 py-3.5 text-sm font-bold transition-all cursor-pointer",
+              "flex items-center gap-2.5 border-b-2 px-5 py-3.5 text-sm font-semibold transition-all cursor-pointer",
               tab === "chuong-trinh"
-                ? "border-stone-900 text-stone-900"
-                : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-700"
+                ? "border-slate-900 text-slate-900"
+                : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-700"
             )}
           >
             <LuGraduationCap className="size-4.5 text-teal-700" />
@@ -43,7 +43,7 @@ export function CompareTabsClient({
                 {count}
               </span>
             ) : (
-              <span className="text-xs font-normal text-stone-400">
+              <span className="text-xs font-normal text-slate-400">
                 (Đang chọn 0/{MAX_COMPARE})
               </span>
             )}
@@ -53,13 +53,13 @@ export function CompareTabsClient({
             type="button"
             onClick={() => setTab("truong")}
             className={cn(
-              "flex items-center gap-2.5 border-b-2 px-5 py-3.5 text-sm font-bold transition-all cursor-pointer",
+              "flex items-center gap-2.5 border-b-2 px-5 py-3.5 text-sm font-semibold transition-all cursor-pointer",
               tab === "truong"
-                ? "border-stone-900 text-stone-900"
-                : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-700"
+                ? "border-slate-900 text-slate-900"
+                : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-700"
             )}
           >
-            <LuBuilding2 className="size-4.5 text-stone-500" />
+            <LuBuilding2 className="size-4.5 text-slate-500" />
             <span>So sánh tổng quan trường</span>
           </button>
         </div>

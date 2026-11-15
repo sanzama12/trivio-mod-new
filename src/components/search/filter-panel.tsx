@@ -153,7 +153,7 @@ export function FilterPanel({ filters, combos, subjects, groups, resultKind = "p
         )}
 
         {/* 1. Điểm & Phương thức xét tuyển (Đưa lên đầu bộ lọc) */}
-        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <Label htmlFor="f-method">Phương thức xét tuyển</Label>
           <select
             id="f-method"
@@ -202,7 +202,7 @@ export function FilterPanel({ filters, combos, subjects, groups, resultKind = "p
         </div>
 
         {/* 2. Khối / Tổ hợp xét tuyển */}
-        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Khối / Tổ hợp xét tuyển</legend>
             <div className="space-y-2.5">
@@ -225,7 +225,7 @@ export function FilterPanel({ filters, combos, subjects, groups, resultKind = "p
 
         {/* 3. Danh mục / Nhóm ngành */}
         {groups.length > 0 && (
-          <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+          <div className="min-w-0 flex-1 basis-[220px] rounded-lg border border-slate-200 bg-paper-50 p-3">
             <fieldset>
               <legend className="mb-3 text-sm font-semibold text-slate-700">Danh mục / Nhóm ngành</legend>
               <div className="space-y-2.5">
@@ -244,7 +244,7 @@ export function FilterPanel({ filters, combos, subjects, groups, resultKind = "p
         )}
 
         {/* 4. Khu vực địa lý */}
-        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Khu vực địa lý</legend>
             <div className="space-y-2.5">
@@ -256,7 +256,7 @@ export function FilterPanel({ filters, combos, subjects, groups, resultKind = "p
         </div>
 
         {/* 5. Học phí tối đa / năm */}
-        <div className="min-w-0 flex-1 basis-[200px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[200px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Học phí tối đa / năm</legend>
             <div className="space-y-2.5">
@@ -269,7 +269,7 @@ export function FilterPanel({ filters, combos, subjects, groups, resultKind = "p
         </div>
 
         {/* 6. Loại hình trường */}
-        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-[#fafaf6] p-3">
+        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-paper-50 p-3">
           <fieldset>
             <legend className="mb-3 text-sm font-semibold text-slate-700">Loại hình trường</legend>
             <div className="space-y-2.5">

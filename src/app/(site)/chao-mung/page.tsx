@@ -23,7 +23,7 @@ export default async function WelcomePage({ searchParams }: Props) {
   if (user && !user.onboarded) {
     return (
       <div className="container-page py-12">
-        <OnboardingForm user={user} />
+        <OnboardingForm user={user} next={next} />
       </div>
     );
   }
@@ -34,9 +34,9 @@ export default async function WelcomePage({ searchParams }: Props) {
       <Card className="mx-auto max-w-4xl p-6 md:p-12">
         <div className="grid items-center gap-8 md:grid-cols-[1fr_260px]">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Chào mừng{first ? ` ${first}` : ""} đến với Trovio!</h1>
-            <p className="mt-3 leading-relaxed text-slate-600">
-              Tài khoản của bạn đã sẵn sàng. Trovio giúp bạn tìm trường, hiểu ngành và lập kế hoạch tuyển sinh trong vài phút.
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Chào mừng{first ? ` ${first}` : ""} đến với Trovio!</h1>
+            <p className="mt-3 leading-relaxed text-slate-600 max-w-prose">
+              {user ? "Tài khoản của bạn đã sẵn sàng." : "Bạn có thể bắt đầu khám phá ngay; dữ liệu của khách được lưu trên thiết bị này."} Trovio giúp bạn tìm trường, hiểu ngành và lập kế hoạch tuyển sinh trong vài phút.
             </p>
             {next !== "/" && (
               <Link href={next} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:underline">
@@ -53,7 +53,7 @@ export default async function WelcomePage({ searchParams }: Props) {
             <li key={f.title} className="rounded-xl border border-slate-200 p-4">
               <f.icon className="size-6 text-primary-600" aria-hidden />
               <p className="mt-3 font-semibold text-slate-900">{f.title}</p>
-              <p className="mt-1 text-[13px] text-slate-500">{f.desc}</p>
+              <p className="mt-1 text-sm text-slate-600">{f.desc}</p>
             </li>
           ))}
         </ul>
@@ -61,13 +61,13 @@ export default async function WelcomePage({ searchParams }: Props) {
           <p className="font-semibold text-slate-900">Bạn muốn bắt đầu từ đâu?</p>
           <div className="mt-4 flex flex-wrap justify-center gap-3">
             <Link href="/diem-cua-toi" className={buttonClass({ size: "lg" })}>
-              Tạo hồ sơ học tập & xét tuyển
+              Nhập điểm
             </Link>
             <Link href="/nganh" className={buttonClass({ variant: "outline", size: "lg" })}>
               Khám phá ngành học
             </Link>
           </div>
-          <Link href={next} className="mt-5 inline-block text-sm text-slate-500 underline-offset-4 hover:underline">
+          <Link href={next} className="mt-5 inline-block text-sm text-slate-600 underline-offset-4 hover:underline">
             Bỏ qua, tôi sẽ tự khám phá
           </Link>
         </div>

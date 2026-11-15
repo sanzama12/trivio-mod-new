@@ -27,7 +27,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const sort = filters.sort ?? "phu-hop";
 
   return (
-    <div className="bg-[#fafaf6]">
+    <div className="bg-paper-50">
     <div className="container-page min-w-0 py-6 md:py-10">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Tìm chương trình" }]} />
       <section className="relative isolate mt-4 overflow-hidden rounded-3xl bg-slate-950">

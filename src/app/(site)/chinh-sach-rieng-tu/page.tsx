@@ -1,3 +1,4 @@
+import { siteContact } from "@/lib/site-contact";
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/help/legal-page";
 import { TrackingToggle } from "@/components/help/tracking-toggle";
@@ -49,7 +50,7 @@ export default function PrivacyPage() {
             </>
           ),
         },
-        { id: "lien-he", title: "Thông tin liên hệ", body: <p>Mọi thắc mắc về bảo mật thông tin, vui lòng gửi email tới privacy@trovio.vn hoặc gọi 1900 8198.</p> },
+        { id: "lien-he", title: "Thông tin liên hệ", body: <p>Mọi thắc mắc về bảo mật thông tin, vui lòng gửi email tới {siteContact.email}{siteContact.demo && <small> (email demo của đồ án)</small>}.</p> },
       ]}
     />
   );

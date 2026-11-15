@@ -24,14 +24,15 @@ export function AliasManager({ aliases, majors, schools }: { aliases: Alias[]; m
   const add = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    try {
     const res = await fetch("/api/admin/chat-aliases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alias, kind, targetId }) });
     const d = await res.json().catch(() => ({}));
-    setBusy(false);
     if (!res.ok || !d.ok) return setError(d.message ?? "Không thêm được.");
     setError(null);
     setAlias("");
     toast("Đã thêm từ khoá — chatbot dùng ngay cho câu hỏi tiếp theo", "success");
     router.refresh();
+    } catch { setError("Không thể kết nối, vui lòng thử lại."); } finally { setBusy(false); }
   };
 
   const remove = async (a: Alias) => {

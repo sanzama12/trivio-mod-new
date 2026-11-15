@@ -1,3 +1,4 @@
+import { buttonClass } from "@/components/ui/button";
 import type { Metadata } from "next";
 import { Reveal } from "@/components/about/about-banner-center";
 import { NextStepRail } from "@/components/catalog/next-step-rail";
@@ -6,7 +7,7 @@ import { Breadcrumb } from "@/components/ui/misc";
 import { MajorExplorer } from "@/components/catalog/major-explorer";
 
 export const metadata: Metadata = {
-  title: "Tìm ngành học | Trovio",
+  title: "Tìm ngành học",
   description: "Tìm ngành theo tên, mã ngành hoặc nhóm ngành. Xem giới thiệu ngành trước khi khám phá các trường đào tạo.",
 };
 
@@ -29,7 +30,7 @@ export default async function MajorsPage({ searchParams }: Props) {
   );
 
   return (
-    <div className="min-h-screen bg-[#fafaf6] pb-20">
+    <div className="min-h-screen bg-paper-50 pb-20">
       <div className="container-page min-w-0 py-6">
         <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá ngành" }]} />
 

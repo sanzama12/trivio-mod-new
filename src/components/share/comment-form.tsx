@@ -20,25 +20,26 @@ export function ShareCommentForm({ shareId, programs }: { shareId: string; progr
     if (!name.trim()) return setError("Vui lòng nhập tên hoặc cách xưng hô (VD: Mẹ, Bố).");
     if (message.trim().length < 2) return setError("Vui lòng nhập nội dung góp ý.");
     setBusy(true);
+    try {
     const res = await fetch(`/api/share/${encodeURIComponent(shareId)}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, message, programId: programId || null, website }),
     });
     const d = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) return setError(d.message ?? "Không gửi được góp ý, vui lòng thử lại.");
+    if (!res.ok || !d.ok) return setError(d.message ?? "Không gửi được góp ý, vui lòng thử lại.");
     setSent(true);
     setMessage("");
     setError(null);
+    } catch { setError("Không thể kết nối, vui lòng thử lại."); } finally { setBusy(false); }
   };
 
   return (
     <section aria-labelledby="comment-title" className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-card md:p-6">
-      <h2 id="comment-title" className="text-lg font-bold text-slate-900">
+      <h2 id="comment-title" className="text-lg font-semibold text-slate-900">
         Gửi góp ý
       </h2>
-      <p className="mt-1 text-sm text-slate-500">Góp ý chỉ người chia sẻ đọc được.</p>
+      <p className="mt-1 text-sm text-slate-600">Góp ý chỉ người chia sẻ đọc được.</p>
       {sent ? (
         <div role="status" className="mt-4 flex items-start gap-2 rounded-xl bg-success-50 p-4 text-sm text-success-700">
           <LuCircleCheck className="mt-0.5 size-5 shrink-0" aria-hidden />
@@ -84,7 +85,7 @@ export function ShareCommentForm({ shareId, programs }: { shareId: string; progr
               placeholder="VD: Con cân nhắc thêm một nguyện vọng ở gần nhà nhé."
               className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-primary-600 focus:ring-4 focus:ring-primary-100 focus:outline-none"
             />
-            <p className="mt-1 text-right text-xs text-slate-500">{message.length}/500</p>
+            <p className="mt-1 text-right text-xs text-slate-600">{message.length}/500</p>
           </div>
           <div className="hidden" aria-hidden>
             <label htmlFor="c-website">Website</label>

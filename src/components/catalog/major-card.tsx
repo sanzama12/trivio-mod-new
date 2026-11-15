@@ -21,7 +21,7 @@ export function MajorCard({ item }: { item: MajorListItem }) {
   };
 
   return (
-    <article className="group relative flex flex-col rounded-[1.8rem] border border-dashed border-slate-400 bg-[#fbfdf8] p-5 transition-all duration-200 hover:border-primary-600 hover:shadow-lg sm:p-6">
+    <article className="group relative flex flex-col rounded-[1.8rem] border border-dashed border-slate-400 bg-paper-50 p-5 transition-all duration-200 hover:border-primary-600 hover:shadow-lg sm:p-6">
       {/* Hàng 1: Icon mũ cử nhân + Tên ngành + Nút tim yêu thích */}
       <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">

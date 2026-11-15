@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { CompareBar } from "@/components/program/program-actions";
 import { LazyWidgets } from "@/components/layout/lazy-widgets";
+
+export const metadata: Metadata = { title: { default: "Trovio – Tìm đúng trường, chọn đúng ngành", template: "%s · Trovio" } };
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   return (

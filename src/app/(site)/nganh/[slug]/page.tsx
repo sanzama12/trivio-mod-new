@@ -33,11 +33,13 @@ export default async function MajorPage({ params }: Props) {
   if (!data) notFound();
   const { major, group } = data;
   const programs = await programService.listByMajor(major.id);
+  const combos = [...new Set(programs.flatMap(({ program }) => program.combos))].sort();
+  const scores = programs.flatMap(({ program }) => program.cutoffs.map((cutoff) => cutoff.score)).filter(Number.isFinite);
 
   return (
     <>
       {/* Banner tràn màn hình */}
-      <section className="relative isolate overflow-hidden bg-slate-950">
+      <section className="relative isolate overflow-hidden bg-primary-900">
         <Image
           src={groupImages[major.groupId] ?? fallbackImg}
           alt=""
@@ -45,20 +47,20 @@ export default async function MajorPage({ params }: Props) {
           priority
           className="object-cover opacity-70"
         />
-        <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/40 to-transparent" />
+        <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-primary-900/85 via-primary-900/40 to-transparent" />
         <div className="container-page relative py-14 sm:py-20">
           <div className="max-w-2xl">
-            <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá ngành", href: "/nganh" }, { label: group.name, href: `/nganh?group=${group.id}` }, { label: major.name }]} />
-            <p className="mt-6 inline-flex items-center gap-2 bg-accent-500 px-3 py-1 text-[13px] font-black text-slate-900">
-              {group.name} · Mã ngành {major.code}
+            <Breadcrumb inverse items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá ngành", href: "/nganh" }, { label: group.name, href: `/nganh?group=${group.id}` }, { label: major.name }]} />
+            <p className="mt-6 inline-flex items-center gap-2 bg-accent-500 px-3 py-1 text-sm font-semibold text-slate-900">
+              {group.name}{major.code ? ` · Mã ngành ${major.code}` : ""}
             </p>
-            <h1 className="mt-5 text-4xl leading-[1.02] font-black tracking-tight text-white sm:text-5xl">
+            <h1 className="mt-5 leading-[1.02] text-white text-3xl md:text-4xl font-bold tracking-tight">
               Ngành {major.name}
             </h1>
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-200">
-              {major.description}
+            <p className="mt-4 max-w-prose text-base leading-relaxed text-slate-200">
+              {major.description || "Mô tả ngành đang được biên soạn"}
             </p>
-            <p className="mt-4 inline-flex bg-white px-3 py-1.5 text-sm font-black text-slate-900">
+            <p className="mt-4 inline-flex bg-white px-3 py-1.5 text-sm font-semibold text-slate-900">
               {programs.length} chương trình đào tạo
             </p>
           </div>
@@ -66,29 +68,30 @@ export default async function MajorPage({ params }: Props) {
       </section>
 
 
-      <section className="container-page pb-16">
-        <p className="text-xs font-bold tracking-wider text-accent-700 uppercase">Danh sách khuyến dùng</p>
+      <section className="container-page py-8">
+        {(combos.length > 0 || scores.length > 0) && <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-bold">Thông tin xét tuyển</h2>{combos.length > 0 && <p className="mt-2 text-sm text-slate-700">Tổ hợp xét tuyển: {combos.join(", ")}</p>}{scores.length > 0 && <p className="mt-2 text-sm text-slate-700">Khoảng điểm chuẩn THPT trong dữ liệu: {formatScore(Math.min(...scores))} – {formatScore(Math.max(...scores))}</p>}</div>}
+        <p className="text-xs font-semibold tracking-wide text-accent-800">Danh sách khuyến dùng</p>
         <div className="mt-1 flex flex-wrap items-end justify-between gap-2">
-          <h2 className="max-w-xl text-2xl font-black tracking-tight text-slate-900 md:text-3xl">Các trường đào tạo ngành {major.name}</h2>
+          <h2 className="max-w-xl text-2xl font-bold tracking-tight text-slate-900">Các trường đào tạo ngành {major.name}</h2>
           <span className="text-sm text-slate-600 break-words">
             Tìm thấy <strong className="text-slate-900">{programs.length}</strong> chương trình
           </span>
         </div>
         <div className="mt-6 space-y-3">
           {programs.map(({ program, school }) => (
-            <article key={program.id} className="flex flex-col gap-4 border-2 border-slate-900 bg-white p-4 md:flex-row md:items-center">
+            <article key={program.id} className="flex flex-col gap-4 border border-slate-200 shadow-card hover:border-primary-300 bg-white p-4 md:flex-row md:items-center">
               <SchoolCode code={school.code} />
               <div className="min-w-0 flex-1">
                 <Link href={`/truong/${school.slug}`} className="font-bold break-words text-slate-900 hover:text-primary-700 hover:underline">
                   {school.name}
                 </Link>
-                <p className="text-[13px] text-slate-600 break-words">
+                <p className="text-sm text-slate-600 break-words">
                   <Link href={`/chuong-trinh/${program.slug}`} className="hover:underline">
                     {program.name}
                   </Link> · {school.city}
                 </p>
               </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-1 text-[13px]">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-1 text-sm">
                 <span className="break-words">
                   Điểm chuẩn {program.cutoffs[0]?.year ? `${program.cutoffs[0].year}: ` : ""}{" "}
                   <strong className="bg-slate-900 px-1.5 py-0.5 text-white">{program.cutoffs.length ? formatScore(program.cutoffs[0].score) : "Chưa có dữ liệu chính thức"}</strong>

@@ -30,7 +30,7 @@ export function StudentMascot({ covered, looking, progress }: { covered: boolean
         <g className={styles.rightArm}><path d="M267 294Q298 308 286 335L245 308" fill="none" stroke="#f6c7a3" strokeWidth="29" strokeLinecap="round" /><rect x="223" y="272" width="38" height="53" rx="18" fill="#f6c7a3" transform="rotate(18 242 298)" /><path d="M250 282L244 303M240 279L234 300" stroke="#e5a57f" strokeWidth="2" strokeLinecap="round" /></g>
         <path d="M145 348L200 355L255 348V371L200 379L145 371Z" fill="#215c50" /><path d="M151 350L200 357L249 350" stroke="#fffdf6" strokeWidth="3" fill="none" />
       </svg>
-      <span className={styles.sceneLabel}>BẠN ĐỒNG HÀNH CỦA BẠN</span>
+      <span className={styles.sceneLabel}>Bạn đồng hành của bạn</span>
     </div>
   );
 }

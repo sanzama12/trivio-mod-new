@@ -68,7 +68,7 @@ export function EnterpriseContactForm() {
 
   if (submitted) {
     return (
-      <div className="rounded-3xl bg-[#f7fbf2] p-8 text-center sm:p-10">
+      <div className="rounded-3xl bg-paper-50 p-8 text-center sm:p-10">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-md">
           <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>

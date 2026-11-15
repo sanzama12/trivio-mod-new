@@ -97,13 +97,13 @@ export function LoginGateProvider({ children }: { children: ReactNode }) {
             onClick={(e) => e.stopPropagation()}
             className="relative w-full max-w-md rounded-t-2xl bg-white p-6 shadow-elevated sm:rounded-2xl"
           >
-            <button type="button" onClick={close} className="absolute top-3 right-3 flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Đóng">
+            <button type="button" onClick={close} className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center absolute top-3 right-3 size-10 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Đóng">
               <LuX className="size-5" />
             </button>
             <span className="flex size-12 items-center justify-center rounded-full bg-primary-50 text-primary-600">
               <LuLock className="size-6" aria-hidden />
             </span>
-            <h2 id="gate-title" className="mt-4 text-xl font-bold text-slate-900">
+            <h2 id="gate-title" className="mt-4 text-lg font-semibold text-slate-900">
               {open.title}
             </h2>
             <p className="mt-1.5 text-sm text-slate-600">{open.reason}</p>
@@ -126,10 +126,10 @@ export function LoginGateProvider({ children }: { children: ReactNode }) {
                 Đăng ký miễn phí
               </Link>
             </p>
-            <p className="mt-3 text-center text-xs text-slate-500">Những gì bạn đã lưu trên máy này sẽ được giữ nguyên và gộp vào tài khoản.</p>
+            <p className="mt-3 text-center text-xs text-slate-600">Những gì bạn đã lưu trên máy này sẽ được giữ nguyên và gộp vào tài khoản.</p>
             {open.soft && (
-              <button type="button" onClick={close} className="mt-3 w-full text-center text-sm text-slate-500 underline-offset-4 hover:underline">
-                Để sau, tiếp tục không cần tài khoản
+              <button type="button" onClick={close} className="mt-3 w-full text-center text-sm text-slate-600 underline-offset-4 hover:underline">
+                Để sau
               </button>
             )}
           </div>

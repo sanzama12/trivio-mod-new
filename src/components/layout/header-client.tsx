@@ -20,6 +20,7 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 import { Logo } from "./logo";
 
 const NAV = [
+  { href: "/diem-cua-toi", label: "Nhập điểm", match: ["/diem-cua-toi"] },
   { href: "/truong", label: "Tìm trường", match: ["/truong"] },
   { href: "/nganh", label: "Tìm ngành", match: ["/nganh"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
@@ -144,6 +145,7 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                   key={n.href}
                   href={n.href}
                   aria-current={isActive(n.match) ? "page" : undefined}
+                  data-tour={n.href === "/trac-nghiem" ? "nav-quiz" : n.href === "/diem-cua-toi" ? "nav-score" : undefined}
                   className={cn(
                     "relative py-2 transition-colors",
                     isActive(n.match) ? "font-semibold text-primary-600" : "font-medium text-slate-700 hover:text-primary-600",
@@ -171,17 +173,17 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                 >
                   <Avatar name={user.name} src={user.avatarUrl} className="size-8 text-xs" />
                   {showName && !mobile && <span className="max-w-[9rem] truncate text-sm font-semibold text-slate-900">{user.name}</span>}
-                  <LuChevronDown className="size-4 text-slate-500" aria-hidden />
+                  <LuChevronDown className="size-4 text-slate-600" aria-hidden />
                 </button>
                 {menu && (
                   <div role="menu" className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-elevated">
                     <p className="truncate px-4 pb-1 text-sm font-semibold text-slate-900">{user.name}</p>
-                    <p className="truncate px-4 pb-2 text-xs text-slate-500">{user.email}</p>
+                    <p className="truncate px-4 pb-2 text-xs text-slate-600">{user.email}</p>
                     <Link role="menuitem" href="/ho-so" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                       <LuUser className="size-4" aria-hidden /> Hồ sơ cá nhân
                     </Link>
                     <Link role="menuitem" href="/da-luu" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-                      <LuBookmark className="size-4" aria-hidden /> Đã lưu & Nguyện vọng
+                      <LuBookmark className="size-4" aria-hidden /> Đã lưu & nguyện vọng
                     </Link>
                     {user.admin ? (
                       <Link role="menuitem" href="/quan-tri" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
@@ -200,14 +202,14 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                 )}
               </div>
             ) : (
-              <Link href={`/dang-nhap?next=${encodeURIComponent(pathname)}`} className={buttonClass({ size: "sm", className: "h-10 px-3 sm:px-5" })}>
+              <Link href={`/dang-nhap?next=${encodeURIComponent(pathname)}`} className={buttonClass({ size: "sm", className: "px-3 sm:px-5" })}>
                 Đăng nhập
               </Link>
             )}
 
             <button
               type="button"
-              className={cn("size-10 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100", burgerVisible)}
+              className={cn("size-10 shrink-0 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100", burgerVisible)}
               aria-label={open ? "Đóng menu" : "Mở menu"}
               aria-expanded={open}
               aria-controls="menu-di-dong"
@@ -226,7 +228,8 @@ export function HeaderClient({ user }: { user: HeaderUser }) {
                   key={n.href}
                   href={n.href}
                   aria-current={isActive(n.match) ? "page" : undefined}
-                  className={cn("rounded-lg px-3 py-3 text-[15px]", isActive(n.match) ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50")}
+                  data-tour={n.href === "/trac-nghiem" ? "nav-quiz" : n.href === "/diem-cua-toi" ? "nav-score" : undefined}
+                  className={cn("rounded-lg px-3 py-3 text-base", isActive(n.match) ? "bg-primary-50 font-semibold text-primary-700" : "text-slate-700 hover:bg-slate-50")}
                 >
                   {n.label}
                 </Link>

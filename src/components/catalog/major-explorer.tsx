@@ -1,5 +1,6 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/button";
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import type { IconType } from "react-icons";
@@ -145,6 +146,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
         <div className="relative flex-1">
           <LuSearch className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
+            aria-label="Tìm ngành học"
             type="text"
             value={query}
             onChange={(e) => {
@@ -156,6 +158,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
           />
           {query ? (
             <button
+              aria-label="Xóa từ khóa"
               type="button"
               onClick={() => setQuery("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
@@ -177,7 +180,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
         >
           <LuFilter className="size-4" />
           <span>Bộ lọc</span>
-          {selectedGroup ? <span className="size-2 rounded-full bg-amber-300" /> : null}
+          {selectedGroup ? <span className="size-2 rounded-full bg-accent-200" /> : null}
         </button>
       </div>
 
@@ -188,7 +191,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
         {/* ========================================================= */}
         <aside
           aria-label="Bộ lọc tìm kiếm ngành học"
-          className="sticky top-20 hidden rounded-3xl border border-primary-200 bg-[#fbfdf8] p-5 shadow-xs lg:block"
+          className="sticky top-20 hidden rounded-3xl border border-primary-200 bg-paper-50 p-5 shadow-xs lg:block"
         >
           {/* Tiêu đề Bộ lọc */}
           <div className="flex items-center gap-2.5 border-b border-primary-100 pb-4">
@@ -376,6 +379,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-primary-900">
                     <span>{activeGroupInfo.group.name}</span>
                     <button
+                      aria-label="Bỏ lọc nhóm ngành"
                       type="button"
                       onClick={() => handleSelectGroup(null)}
                       className="hover:text-slate-900"
@@ -389,6 +393,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-900">
                     <span>“{query}”</span>
                     <button
+                      aria-label="Xóa từ khóa"
                       type="button"
                       onClick={() => setQuery("")}
                       className="hover:text-slate-900"
@@ -411,7 +416,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
 
           {/* Trạng thái không có kết quả */}
           {pageItems.length === 0 ? (
-            <div className="rounded-[1.8rem] border border-dashed border-slate-400 bg-[#fbfdf8] p-10 text-center">
+            <div className="rounded-[1.8rem] border border-dashed border-slate-400 bg-paper-50 p-10 text-center">
               <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary-50 text-primary-700">
                 <LuSearch className="size-6" />
               </div>
@@ -468,7 +473,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                             window.scrollTo({ top: 120, behavior: "smooth" });
                           }}
                           className={cn(
-                            "flex size-9 items-center justify-center rounded-xl text-sm font-bold transition-colors",
+                            "flex size-9 items-center justify-center rounded-xl text-sm font-semibold transition-colors",
                             p === validPage
                               ? "bg-primary-700 text-white shadow-xs"
                               : "border border-primary-200 bg-white text-slate-700 hover:bg-primary-50"
@@ -511,13 +516,14 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
             onClick={() => setIsMobileFilterOpen(false)}
             aria-hidden="true"
           />
-          <div className="relative ml-auto flex h-full w-full max-w-sm flex-col bg-[#fbfdf8] p-5 shadow-2xl">
+          <div className="relative ml-auto flex h-full w-full max-w-sm flex-col bg-paper-50 p-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-primary-100 pb-4">
               <div className="flex items-center gap-2">
                 <LuSlidersHorizontal className="size-5 text-slate-900" />
                 <h2 className="text-lg font-black text-slate-900">Bộ lọc ngành học</h2>
               </div>
               <button
+                aria-label="Đóng bộ lọc"
                 type="button"
                 onClick={() => setIsMobileFilterOpen(false)}
                 className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200"

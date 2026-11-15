@@ -11,7 +11,7 @@ export default async function DonationResultPage({ searchParams }: { searchParam
   const donation = /^[A-Za-z0-9_]{1,100}$/.test(txnRef) ? await repositories.donations.getByTxnRef(txnRef) : null;
   const success = donation?.status === "success";
   return (
-    <section className="flex min-h-[65vh] items-center justify-center bg-[#f7f7f0] px-5 py-16">
+    <section className="flex min-h-[65vh] items-center justify-center bg-paper-50 px-5 py-16">
       <div className="w-full max-w-lg rounded-3xl border border-teal-900/10 bg-white p-8 text-center shadow-sm sm:p-12">
         {success ? <LuCircleCheck className="mx-auto size-14 text-teal-700" aria-hidden /> : <LuCircleHelp className="mx-auto size-14 text-amber-600" aria-hidden />}
         <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900">{success ? "Cảm ơn bạn đã đồng hành!" : "Giao dịch chưa hoàn tất"}</h1>

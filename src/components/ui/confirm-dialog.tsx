@@ -1,6 +1,7 @@
 "use client";
 
 /** Hộp thoại xác nhận (UI Patterns · Section 2): "Xác nhận xoá" (đỏ) và "Chưa lưu thay đổi" (cam, 3 nút). */
+import { buttonClass } from "@/components/ui/button";
 import { useRef, type ReactNode } from "react";
 import { LuCircleAlert, LuTrash2 } from "react-icons/lu";
 import { useModal } from "./use-modal";
@@ -37,11 +38,11 @@ export function ConfirmDialog({
       <button type="button" tabIndex={-1} aria-label="Đóng" className="absolute inset-0 bg-slate-900/50" onClick={onCancel} />
       <div ref={ref} role="alertdialog" aria-modal="true" aria-labelledby="cf-title" aria-describedby="cf-body" className="relative w-full max-w-[440px] rounded-2xl border border-slate-200 bg-white p-6 shadow-elevated">
         <div className="flex gap-4">
-          <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", tone === "danger" ? "bg-danger-50 text-danger-600" : "bg-accent-50 text-accent-700")} aria-hidden>
+          <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", tone === "danger" ? "bg-danger-50 text-danger-600" : "bg-accent-50 text-accent-800")} aria-hidden>
             <Icon className="size-5" />
           </span>
           <div className="min-w-0">
-            <h2 id="cf-title" className="text-lg font-bold text-slate-900">
+            <h2 id="cf-title" className="text-lg font-semibold text-slate-900">
               {title}
             </h2>
             <div id="cf-body" className="mt-1.5 text-sm text-slate-600">
@@ -51,14 +52,14 @@ export function ConfirmDialog({
         </div>
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           {secondary && (
-            <button type="button" onClick={secondary.onClick} className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            <button type="button" onClick={secondary.onClick} className={buttonClass({ variant: "secondary" })}>
               {secondary.label}
             </button>
           )}
-          <button type="button" onClick={onCancel} className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={onCancel} className={buttonClass({ variant: "secondary" })}>
             {cancelLabel}
           </button>
-          <button type="button" data-autofocus onClick={onConfirm} className={cn("h-10 rounded-lg px-4 text-sm font-semibold text-white", tone === "danger" ? "bg-danger-600 hover:bg-danger-700" : "bg-primary-600 hover:bg-primary-700")}>
+          <button type="button" data-autofocus onClick={onConfirm} className={buttonClass({ variant: tone === "danger" ? "danger" : "primary" })}>
             {confirmLabel}
           </button>
         </div>

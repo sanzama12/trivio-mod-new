@@ -21,17 +21,17 @@ export function CutoffHistory({ cutoffs }: { cutoffs: CutoffScore[] }) {
           return (
             <g key={d.year}>
               <rect x={x} y={y(d.score)} width={barW} height={h - y(d.score)} rx={6} className={last ? "fill-primary-600" : "fill-primary-200"} />
-              <text x={x + barW / 2} y={y(d.score) - 8} textAnchor="middle" className="fill-slate-900 text-[13px] font-bold">
+              <text x={x + barW / 2} y={y(d.score) - 8} textAnchor="middle" className="fill-slate-900 text-sm font-semibold">
                 {d.score.toFixed(2)}
               </text>
-              <text x={x + barW / 2} y={h + 22} textAnchor="middle" className="fill-slate-500 text-[12px]">
+              <text x={x + barW / 2} y={h + 22} textAnchor="middle" className="fill-slate-500 text-xs">
                 {d.year}
               </text>
             </g>
           );
         })}
       </svg>
-      <figcaption className="text-xs text-slate-500">Điểm chuẩn phương thức điểm thi THPT (thang 30). Trục đứng từ {min} đến {max} để thấy rõ chênh lệch.</figcaption>
+      <figcaption className="text-xs text-slate-600">Điểm chuẩn phương thức điểm thi THPT (thang 30). Trục đứng từ {min} đến {max} để thấy rõ chênh lệch.</figcaption>
     </figure>
   );
 }

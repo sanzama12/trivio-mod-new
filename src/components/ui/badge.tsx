@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export type BadgeTone = "primary" | "accent" | "success" | "danger" | "slate" | "pink" | "teal" | "violet" | "solid";
+export type BadgeTone = "primary" | "accent" | "success" | "warning" | "danger" | "slate" | "pink" | "teal" | "violet" | "solid";
 
 const tones: Record<BadgeTone, string> = {
   primary: "bg-primary-50 text-primary-700 ring-primary-200",
-  accent: "bg-accent-50 text-accent-700 ring-accent-200",
+  accent: "bg-accent-50 text-accent-800 ring-accent-200",
   success: "bg-success-50 text-success-700 ring-success-100",
+  warning: "bg-amber-50 text-amber-800 ring-amber-200",
   danger: "bg-danger-50 text-danger-700 ring-danger-100",
   slate: "bg-slate-100 text-slate-700 ring-slate-200",
   pink: "bg-pink-50 text-pink-700 ring-pink-200",

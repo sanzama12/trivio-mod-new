@@ -18,7 +18,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       ref={ref}
       aria-invalid={invalid || undefined}
       className={cn(
-        "h-11 w-full rounded-lg border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-500 transition-colors focus:ring-4 focus:outline-none",
+        "h-11 w-full rounded-lg border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-600 transition-colors focus:ring-4 focus:outline-none",
         invalid ? "border-danger-500 focus:ring-danger-100" : "border-slate-300 focus:border-primary-600 focus:ring-primary-100",
         className,
       )}
@@ -30,7 +30,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 export function FieldError({ id, children }: { id?: string; children?: ReactNode }) {
   if (!children) return null;
   return (
-    <p id={id} role="alert" className="mt-1.5 text-[13px] font-medium text-danger-700">
+    <p id={id} role="alert" className="mt-1.5 text-sm font-medium text-danger-700">
       {children}
     </p>
   );

@@ -214,7 +214,7 @@ export function OpenCompareButton({ className }: { className?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-stone-800 shadow-xs hover:bg-stone-50 transition-colors cursor-pointer",
+          "inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-800 shadow-xs hover:bg-slate-50 transition-colors cursor-pointer",
           count > 0 && "border-teal-600 bg-teal-50/60 text-teal-900",
           className
         )}

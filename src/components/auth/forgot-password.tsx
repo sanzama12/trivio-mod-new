@@ -19,13 +19,13 @@ function Stepper({ step }: { step: number }) {
           <span
             aria-current={i === step ? "step" : undefined}
             className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+              "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
               i < step ? "bg-success-700 text-white" : i === step ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-600",
             )}
           >
             {i < step ? <LuCheck className="size-3.5" aria-label="Đã xong" /> : i + 1}
           </span>
-          <span className={cn("text-xs", i === step ? "font-semibold text-slate-900" : "text-slate-500")}>{s}</span>
+          <span className={cn("text-xs", i === step ? "font-semibold text-slate-900" : "text-slate-600")}>{s}</span>
         </li>
       ))}
     </ol>
@@ -50,7 +50,7 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
           <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent-50 text-accent-500">
             <LuClock className="size-7" aria-hidden />
           </span>
-          <h1 className="mt-5 text-2xl font-bold">Liên kết đã hết hạn</h1>
+          <h1 className="mt-5 text-3xl md:text-4xl font-bold tracking-tight">Liên kết đã hết hạn</h1>
           <p className="mt-2 text-sm text-slate-600">Liên kết đặt lại mật khẩu chỉ có hiệu lực 30 phút hoặc đã được sử dụng. Vui lòng yêu cầu liên kết mới.</p>
           <Button full className="mt-6" onClick={() => setIsExpired(false)}>
             Gửi lại liên kết →
@@ -67,24 +67,28 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
     e.preventDefault();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("Email không hợp lệ.");
     setError(null);
+    try {
     const res = await fetch("/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 429) return setError(data.message ?? "Bạn thao tác quá nhanh, vui lòng thử lại sau.");
+    if (!res.ok || data.ok !== true) return setError(data.message ?? "Không gửi được yêu cầu, vui lòng thử lại.");
     setToken(data.token ?? "");
     setSent(true);
+    } catch { setError("Không thể kết nối, vui lòng thử lại."); }
   };
 
   const reset = async (e: FormEvent) => {
     e.preventDefault();
     if (!checkPassword(pw).every((c) => c.passed)) return setError("Mật khẩu chưa đáp ứng đủ yêu cầu.");
     if (pw !== confirm) return setError("Mật khẩu xác nhận không khớp.");
+    try {
     const res = await fetch("/api/auth/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, password: pw }) });
     const data = await res.json();
-    if (data.ok) {
+    if (res.ok && data.ok) {
       setError(null);
       setStep(2);
     } else if (data.reason === "expired") setIsExpired(true);
-    else setError("Mật khẩu chưa đáp ứng đủ yêu cầu.");
+    else setError(data.message ?? "Không đặt lại được mật khẩu, vui lòng thử lại.");
+    } catch { setError("Không thể kết nối, vui lòng thử lại."); }
   };
 
   return (
@@ -92,8 +96,8 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
       <Stepper step={step} />
       {step === 0 && !sent && (
         <form onSubmit={request} noValidate>
-          <h1 className="text-2xl font-bold">Khôi phục mật khẩu</h1>
-          <p className="mt-1 text-sm text-slate-500">Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu.</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Khôi phục mật khẩu</h1>
+          <p className="mt-1 text-sm text-slate-600">Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu.</p>
           <div className="mt-6">
             <Label htmlFor="fp-email">Email đã đăng ký</Label>
             <Input id="fp-email" type="email" autoComplete="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} invalid={!!error} aria-describedby="fp-err" />
@@ -113,7 +117,7 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
           <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success-50 text-success-500">
             <LuMailCheck className="size-7" aria-hidden />
           </span>
-          <h1 className="mt-5 text-2xl font-bold">Kiểm tra hộp thư của bạn</h1>
+          <h1 className="mt-5 text-3xl md:text-4xl font-bold tracking-tight">Kiểm tra hộp thư của bạn</h1>
           <p className="mt-2 text-sm text-slate-600">
             Nếu <strong>{email}</strong> đã đăng ký, bạn sẽ nhận được liên kết đặt lại mật khẩu trong vài phút. Liên kết có hiệu lực 30 phút.
           </p>
@@ -122,7 +126,7 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
               Mở liên kết trong email (demo) →
             </Button>
           ) : (
-            <p className="mt-6 rounded-lg bg-slate-50 p-3 text-[13px] text-slate-600">Mở liên kết trong email để đặt mật khẩu mới. Không thấy email? Kiểm tra thư mục Spam.</p>
+            <p className="mt-6 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Mở liên kết trong email để đặt mật khẩu mới. Không thấy email? Kiểm tra thư mục Spam.</p>
           )}
           <button type="button" onClick={() => setSent(false)} className="mt-4 text-sm font-semibold text-primary-600 hover:underline">
             Gửi lại hoặc dùng email khác
@@ -132,8 +136,8 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
 
       {step === 1 && (
         <form onSubmit={reset} noValidate>
-          <h1 className="text-2xl font-bold">Đặt mật khẩu mới</h1>
-          <p className="mt-1 text-sm text-slate-500">Sau khi xác minh email, hãy đặt mật khẩu mới để hoàn tất.</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Đặt mật khẩu mới</h1>
+          <p className="mt-1 text-sm text-slate-600">Sau khi xác minh email, hãy đặt mật khẩu mới để hoàn tất.</p>
           <div className="mt-6 space-y-4">
             <div>
               <Label htmlFor="fp-pw">Mật khẩu mới</Label>
@@ -150,7 +154,7 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
             Đặt lại mật khẩu
           </Button>
           {token === "reset-unknown" && (
-            <p className="mt-3 text-center text-xs text-slate-500">Email này chưa đăng ký nên liên kết sẽ báo hết hạn (mô phỏng).</p>
+            <p className="mt-3 text-center text-xs text-slate-600">Email này chưa đăng ký nên liên kết sẽ báo hết hạn (mô phỏng).</p>
           )}
         </form>
       )}
@@ -160,7 +164,7 @@ export function ForgotPassword({ expired = false, initialToken, demo = false }: 
           <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-success-50 text-success-500">
             <LuCircleCheck className="size-8" aria-hidden />
           </span>
-          <h1 className="mt-5 text-2xl font-bold">Mật khẩu đã được đặt lại</h1>
+          <h1 className="mt-5 text-3xl md:text-4xl font-bold tracking-tight">Mật khẩu đã được đặt lại</h1>
           <p className="mt-2 text-sm text-slate-600">Bạn có thể đăng nhập ngay bằng mật khẩu mới. Tài khoản bị tạm khoá (nếu có) cũng đã được mở.</p>
           <Link href="/dang-nhap" className={buttonClass({ full: true, className: "mt-6" })}>
             Đăng nhập ngay →
