@@ -836,10 +836,16 @@ export const chatbotService = {
     }
 
     // Nếu câu hỏi mở rộng, câu hỏi sâu xa hoặc chưa tìm thấy dữ liệu cứng, và WusRouter đã được cấu hình
-    if (
-      (answer.kind === "unknown" || answer.kind === "clarify" || (answer.kind === "refusal" && answer.intent === "predict")) &&
-      isWusRouterConfigured()
-    ) {
+    const normText = norm(q);
+    const isDeepInquiry =
+      answer.kind === "unknown" ||
+      answer.kind === "clarify" ||
+      (answer.kind === "refusal" && answer.intent === "predict") ||
+      answer.intent === "evaluate" ||
+      answer.intent === "compare" ||
+      /\b(lam gi|sau nay|ra truong|viec lam|nghe nghiep|xu huong|trien vong|tuong lai|muc luong|thu nhap|co nen|nen hoc|nen chon|loi khuyen|khac nhau|kinh nghiem|to chat|ky nang|dinh huong|du an|triovo)\b/i.test(normText);
+
+    if (isDeepInquiry && isWusRouterConfigured()) {
       const k = await knowledge();
       const n = norm(q);
       const mId = findEntity(n, k.majorIndex, q) ?? answer.context?.majorId;
@@ -850,6 +856,13 @@ export const chatbotService = {
       let specificFacts = "";
       if (m) {
         specificFacts += `Ngành học: ${m.name} (Nhóm: ${m.groupId})\nMô tả: ${m.summary || "—"}\n`;
+        const relatedPrograms = k.programs.filter((p) => p.majorId === m.id);
+        if (relatedPrograms.length) {
+          const cutoffs = relatedPrograms.flatMap((p) => (p.cutoffs[0]?.score ? [p.cutoffs[0].score] : []));
+          if (cutoffs.length) {
+            specificFacts += `Điểm chuẩn THPT gần nhất trên hệ thống: dao động từ ${Math.min(...cutoffs)} đến ${Math.max(...cutoffs)} điểm tại ${relatedPrograms.length} chương trình đào tạo.\n`;
+          }
+        }
       }
       if (s) {
         specificFacts += `Trường đại học: ${s.name} (${s.shortName}, Mã: ${s.code})\nKhu vực: ${s.region}, Loại: ${s.type}, Website: ${s.website}\n`;
