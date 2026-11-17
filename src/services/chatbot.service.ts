@@ -825,21 +825,75 @@ export const chatbotService = {
       }
     }
 
-    // Outside evidence is considered only after the site and curated sources.
+    // Outside evidence & WusRouter AI Gateway cho các câu hỏi mở/chuyên sâu
     if (answer.kind === "unknown") {
-      const evidence = await findExternalEvidence(q);
-      if (evidence) {
-        const aiText = isWusRouterConfigured() ? await answerWithWusRouter({ question: q, evidence: evidence.text }) : null;
+      const evidence = await findExternalEvidence(q).catch(() => null);
+
+      if (isWusRouterConfigured()) {
+        let recentHistory: Array<{ role: "user" | "assistant"; text: string }> = [];
+        if (history?.userId && history?.conversationId) {
+          try {
+            const conv = await repositories.chatHistory.findById(history.conversationId, history.userId);
+            if (conv?.messages?.length) {
+              recentHistory = conv.messages.slice(-4).map((m) => ({
+                role: m.role,
+                text: m.role === "user" ? (m.text ?? "") : (m.answer?.text ?? ""),
+              }));
+            }
+          } catch {
+            // bỏ qua lỗi đọc lịch sử
+          }
+        }
+
+        const aiText = await answerWithWusRouter({
+          question: q,
+          evidence: evidence?.text,
+          history: recentHistory,
+        });
+
+        if (aiText && aiText.trim().length > 0) {
+          answer = {
+            ...answer,
+            kind: "answer",
+            intent: evidence ? "external-evidence" : "wusrouter-assistant",
+            text: aiText.trim(),
+            note: evidence
+              ? "Thông tin được tổng hợp từ nguồn tham khảo và Trợ lý AI TriOVO; hãy đối chiếu văn bản chính thức của trường."
+              : "Câu trả lời được hỗ trợ bởi Trợ lý AI TriOVO (WusRouter Gateway); hãy đối chiếu thông tin chính thức của trường.",
+            sources: evidence?.sources?.length
+              ? evidence.sources
+              : [
+                  { label: "Tìm trường đại học", href: "/truong" },
+                  { label: "Khám phá ngành đào tạo", href: "/nganh" },
+                  { label: "Trợ giúp & hỏi đáp tuyển sinh", href: "/tro-giup" },
+                ],
+            suggestions: defaultSuggestions(),
+            polished: true,
+          };
+        } else if (evidence) {
+          const lead = evidence.text.split(/\n\[2\]/)[0].replace(/^\[1\] [^:]+: /, "").split("\n")[0].trim();
+          const excerpt = lead.length > 600 ? `${lead.slice(0, 600).replace(/\s+\S*$/, "")}…` : lead;
+          answer = {
+            ...answer,
+            kind: "answer",
+            intent: "external-evidence",
+            text: `Theo ${evidence.sources[0].label}: ${excerpt}`,
+            note: "Thông tin ngoài TriOVO; kiểm tra tài liệu gốc và thời điểm công bố trước khi sử dụng.",
+            sources: evidence.sources,
+            polished: false,
+          };
+        }
+      } else if (evidence) {
         const lead = evidence.text.split(/\n\[2\]/)[0].replace(/^\[1\] [^:]+: /, "").split("\n")[0].trim();
         const excerpt = lead.length > 600 ? `${lead.slice(0, 600).replace(/\s+\S*$/, "")}…` : lead;
         answer = {
           ...answer,
           kind: "answer",
           intent: "external-evidence",
-          text: aiText && isFaithful(aiText, evidence.text) ? aiText : `Theo ${evidence.sources[0].label}: ${excerpt}`,
+          text: `Theo ${evidence.sources[0].label}: ${excerpt}`,
           note: "Thông tin ngoài TriOVO; kiểm tra tài liệu gốc và thời điểm công bố trước khi sử dụng.",
           sources: evidence.sources,
-          polished: !!aiText && isFaithful(aiText, evidence.text),
+          polished: false,
         };
       }
     }

@@ -283,7 +283,7 @@ export function ChatWidget() {
               </h2>
               <p className="flex items-center gap-1.5 text-xs text-slate-600">
                 <span className="size-1.5 rounded-full bg-success-600" aria-hidden />
-                Ưu tiên dữ liệu tuyển sinh TriOVO
+                Tuyển sinh TriOVO & Trí tuệ AI WusRouter
               </p>
             </div>
             <button type="button" onClick={() => void openHistory()} aria-pressed={historyOpen} className={cn("inline-flex size-10 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100", historyOpen && "bg-primary-50 text-primary-700")} aria-label="Xem lịch sử trò chuyện" title="Lịch sử trò chuyện">
@@ -416,6 +416,59 @@ const KIND_STYLE: Record<ChatAnswer["kind"], string> = {
   unknown: "border-slate-200 bg-white",
 };
 
+function renderFormattedLine(line: string) {
+  const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(line.slice(lastIndex, match.index));
+    }
+    if (match[2] && match[3]) {
+      const label = match[2];
+      const href = safeChatHref(match[3]);
+      if (href) {
+        const isExt = href.startsWith("http");
+        parts.push(
+          <Link
+            key={match.index}
+            href={href}
+            target={isExt ? "_blank" : undefined}
+            rel={isExt ? "noopener noreferrer" : undefined}
+            className="inline-flex items-center gap-0.5 font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800"
+          >
+            {label}
+            {isExt && <LuExternalLink className="inline size-3" aria-hidden />}
+          </Link>,
+        );
+      } else {
+        parts.push(label);
+      }
+    } else if (match[4]) {
+      parts.push(<strong key={match.index} className="font-semibold text-slate-950">{match[4]}</strong>);
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < line.length) {
+    parts.push(line.slice(lastIndex));
+  }
+  return parts.length ? parts : line;
+}
+
+function FormattedChatText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1.5 leading-relaxed break-words">
+      {lines.map((line, idx) => {
+        if (!line.trim()) return <div key={idx} className="h-1.5" />;
+        return <p key={idx}>{renderFormattedLine(line)}</p>;
+      })}
+    </div>
+  );
+}
+
 function BotMessage({
   answer,
   feedback,
@@ -436,11 +489,11 @@ function BotMessage({
     <div className="min-w-0 max-w-[96%]">
       <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
         <LuBotMessageSquare className="size-3.5 text-primary-700" aria-hidden />
-        TriOVO{answer.intent === "external-evidence" ? " · Tài liệu ngoài" : ""}
+        TriOVO{answer.intent === "external-evidence" ? " · Tài liệu ngoài" : answer.intent === "wusrouter-assistant" ? " · Trợ lý AI" : ""}
       </p>
       <div className={cn("break-words rounded-lg rounded-bl-sm border px-4 py-3 text-[15px] leading-6 text-slate-900 shadow-sm", KIND_STYLE[answer.kind] ?? KIND_STYLE.answer)}>
         {answer.kind === "refusal" && <p className="mb-1 text-xs font-semibold text-accent-800">Ngoài phạm vi hỗ trợ</p>}
-        <p className="whitespace-pre-wrap">{answer.text}</p>
+        <FormattedChatText text={answer.text} />
 
         {answer.items.length > 0 && (
           <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-200">
