@@ -1,0 +1,431 @@
+.page {
+  background: #fff;
+  color: #172b35;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-block: 24px 0;
+  color: #687982;
+  font-size: 12px;
+}
+
+.breadcrumb svg {
+  width: 14px;
+  height: 14px;
+  color: #91a0a7;
+}
+
+.breadcrumb a:hover {
+  color: #176d65;
+}
+
+.breadcrumb [aria-current] {
+  color: #243e47;
+  font-weight: 600;
+}
+
+.mainGrid {
+  display: grid;
+  grid-template-areas:
+    "intro checkout"
+    "photo checkout";
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  column-gap: clamp(42px, 7vw, 110px);
+  row-gap: 34px;
+  padding-block: 42px 88px;
+}
+
+.intro {
+  grid-area: intro;
+  min-width: 0;
+}
+
+.eyebrow,
+.sectionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #19786c;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.eyebrow svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2;
+}
+
+.intro h1 {
+  margin-top: 21px;
+  color: #142f38;
+  font-size: clamp(40px, 4.4vw, 62px);
+  font-weight: 700;
+  line-height: 1.14;
+  letter-spacing: 0;
+}
+
+.intro h1 span {
+  color: #1d8777;
+}
+
+.lead {
+  max-width: 465px;
+  margin-top: 23px;
+  color: #4f6871;
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+.purposes {
+  max-width: 465px;
+  margin-top: 38px;
+  border-top: 1px solid #dce5e5;
+  padding-top: 22px;
+}
+
+.purposes > p {
+  color: #3b5860;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.purposes ul {
+  display: grid;
+  gap: 0;
+  margin-top: 13px;
+}
+
+.purposes li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding-block: 14px;
+}
+
+.purposes li + li {
+  border-top: 1px solid #edf1f1;
+}
+
+.purposes li svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #248373;
+  stroke-width: 1.8;
+}
+
+.purposes li strong,
+.purposes li small {
+  display: block;
+}
+
+.purposes li strong {
+  color: #1d3941;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.purposes li small {
+  margin-top: 3px;
+  color: #668087;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.checkout {
+  grid-area: checkout;
+  min-width: 0;
+}
+
+.checkoutNote {
+  max-width: 545px;
+  margin: 15px auto 0;
+  color: #70848b;
+  font-size: 12px;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.photo {
+  position: relative;
+  grid-area: photo;
+  width: 100%;
+  min-height: 250px;
+  height: 100%;
+  max-height: 355px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #dce8e3;
+}
+
+.photoImage {
+  object-fit: cover;
+  object-position: 59% 45%;
+}
+
+.photo figcaption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 30px 22px 17px;
+  background: linear-gradient(transparent, rgb(10 32 35 / 78%));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.community {
+  background: #edf6f3;
+  padding-block: 68px;
+}
+
+.communityGrid {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: clamp(45px, 8vw, 130px);
+}
+
+.communityIntro h2,
+.faqHeading h2 {
+  margin-top: 12px;
+  color: #17353d;
+  font-size: clamp(27px, 2.6vw, 37px);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.communityIntro > p,
+.faqHeading > p {
+  max-width: 350px;
+  margin-top: 15px;
+  color: #5d777e;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.contactLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  margin-top: 21px;
+  color: #176c65;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.contactLink svg,
+.faqHeading a svg,
+.faqList a svg {
+  width: 15px;
+  height: 15px;
+}
+
+.contactLink:hover,
+.faqHeading a:hover,
+.faqList a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.donors {
+  align-self: center;
+}
+
+.donors li {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  padding-block: 15px;
+  border-bottom: 1px solid #d4e5df;
+}
+
+.donors li:first-child {
+  border-top: 1px solid #d4e5df;
+}
+
+.donorInitial {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #d1e8de;
+  color: #2c7468;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.donorText {
+  min-width: 0;
+  flex: 1;
+}
+
+.donorText strong,
+.donorText small {
+  display: block;
+}
+
+.donorText strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.donorText small {
+  margin-top: 3px;
+  color: #617b82;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.donorAmount {
+  flex-shrink: 0;
+  align-self: flex-start;
+  color: #237568;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.emptyState {
+  padding: 24px 0;
+  border-block: 1px solid #d4e5df;
+  color: #5d777e;
+  font-size: 14px;
+}
+
+.faq {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: clamp(45px, 8vw, 130px);
+  padding-block: 80px 92px;
+}
+
+.faqHeading a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #176c65;
+  font-weight: 700;
+}
+
+.faqList {
+  border-top: 1px solid #dce5e5;
+}
+
+.faqList details {
+  border-bottom: 1px solid #dce5e5;
+}
+
+.faqList summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 74px;
+  padding-block: 18px;
+  color: #25444c;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  list-style: none;
+}
+
+.faqList summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqList summary::after {
+  content: "+";
+  color: #248373;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.faqList details[open] summary::after {
+  content: "−";
+}
+
+.faqList details p {
+  padding-bottom: 23px;
+  color: #5d777e;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.faqList a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #176c65;
+  font-weight: 700;
+}
+
+.page a:focus-visible,
+.faqList summary:focus-visible {
+  outline: 2px solid #188977;
+  outline-offset: 4px;
+}
+
+@media (max-width: 1023px) {
+  .mainGrid {
+    column-gap: 35px;
+  }
+
+  .intro h1 {
+    font-size: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .mainGrid {
+    grid-template-areas: "intro" "checkout" "photo";
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding-block: 32px 54px;
+  }
+
+  .intro h1 {
+    margin-top: 14px;
+    font-size: 40px;
+  }
+
+  .lead {
+    margin-top: 14px;
+    font-size: 14px;
+  }
+
+  .purposes {
+    display: none;
+  }
+
+  .photo {
+    height: 220px;
+    min-height: 0;
+  }
+
+  .communityGrid,
+  .faq {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 27px;
+  }
+
+  .community {
+    padding-block: 48px;
+  }
+
+  .faq {
+    padding-block: 52px 65px;
+  }
+}

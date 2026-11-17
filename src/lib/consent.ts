@@ -15,6 +15,7 @@ export function readConsent(): boolean | null {
 export function writeConsent(analytics: boolean) {
   try {
     localStorage.setItem(CONSENT_KEY, JSON.stringify({ analytics, at: new Date().toISOString() }));
+    window.dispatchEvent(new Event("trovio:consent-changed"));
   } catch {
     /* trình duyệt chặn bộ nhớ: coi như chưa đồng ý */
   }

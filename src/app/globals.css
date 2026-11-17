@@ -3,6 +3,7 @@
 /* Xanh tin cậy: nền xám lạnh, xanh dương làm màu chính, cam chỉ để nhấn */
 @theme {
   --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 
   --color-success-50: #ecfdf5;
   --color-success-100: #d1fae5;

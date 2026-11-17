@@ -1316,3 +1316,91 @@ ALTER TABLE usage_events ADD CONSTRAINT usage_events_kind_check
   CHECK (kind IN ('school_view', 'major_view', 'program_view', 'search', 'school_save', 'major_save', 'program_save', 'wishlist_add'));
 
 COMMIT;
+
+-- @migration 20261118_integrity_constraints_indexes.sql
+BEGIN;
+SET search_path TO trovio, public;
+
+-- Dấu vết người quản trị phải trỏ tới tài khoản thật. Khi tài khoản bị xóa,
+-- dữ liệu tuyển sinh và nguồn tham khảo vẫn được giữ nguyên.
+ALTER TABLE program_year_data
+  ADD CONSTRAINT program_year_data_updated_by_fkey
+  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL NOT VALID;
+ALTER TABLE ai_sources
+  ADD CONSTRAINT ai_sources_created_by_fkey
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL NOT VALID;
+ALTER TABLE program_year_data VALIDATE CONSTRAINT program_year_data_updated_by_fkey;
+ALTER TABLE ai_sources VALIDATE CONSTRAINT ai_sources_created_by_fkey;
+
+-- PostgreSQL không tự tạo index ở phía tham chiếu của khóa ngoại. Các index
+-- này tránh quét toàn bảng và giữ thời gian khóa ngắn khi cập nhật/xóa bảng cha.
+DO $optional_fk_indexes$
+BEGIN
+  -- Một số database nâng cấp lâu năm còn bảng này; bản cài mới đã loại bỏ nó.
+  IF to_regclass('trovio.benchmarks') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS benchmarks_source_idx ON benchmarks(source_id);
+  END IF;
+END
+$optional_fk_indexes$;
+CREATE INDEX IF NOT EXISTS combo_subjects_subject_idx ON combo_subjects(subject_id);
+CREATE INDEX IF NOT EXISTS learning_materials_created_by_idx ON learning_materials(created_by);
+CREATE INDEX IF NOT EXISTS learning_materials_updated_by_idx ON learning_materials(updated_by);
+CREATE INDEX IF NOT EXISTS material_events_actor_idx ON material_events(actor_id);
+CREATE INDEX IF NOT EXISTS program_admission_methods_method_idx ON program_admission_methods(method_code);
+CREATE INDEX IF NOT EXISTS program_combos_combo_idx ON program_combos(combo_code);
+CREATE INDEX IF NOT EXISTS program_year_data_updated_by_idx ON program_year_data(updated_by) WHERE updated_by IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ai_sources_created_by_idx ON ai_sources(created_by) WHERE created_by IS NOT NULL;
+
+COMMIT;
+
+-- @migration 20261119_school_logo_resolution.sql
+BEGIN;
+SET search_path TO trovio, public;
+
+-- Verified larger official images replace only known previous sources.
+-- Preserve any logo subsequently entered by an administrator.
+UPDATE schools AS school
+SET logo_url = source.new_url, updated_at = now()
+FROM (VALUES
+  ('BKA', 'https://hust.edu.vn/uploads/sys/logo-dhbk-1-02_130_191.png', 'https://hust.edu.vn/uploads/sys/logo-dhbk-1-02_130_191.png'),
+  ('BVS', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/58.png', 'https://www.google.com/s2/favicons?domain=tuyensinh.ptithcm.edu.vn&sz=256'),
+  ('BVU', 'https://bvu.edu.vn/wp-content/uploads/Logo_header.png', 'https://bvu.edu.vn/wp-content/uploads/2024/10/image/jpeg/230727-BVU-Logo-Tagline-VIE-02.jpg'),
+  ('CSS', 'https://dhcsnd.edu.vn/_next/image?url=%2Flogo_new.png&w=96&q=75', 'https://dhcsnd.edu.vn/logo_new.png'),
+  ('DCL', 'https://mku.edu.vn/dist/2020/08/logo100x100-36x36.png', 'https://mku.edu.vn/dist/2020/08/logo-DHCL.jpg'),
+  ('DHV', 'https://dhv.edu.vn/wp-content/uploads/2025/09/cropped-dhv-logo.png', 'https://dhv.edu.vn/wp-content/uploads/2025/09/cropped-dhv-favicon.png'),
+  ('DKC', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/83.png', 'https://www.hutech.edu.vn/images/logo/logo.png'),
+  ('DLA', 'https://daihoclongan.edu.vn/templates/dla122020/img/logo1.png', 'https://daihoclongan.edu.vn/templates/dla122020/img/dla/logo.png'),
+  ('DNT', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/73.png', 'https://huflit.edu.vn/wp-content/uploads/huflit-brand/logo-huflit-vi-400.png'),
+  ('DNU', 'https://dnpu.edu.vn/thumbs/115x115x2/upload/photo/logodhdn-copy-6975.png', 'https://dnpu.edu.vn/upload/photo/favicon-4784.png'),
+  ('DTM', 'https://hcmunre.edu.vn/wp-content/themes/hcmunre/assets/img/logo-hcmunre-vi.webp', 'https://hcmunre.edu.vn/wp-content/uploads/2026/09/site-icon-512.png'),
+  ('DTT', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/71.png', 'https://tdtu.edu.vn/sites/www/files/logo_2.png'),
+  ('DVH', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/105.png', 'https://vhu.edu.vn/Resources/ImagePhoto/logo-heb-vi.png'),
+  ('DVL', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/112.png', 'https://www.vlu.edu.vn/icons/favicon_logo.png'),
+  ('DVT', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/82.png', 'https://www.tvu.edu.vn/img/tvu/logo-tvu-main.png'),
+  ('EIU', 'https://eiu.edu.vn/wp-content/uploads/2026/01/cropped-EIU-LOGO-1-1.png', 'https://eiu.edu.vn/wp-content/uploads/2025/03/cropped-Favicon-EIU-1.png'),
+  ('HHK', 'https://vau.edu.vn/wp-content/uploads/2026/08/cropped-Logo_VAA-2026-vuong-32x32.png', 'https://vau.edu.vn/wp-content/uploads/2026/08/cropped-Logo_VAA-2026-vuong.png'),
+  ('HIU', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/85.png', 'https://hiu.vn/wp-content/uploads/2020/02/Logo-HBU-Final.png'),
+  ('KSA', 'https://ueh.edu.vn/images/logo_ueh.png', 'https://ueh.edu.vn/images/ueh-logo.jpg'),
+  ('KSV', 'https://ueh.edu.vn/images/logo_ueh.png', 'https://ueh.edu.vn/images/ueh-logo.jpg'),
+  ('MBS', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/67.png', 'https://www.google.com/s2/favicons?domain=ou.edu.vn&sz=256'),
+  ('MIT', 'https://mit.vn/wp-content/uploads/2024/02/cropped-logo-new-2024-32x32.png', 'https://mit.vn/wp-content/uploads/2024/02/cropped-logo-new-2024.png'),
+  ('QSB', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/6.png', 'https://hcmut.edu.vn/img/bk.png'),
+  ('QSX', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/51.png', 'https://cms.hcmussh.edu.vn/api/file/6acfbf4a-3099-4236-83b4-8051a060323e.webp'),
+  ('SGD', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/96.png', 'https://www.sgu.edu.vn/wp-content/uploads/2026/01/logo_SGU.png'),
+  ('SPS', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/8.png', 'https://hcmue.edu.vn/images/Logo_Banner_SP/Logo-HCMUE-new.png'),
+  ('STS', 'https://upes.edu.vn/wp-content/uploads/2023/05/logonew.png', 'https://upes.edu.vn/wp-content/uploads/2023/07/Logo-Truong-Final.png'),
+  ('TCT', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/40.png', 'https://www.ctu.edu.vn/images/upload/logo.png'),
+  ('TDM', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/61.png', 'https://tdmu.edu.vn/img/brand/Asset%203.png'),
+  ('TTG', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/102.png', 'https://tgu.edu.vn/favicons/safari-pinned-tab.svg'),
+  ('UMT', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/101.png', 'https://sdn.umt.edu.vn/Logo_UMT_2_ca6ac362e2.png'),
+  ('VLU', 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/109.png', 'https://vlute.edu.vn/dist/images/logo.png'),
+  ('VTT', 'https://vttu.edu.vn/wp-content/uploads/2023/01/cropped-logo-truong-32x32.png', 'https://vttu.edu.vn/wp-content/uploads/2023/01/cropped-logo-truong.png'),
+  ('YCT', 'https://ctump.edu.vn/favicon.ico?favicon.3rntl0xc_a84k.ico', 'https://vanphongtruong.ctump.edu.vn/storage/cms/images/builder/logo-ctump-vi-ce1589.webp'),
+  ('YDS', 'https://ump.edu.vn/img/favicon.ico', 'https://ump.edu.vn/html/images/logo2.png')
+) AS source(code, old_url, new_url)
+WHERE school.code = source.code
+  AND (school.logo_url IS NULL OR school.logo_url = source.old_url
+    OR (school.code = 'BKA' AND school.logo_url = 'https://raw.githubusercontent.com/VNOI-Admin/uni-logo/master/logo/3.png'))
+  AND school.logo_url IS DISTINCT FROM source.new_url;
+
+COMMIT;

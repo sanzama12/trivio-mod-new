@@ -1,11 +1,11 @@
 import { buttonClass } from "@/components/ui/button";
 import type { Metadata } from "next";
 import { Reveal } from "@/components/about/about-banner-center";
-import { NextStepRail } from "@/components/catalog/next-step-rail";
 import { catalogService } from "@/services";
 import { Breadcrumb } from "@/components/ui/misc";
 import { MajorExplorer } from "@/components/catalog/major-explorer";
 import { UsageBeacon } from "@/components/layout/usage-beacon";
+import { PersonalizedSuggestions } from "@/components/search/personalized-suggestions";
 
 export const metadata: Metadata = {
   title: "Tìm ngành học",
@@ -69,6 +69,8 @@ export default async function MajorsPage({ searchParams }: Props) {
           </header>
         </Reveal>
 
+        <PersonalizedSuggestions query={q} />
+
         {/* Khu vực chính: Danh mục ngành đào tạo */}
         <Reveal>
           <section className="mt-12">
@@ -89,12 +91,6 @@ export default async function MajorsPage({ searchParams }: Props) {
           </section>
         </Reveal>
 
-        {/* Khối bước tiếp theo — editorial rail, hướng thiết kế khác hẳn glass-card */}
-        <Reveal>
-          <div className="mt-16">
-            <NextStepRail schoolCount={totals.schools} />
-          </div>
-        </Reveal>
       </div>
     </div>
   );

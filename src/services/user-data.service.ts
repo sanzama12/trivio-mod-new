@@ -4,7 +4,8 @@
  */
 import type { AcademicPerformance, AdmissionMethodKey, Goal, RecommendationPreferences, Region, StoredProfile, UserData, WishlistItem } from "../domain/types";
 import { repositories } from "@database/repositories";
-import { ADMISSION_METHODS, isMethodKey, isValidSubjectScore } from "./scoring.service";
+import { ADMISSION_METHODS, isMethodKey, isValidSubjectScore, computeAdmissionScore, transcriptScores } from "./scoring.service";
+import { sanitizeRiasecResult } from "./riasec.service";
 
 export const MAX_SAVED = 200;
 /** Giới hạn tối đa 15 nguyện vọng theo Thông tư 06/2026/TT-BGDĐT */
@@ -96,9 +97,29 @@ function sanitizeProfile(input: unknown): StoredProfile | null {
   ) {
     return null;
   }
+  if (!Number.isFinite(input.admission.rawTotal) || input.admission.rawTotal < 0 || input.admission.rawTotal > 30 ||
+      !["KV1", "KV2-NT", "KV2", "KV3"].includes(input.priorityRegion as string) ||
+      !["none", "UT1", "UT2"].includes(input.priorityGroup as string) ||
+      (input.admissionSeason !== undefined && input.admissionSeason !== 2026) ||
+      (input.graduationYear !== undefined && (typeof input.graduationYear !== "number" || !Number.isInteger(input.graduationYear) || input.graduationYear < 1900 || input.graduationYear > 2026))) return null;
   const scores: Record<string, number> = {};
   for (const [key, value] of Object.entries(input.scores)) {
-    if (typeof key === "string" && key.length <= 20 && isValidSubjectScore(value)) scores[key] = Math.round(value * 100) / 100;
+    if (typeof key === "string" && key.length <= 20 && isValidSubjectScore(value)) scores[key] = value;
+  }
+  const scoresByMethod: StoredProfile["scoresByMethod"] = {};
+  const combosByMethod: StoredProfile["combosByMethod"] = {};
+  for (const method of ["thpt", "hocba"] as const) {
+    const source = isObj(input.scoresByMethod) ? input.scoresByMethod[method] : undefined;
+    if (isObj(source)) scoresByMethod[method] = Object.fromEntries(Object.entries(source).filter(([id, value]) => id.length <= 20 && isValidSubjectScore(value))) as Record<string, number>;
+    const combo = isObj(input.combosByMethod) ? input.combosByMethod[method] : undefined;
+    if (typeof combo === "string" && /^[A-Z]\d{2}$/.test(combo)) combosByMethod[method] = combo;
+  }
+  const annual: NonNullable<StoredProfile["transcriptAnnualScores"]> = {};
+  if (isObj(input.transcriptAnnualScores)) {
+    for (const [id, values] of Object.entries(input.transcriptAnnualScores)) {
+      if (id.length <= 20 && Array.isArray(values) && values.length === 3 && values.every(isValidSubjectScore)) annual[id] = values as [number, number, number];
+    }
+    scoresByMethod.hocba = transcriptScores(annual);
   }
   const methods = Array.isArray(input.methods) ? Array.from(new Set(input.methods.filter(isMethodKey))) : undefined;
   const interestMajorIds = Array.isArray(input.interestMajorIds)
@@ -118,6 +139,10 @@ function sanitizeProfile(input: unknown): StoredProfile | null {
     ...profile,
     combo: input.combo.slice(0, 5),
     scores,
+    scoresByMethod: Object.keys(scoresByMethod).length ? scoresByMethod : undefined,
+    combosByMethod: Object.keys(combosByMethod).length ? combosByMethod : undefined,
+    transcriptAnnualScores: isObj(input.transcriptAnnualScores) ? annual : undefined,
+    admission: computeAdmissionScore(input.admission.rawTotal, profile.priorityRegion, profile.priorityGroup, profile.method ?? "thpt", profile),
     methods: methods?.length ? methods : undefined,
     interestMajorIds: interestMajorIds?.length ? interestMajorIds : undefined,
     ...(perf ? { academicPerformance: perf } : {}),
@@ -143,7 +168,7 @@ export function sanitizeUserData(input: unknown): UserDataInput {
     (w) => w.id,
   ).slice(0, MAX_WISHLIST);
   const profile = sanitizeProfile(src.profile);
-  return { saved, wishlist, profile, goal: sanitizeGoal(src.goal), preferences: sanitizeRecommendationPreferences(src.preferences) };
+  return { saved, wishlist, profile, riasec: sanitizeRiasecResult(src.riasec), goal: sanitizeGoal(src.goal), preferences: sanitizeRecommendationPreferences(src.preferences) };
 }
 
 const newer = <T>(a: T | null, b: T | null, at: (x: T) => string): T | null => {
@@ -170,7 +195,8 @@ export function mergeUserData(server: UserDataInput, local: UserDataInput): User
   for (const w of wishlist) if (!saved.includes(w.id)) saved.push(w.id);
   const goal = newer(server.goal ?? null, local.goal ?? null, (x) => x.updatedAt);
   const preferences = newer(server.preferences ?? null, local.preferences ?? null, (x) => x.updatedAt);
-  return { saved, wishlist, profile, goal, preferences };
+  const riasec = newer(server.riasec ?? null, local.riasec ?? null, (x) => x.completedAt);
+  return { saved, wishlist, profile, riasec, goal, preferences };
 }
 
 async function onlyExistingPrograms(data: UserDataInput): Promise<UserDataInput> {

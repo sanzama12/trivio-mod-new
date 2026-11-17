@@ -1,0 +1,634 @@
+.form {
+  min-width: 0;
+  padding: clamp(24px, 3vw, 38px);
+  border: 1px solid #d8e4e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgb(25 65 62 / .08);
+  color: #243c43;
+  color-scheme: light;
+  scroll-margin-top: 96px;
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding-bottom: 23px;
+  border-bottom: 1px solid #e4ebea;
+}
+
+.headingIcon {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #fceee9;
+  color: #bd6652;
+}
+
+.headingIcon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.headingLabel {
+  color: #268070;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.heading h2 {
+  margin-top: 3px;
+  color: #17343b;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.heading p {
+  margin-top: 5px;
+  color: #688087;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.controls {
+  display: grid;
+  min-width: 0;
+}
+
+.step {
+  min-width: 0;
+  padding-top: 22px;
+}
+
+.step + .step {
+  margin-top: 22px;
+  border-top: 1px solid #e8efed;
+}
+
+.step legend {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  color: #1d3b42;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.step legend span {
+  color: #2a8977;
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+
+.step legend small {
+  color: #798a8e;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.amounts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 15px;
+}
+
+.amounts button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  min-height: 68px;
+  padding: 10px 13px;
+  border: 1px solid #dce7e4;
+  border-radius: 7px;
+  background: #fff;
+  color: #263f46;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+.amounts button strong {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.amounts button small {
+  margin-top: 3px;
+  color: #758990;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.amounts button:hover {
+  border-color: #78ac9e;
+}
+
+.amounts button[aria-pressed="true"] {
+  border-color: #20816f;
+  background: #eff8f5;
+  box-shadow: inset 0 0 0 1px #20816f;
+}
+
+.amounts button[aria-pressed="true"] strong {
+  color: #176d60;
+}
+
+.customAmount {
+  margin-top: 15px;
+}
+
+.customAmount label,
+.nameHeading > label,
+.messageField label {
+  display: block;
+  margin-bottom: 8px;
+  color: #315058;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.amountInput {
+  position: relative;
+}
+
+.amountInput input {
+  padding-right: 62px;
+}
+
+.amountInput > span {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  transform: translateY(-50%);
+  color: #638078;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hint {
+  margin-top: 7px;
+  color: #71858b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 15px;
+}
+
+.method {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.method input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.method > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 83px;
+  padding: 9px 5px;
+  border: 1px solid #dce7e4;
+  border-radius: 7px;
+  background: #fff;
+  text-align: center;
+}
+
+.method svg {
+  width: 21px;
+  height: 21px;
+  color: #5a777c;
+}
+
+.method strong {
+  color: #36525a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.method small {
+  color: #859499;
+  font-size: 10px;
+}
+
+.method input:checked + span {
+  border-color: #20816f;
+  background: #eff8f5;
+  box-shadow: inset 0 0 0 1px #20816f;
+}
+
+.method input:checked + span svg,
+.method input:checked + span strong {
+  color: #176d60;
+}
+
+.method input:disabled + span {
+  background: #f6f8f7;
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.method input:focus-visible + span {
+  outline: 2px solid #20816f;
+  outline-offset: 3px;
+}
+
+.nameHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-top: 15px;
+}
+
+.nameHeading > label {
+  margin-bottom: 6px;
+}
+
+.anonymous {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  color: #506b72;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.anonymous input {
+  width: 16px;
+  height: 16px;
+  accent-color: #20816f;
+}
+
+.form input:not([type="radio"]):not([type="checkbox"]),
+.form textarea {
+  width: 100%;
+  border: 1px solid #d3e1dd;
+  border-radius: 7px;
+  background: #fff;
+  color: #1b3840;
+  font-size: 13px;
+}
+
+.form input:not([type="radio"]):not([type="checkbox"]) {
+  min-height: 44px;
+}
+
+.form textarea {
+  min-height: 72px;
+  padding: 11px 13px;
+  resize: vertical;
+}
+
+.form input::placeholder,
+.form textarea::placeholder {
+  color: #91a1a5;
+}
+
+.form input:focus,
+.form textarea:focus {
+  border-color: #20816f;
+  outline-color: #20816f;
+  box-shadow: 0 0 0 3px #d9efe7;
+}
+
+.form input:disabled {
+  background: #f4f7f6;
+  color: #73898e;
+  cursor: not-allowed;
+}
+
+.messageField {
+  margin-top: 15px;
+}
+
+.actions {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #e4ebea;
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 15px;
+}
+
+.total span {
+  color: #607880;
+  font-size: 13px;
+}
+
+.total strong {
+  color: #173c3d;
+  font-size: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.notice,
+.error {
+  margin-bottom: 15px;
+  padding: 12px 14px;
+  border: 1px solid #f1d8b9;
+  border-radius: 6px;
+  background: #fff8ed;
+  color: #815b31;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.notice a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.error {
+  border-color: #f0c6ca;
+  background: #fff4f5;
+  color: #a23c4b;
+}
+
+.submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-height: 51px;
+  padding: 13px 18px;
+  border-radius: 7px;
+  background: #167666;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color .15s ease, transform .15s ease;
+}
+
+.submit svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+
+.submit:hover:enabled {
+  background: #0f5f54;
+  transform: translateY(-1px);
+}
+
+.submit:disabled {
+  background: #d4dfdc;
+  color: #678078;
+  cursor: not-allowed;
+}
+
+.secure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 17px;
+  color: #71858b;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.secure svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.history {
+  display: block;
+  width: fit-content;
+  margin: 12px auto 0;
+  color: #176d60;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.history:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.payment {
+  display: grid;
+  justify-items: stretch;
+  gap: 16px;
+  padding-top: 21px;
+}
+
+.paymentState {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 7px 10px;
+  border-radius: 4px;
+  background: #f8f2e8;
+  color: #855b24;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.paymentState[data-status="success"] {
+  background: #e8f7ee;
+  color: #17734e;
+}
+
+.paymentState[data-status="failed"],
+.paymentState[data-status="cancelled"] {
+  background: #fff0f0;
+  color: #a94549;
+}
+
+.stateDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.qrFrame {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 9px;
+  border: 1px solid #e1e9e6;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.qrFrame img {
+  display: block;
+  width: 280px;
+  max-width: 100%;
+  height: auto;
+}
+
+.qrHelp {
+  max-width: 390px;
+  margin-inline: auto;
+  color: #5e757b;
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.bankDetails {
+  border-top: 1px solid #e4ebea;
+}
+
+.bankDetails > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding-block: 11px;
+  border-bottom: 1px solid #e4ebea;
+}
+
+.bankDetails dt {
+  color: #637b82;
+  font-size: 12px;
+}
+
+.bankDetails dd {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  max-width: 62%;
+  color: #24454d;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.bankDetails dd button {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+  margin-top: -3px;
+  border: 1px solid #d5e4de;
+  border-radius: 4px;
+  color: #176d60;
+}
+
+.bankDetails dd button:hover {
+  background: #eff8f5;
+}
+
+.bankDetails dd button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.transferReference {
+  flex-direction: column;
+}
+
+.bankDetails .transferReference dd {
+  max-width: 100%;
+  width: 100%;
+  justify-content: space-between;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-align: left;
+  user-select: all;
+}
+
+.changePayment {
+  min-height: 44px;
+  border: 1px solid #d3e1dd;
+  border-radius: 7px;
+  color: #176d60;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.changePayment:hover {
+  background: #eff8f5;
+}
+
+.success {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 17px;
+  border: 1px solid #b8e2ca;
+  border-radius: 7px;
+  background: #f0faf4;
+  color: #176943;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.success svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.form button:focus-visible,
+.form a:focus-visible {
+  outline: 2px solid #20816f;
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .form {
+    padding: 22px 18px;
+  }
+
+  .amounts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .amounts button strong {
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .amounts button,
+  .submit {
+    transition: none;
+  }
+}

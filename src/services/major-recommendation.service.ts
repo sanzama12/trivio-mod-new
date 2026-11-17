@@ -1,6 +1,10 @@
 import 'server-only';
 
-import type { Major, MajorGroup, Subject } from '@/domain/types';
+import type { Major, MajorGroup, RiasecResult } from '@/domain/types';
+import type { ContentView } from '@/domain/browsing';
+import { sanitizeRiasec, matchMajor } from './riasec.service';
+import { buildBrowsingAffinities, browsingBoost } from './behavior-recommendation';
+import { riasecForMajor } from './major-mapping.service';
 import { RIASEC_INFO } from '@/domain/riasec';
 import { matchesQuery } from '@/lib/text';
 import { repositories } from '@database/repositories';
@@ -12,6 +16,8 @@ export interface MajorRecommendationInput {
   interestIds?: string[];
   behaviorProgramIds: string[];
   query?: string;
+  riasec?: Pick<RiasecResult, 'percents' | 'code'> | null;
+  contentViews?: ContentView[];
 }
 
 export interface MajorRecommendation {
@@ -61,6 +67,8 @@ export const majorRecommendationService = {
     const groupMap = new Map(groups.map((group) => [group.id, group]));
     const subjectMap = new Map(subjects.map((subject) => [subject.id, subject]));
     const comboMap = new Map(combos.map((combo) => [combo.code, combo.subjects]));
+    const riasec = sanitizeRiasec(input.riasec);
+    const browsing = buildBrowsingAffinities(input.contentViews ?? [], majors, programs);
     const programsByMajor = new Map<string, typeof programs>();
     const behaviorMajorCounts = new Map<string, number>();
     const behaviorGroupCounts = new Map<string, number>();
@@ -85,11 +93,20 @@ export const majorRecommendationService = {
     const subjectName = (id: string) => subjectMap.get(id)?.short ?? subjectMap.get(id)?.name ?? id;
 
     return majors
-      .map((major): MajorRecommendation | null => {
+      .map((major): (MajorRecommendation & { rankingScore: number }) | null => {
         const group = groupMap.get(major.groupId);
         if (!group) return null;
         let score = 0;
         const reasons: string[] = [];
+        const majorInterests = riasecForMajor(major);
+
+        if (riasec && majorInterests.length) {
+          const interestScore = matchMajor(riasec, { riasec: majorInterests });
+          score += interestScore * 0.7;
+          reasons.push(major.riasec.length
+            ? `Chỉ số sở thích RIASEC ${interestScore}/100 theo kết quả của bạn`
+            : `Chỉ số sở thích RIASEC ${interestScore}/100, tham chiếu nhóm ngành ${group.name}`);
+        }
 
         if (query && matchesQuery(query, major.name, major.code, major.summary, major.description)) {
           score += 50;
@@ -149,23 +166,35 @@ export const majorRecommendationService = {
           reasons.push('Cùng lĩnh vực với các lựa chọn đã lưu');
         }
 
+        const viewedMajorWeight = browsing.majorWeights.get(major.id) ?? 0;
+        const viewedGroupWeight = browsing.groupWeights.get(major.groupId) ?? 0;
+        if (viewedMajorWeight > 0) {
+          score += browsingBoost(viewedMajorWeight);
+          reasons.push('Liên quan đến ngành, chương trình hoặc trường bạn thường xem gần đây');
+        } else if (viewedGroupWeight > 0) {
+          score += browsingBoost(viewedGroupWeight, 12);
+          reasons.push(`Cùng lĩnh vực ${group.name} bạn thường tìm hiểu`);
+        }
+
         if (!score) return null;
         const career = careerMap.get(major.id);
-        const riasec = major.riasec.map((type) => RIASEC_INFO[type].label.toLowerCase()).join(', ');
+        const interestLabels = majorInterests.map((type) => RIASEC_INFO[type].label.toLowerCase()).join(', ');
         return {
           major,
           group,
           score: Math.min(100, score),
-          reasons: reasons.slice(0, 3),
+          rankingScore: score,
+          reasons,
           knowledge: career?.knowledge || major.description || major.summary,
-          careerOrientation: career?.careerOrientation || `Định hướng phù hợp với môi trường công việc thiên về ${riasec}.`,
+          careerOrientation: career?.careerOrientation || (interestLabels ? `Định hướng phù hợp với môi trường công việc thiên về ${interestLabels}.` : major.summary),
           careers: career?.careers ?? [],
           schoolCount: stats.schoolCountByMajor?.[major.id] ?? 0,
           programCount: stats.programCountByMajor[major.id] ?? 0,
         };
       })
-      .filter((item): item is MajorRecommendation => item !== null)
-      .sort((a, b) => b.score - a.score || b.programCount - a.programCount || a.major.name.localeCompare(b.major.name, 'vi'))
-      .slice(0, Math.max(1, Math.min(limit, 12)));
+      .filter((item): item is MajorRecommendation & { rankingScore: number } => item !== null)
+      .sort((a, b) => b.rankingScore - a.rankingScore || b.programCount - a.programCount || a.major.name.localeCompare(b.major.name, 'vi'))
+      .slice(0, Math.max(1, Math.min(limit, 12)))
+      .map(({ rankingScore, ...item }) => ({ ...item, score: Math.round(item.score) }));
   },
 };

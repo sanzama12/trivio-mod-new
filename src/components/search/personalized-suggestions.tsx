@@ -5,74 +5,112 @@ import { useEffect, useMemo, useState } from "react";
 import { LuArrowRight, LuHeart, LuLoaderCircle, LuSparkles } from "react-icons/lu";
 import type { MajorRecommendation } from "@/services/major-recommendation.service";
 import { useTrovio } from "@/stores/trovio-store";
+import { useBrowsingHistory } from "@/lib/browsing-history";
 import { buttonClass } from "@/components/ui/button";
 
-export function PersonalizedSuggestions({ query }: { query?: string }) {
+export function PersonalizedSuggestions({ query, limit = 4 }: { query?: string; limit?: number }) {
   const store = useTrovio();
+  const browsing = useBrowsingHistory();
   const [items, setItems] = useState<MajorRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   const strongSubjectIds = useMemo(() => {
-    if (store.preferences?.strongSubjectIds.length) return store.preferences.strongSubjectIds;
+    if (store.preferences?.strongSubjectIds?.length) return store.preferences.strongSubjectIds;
     return Object.entries(store.profile?.scores ?? {})
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([id]) => id);
+      .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id);
   }, [store.preferences?.strongSubjectIds, store.profile?.scores]);
-  const groupIds = store.preferences?.groupIds.length ? store.preferences.groupIds : (store.profile?.groupIds ?? []);
-  const interestMajorIds = store.preferences?.interestMajorIds.length ? store.preferences.interestMajorIds : (store.profile?.interestMajorIds ?? []);
-  const interestIds = useMemo(() => store.preferences?.interestIds ?? [], [store.preferences?.interestIds]);
+  const groupIds = store.preferences?.groupIds?.length ? store.preferences.groupIds : (store.profile?.groupIds ?? []);
+  const interestMajorIds = store.preferences?.interestMajorIds?.length ? store.preferences.interestMajorIds : (store.profile?.interestMajorIds ?? []);
+  const interestIds = store.preferences?.interestIds ?? [];
   const useSavedBehavior = store.preferences?.useSavedBehavior ?? false;
   const behaviorProgramIds = useSavedBehavior ? Array.from(new Set([...store.saved, ...store.wishlist.map((item) => item.id)])) : [];
-  const requestKey = JSON.stringify([query, groupIds, interestMajorIds, interestIds, strongSubjectIds, useSavedBehavior, behaviorProgramIds]);
-  const hasSignal = Boolean(query?.trim() || groupIds.length || interestMajorIds.length || interestIds.length || strongSubjectIds.length || behaviorProgramIds.length);
+  const hasSignal = Boolean(store.riasec || query?.trim() || groupIds.length || interestMajorIds.length || interestIds.length || strongSubjectIds.length || behaviorProgramIds.length || browsing.views.length);
+  const requestBody = JSON.stringify({
+    query, groupIds, interestMajorIds, interestIds, strongSubjectIds, useSavedBehavior, behaviorProgramIds,
+    riasec: store.riasec, useBrowsingBehavior: browsing.enabled, contentViews: browsing.views, limit,
+  });
 
   useEffect(() => {
     if (!store.hydrated || !hasSignal) {
       setItems([]);
+      setLoading(false);
+      setFailed(false);
       return;
     }
     const controller = new AbortController();
     setLoading(true);
+    setFailed(false);
     fetch("/api/major-recommendations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, groupIds, interestMajorIds, interestIds, strongSubjectIds, useSavedBehavior, behaviorProgramIds, limit: 4 }),
-      signal: controller.signal,
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: requestBody, signal: controller.signal,
     })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
-      .then((data: { items?: MajorRecommendation[] }) => setItems(Array.isArray(data.items) ? data.items : []))
-      .catch((error: unknown) => { if ((error as { name?: string }).name !== "AbortError") setItems([]); })
+      .then((data: { items?: MajorRecommendation[] }) => {
+        if (!controller.signal.aborted) setItems(Array.isArray(data.items) ? data.items : []);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) { setItems([]); setFailed(true); }
+      })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-    // requestKey represents the complete, serialized recommendation input.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.hydrated, hasSignal, requestKey]);
+  }, [store.hydrated, hasSignal, requestBody, retry]);
 
-  const changeBehaviorConsent = (enabled: boolean) => {
+  const changeSavedBehavior = (enabled: boolean) => {
     store.setRecommendationPreferences({
-      groupIds,
-      interestMajorIds,
-      strongSubjectIds,
-      ...(interestIds.length ? { interestIds } : {}),
-      useSavedBehavior: enabled,
-      updatedAt: new Date().toISOString(),
+      ...store.preferences,
+      groupIds, interestMajorIds, strongSubjectIds, interestIds,
+      useSavedBehavior: enabled, updatedAt: new Date().toISOString(),
     });
   };
 
-  if (!store.hydrated || !hasSignal) return null;
+  if (!store.hydrated) return null;
 
-  return <section className="mt-6 rounded-2xl border border-primary-200 bg-primary-50/70 p-4 sm:p-5" aria-busy={loading}>
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><p className="flex items-center gap-2 text-sm font-semibold text-primary-800"><LuSparkles /> Gợi ý thêm cho bạn</p><p className="mt-1 text-xs text-slate-600">Kết hợp từ khóa đang tìm, ngành quan tâm và các môn có điểm cao trong hồ sơ.</p></div>
-      <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={useSavedBehavior} disabled={!store.saved.length && !store.wishlist.length} onChange={(event) => changeBehaviorConsent(event.target.checked)} className="size-4 accent-primary-700" /> Dùng mục đã lưu</label>
-    </div>
-    {loading ? <p className="mt-4 flex items-center gap-2 text-sm text-slate-600"><LuLoaderCircle className="animate-spin" /> Đang phân tích kết quả liên quan…</p> : items.length ? <div className="mt-4 grid gap-3 md:grid-cols-2">
-      {items.map((item) => <article key={item.major.id} className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex items-start gap-3"><span className="rounded-full bg-accent-100 px-2 py-1 text-xs font-semibold text-accent-800">{item.score}%</span><div className="min-w-0"><h3 className="font-bold text-slate-950">{item.major.name}</h3><p className="text-xs text-primary-700">{item.group.name}</p></div></div>
-        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-600 max-w-prose">{item.reasons.join(" · ")}</p>
-        <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => store.toggleInterestedMajor(item.major.id)} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600"><LuHeart className={store.isInterestedMajor(item.major.id) ? "fill-current" : ""} /> Quan tâm</button><Link href={`/nganh/${item.major.slug}`} className="text-xs font-semibold text-primary-700">Xem ngành</Link><Link href={`/truong?major=${encodeURIComponent(item.major.id)}`} className={buttonClass({ size: "sm", className: "ml-auto" })}>Tìm trường <LuArrowRight /></Link></div>
-      </article>)}
-    </div> : <p className="mt-4 text-sm text-slate-600">Chưa có gợi ý mở rộng phù hợp với từ khóa và hồ sơ hiện tại.</p>}
-  </section>;
+  // Chỉ ẩn giao diện; giữ component được gắn để logic cá nhân hóa tiếp tục chạy.
+  return (
+    <section hidden className="mt-6 rounded-2xl border border-primary-200 bg-primary-50/60 p-4 sm:p-6" aria-label="Ngành phù hợp với bạn" aria-busy={loading}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-primary-900"><LuSparkles aria-hidden />Ngành phù hợp với bạn</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">Kết hợp kết quả RIASEC, sở thích và môn thế mạnh. Nội dung liên quan đến những ngành, trường và chương trình bạn xem nhiều sẽ được ưu tiên thêm.</p>
+        </div>
+        <Link href="/trac-nghiem" className="text-sm font-semibold text-primary-700 hover:underline">{store.riasec ? "Xem kết quả RIASEC" : "Làm trắc nghiệm RIASEC"}</Link>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-slate-600">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={useSavedBehavior} onChange={(event) => changeSavedBehavior(event.target.checked)} className="size-4 accent-primary-700" />Dùng mục đã lưu
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={browsing.enabled} disabled={!browsing.allowed} onChange={(event) => browsing.setEnabled(event.target.checked)} className="size-4 accent-primary-700" />Cá nhân hóa theo lượt xem
+        </label>
+        {browsing.views.length > 0 && <button type="button" onClick={browsing.clear} className="font-semibold text-primary-700 hover:underline">Xóa lịch sử gợi ý</button>}
+        {!browsing.allowed && <Link href="/chinh-sach-rieng-tu#cookie" className="underline underline-offset-4">Cho phép dùng lượt xem trong cài đặt quyền riêng tư</Link>}
+      </div>
+      <div aria-live="polite">
+        {loading ? (
+          <p className="mt-5 flex items-center gap-2 text-sm text-slate-600"><LuLoaderCircle className="size-4 animate-spin" aria-hidden />Đang tìm ngành liên quan…</p>
+        ) : failed ? (
+          <p className="mt-5 text-sm text-slate-600">Chưa tải được gợi ý. <button type="button" onClick={() => setRetry((value) => value + 1)} className="font-semibold text-primary-700 underline">Thử lại</button></p>
+        ) : items.length ? (
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {items.map((item) => (
+              <article key={item.major.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5">
+                <p className="text-xs font-semibold text-primary-700">{item.group.name}</p>
+                <h3 className="mt-1 text-lg font-bold text-slate-950"><Link href={`/nganh/${item.major.slug}`} className="hover:text-primary-700">{item.major.name}</Link></h3>
+                <ul className="mt-3 list-disc space-y-1 pl-4 text-sm leading-relaxed text-slate-600">{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                {item.careers.length > 0 && <p className="mt-3 text-sm text-slate-600">Nghề nghiệp tiêu biểu gồm {item.careers.slice(0, 3).join(", ")}.</p>}
+                <div className="mt-auto flex flex-wrap items-center gap-3 pt-5">
+                  <button type="button" aria-pressed={store.isInterestedMajor(item.major.id)} onClick={() => store.toggleInterestedMajor(item.major.id)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700"><LuHeart aria-hidden className={store.isInterestedMajor(item.major.id) ? "fill-current" : ""} />Quan tâm</button>
+                  <Link href={`/truong?majors=${encodeURIComponent(item.major.id)}`} className={buttonClass({ size: "sm", className: "ml-auto" })}>Tìm trường<LuArrowRight className="size-4" aria-hidden /></Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-5 text-sm leading-relaxed text-slate-600">{hasSignal ? "Chưa tìm được ngành phù hợp từ dữ liệu hiện tại. Bạn có thể bổ sung sở thích hoặc môn thế mạnh trong hồ sơ." : "Hoàn thành trắc nghiệm RIASEC hoặc chọn ngành quan tâm để bắt đầu nhận gợi ý."}</p>
+        )}
+      </div>
+    </section>
+  );
 }

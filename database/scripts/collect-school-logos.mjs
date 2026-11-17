@@ -1,41 +1,95 @@
+/** Collect HTTPS logo URLs without saving image files.
+ * node database/scripts/collect-school-logos.mjs [SCHOOL_CODE ...]
+ */
 import fs from 'node:fs/promises';
-import sharp from 'sharp';
-const profiles = JSON.parse(await fs.readFile('scratch/school-profile-candidates.json','utf8'));
-const overrides = JSON.parse(await fs.readFile('database/data/school-logo-overrides.json','utf8'));
-let results = JSON.parse(await fs.readFile('scratch/school-logo-results.json','utf8').catch(()=>'[]'));
-const requested = process.argv.slice(2);
-const queue = profiles.filter(p=>!requested.length || requested.includes(p.code));
-await fs.mkdir('public/images/schools',{recursive:true});
-let next=0;
+
+const websites = JSON.parse(await fs.readFile('database/data/school-websites.json', 'utf8'));
+const overrides = JSON.parse(await fs.readFile('database/data/school-logo-overrides.json', 'utf8'));
+const output = 'database/data/school-logos.json';
+const reportPath = 'scratch/school-logo-results.json';
+const selected = process.argv.slice(2).map(code => code.toUpperCase());
+for (const code of selected) {
+  if (!websites[code]) throw new Error(`Unknown school code: ${code}`);
+}
+const entries = Object.entries(websites).filter(([code]) => !selected.length || selected.includes(code));
+const logos = JSON.parse(await fs.readFile(output, 'utf8').catch(() => '{}'));
+const results = JSON.parse(await fs.readFile(reportPath, 'utf8').catch(() => '[]'));
+await fs.mkdir('scratch', { recursive: true });
+
+const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+const decode = value => value.replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;/g, "'");
+function absolute(value, base) {
+  if (!value) return '';
+  try {
+    const url = new URL(decode(value), base);
+    if (url.protocol === 'http:') url.protocol = 'https:';
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+  } catch { return ''; }
+}
+function attributes(tag) {
+  return Object.fromEntries([...tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)]
+    .map(match => [match[1].toLowerCase(), decode(match[2] ?? match[3] ?? match[4] ?? '')]));
+}
+function candidates(html, base) {
+  const found = [];
+  for (const [position, match] of [...html.matchAll(/<(?:img|link|meta)\b[^>]*>/gi)].entries()) {
+    const a = attributes(match[0]);
+    const isIcon = /^<link/i.test(match[0]) && /(?:^|\s)(?:icon|apple-touch-icon)(?:\s|$)/i.test(a.rel || '');
+    const isMeta = /^<meta/i.test(match[0]) && /^(?:og:image|twitter:image)$/.test(a.property || a.name || '');
+    if (!/^<img/i.test(match[0]) && !isIcon && !isMeta) continue;
+    const src = absolute(isIcon ? a.href : isMeta ? a.content : a['data-original'] || a['data-src'] || a.src, base);
+    const context = normalize(`${src} ${a.alt || ''} ${a.title || ''} ${a.class || ''} ${a.id || ''}`);
+    if (!src || /facebook|zalo|youtube|tiktok|partner|doi[-_ ]tac|doanhnghiep|kiem-dinh|faculty_logos|mess-icon|bo-giao-duc/.test(context)) continue;
+    const score = (isIcon ? 40 : 0) + (/logo/.test(context) ? 100 : 0) + (/header|brand/.test(context) ? 20 : 0)
+      + (position < 30 ? 10 : 0) - (/footer|white|trang|banner/.test(context) ? 15 : 0);
+    if (score >= 40) found.push({ src, score });
+  }
+  return [...new Map(found.sort((a, b) => b.score - a.score).map(item => [item.src, item])).values()];
+}
+async function verify(url) {
+  try {
+    // Inspect headers and cancel the body. No image file is downloaded or written.
+    const response = await fetch(url, { signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Trovio school logo URL collection' } });
+    const type = response.headers.get('content-type') || '';
+    await response.body?.cancel();
+    return response.ok && response.url.startsWith('https://') && /^image\//i.test(type);
+  } catch { return false; }
+}
+let next = 0;
 async function worker() {
-  while(next<queue.length) {
-    const p=queue[next++];
-    const sources=overrides[p.code] ? [{src:overrides[p.code],score:1000}] : [...(p.home?.images||[]),...(p.about?.images||[])];
-    const candidates=[];
-    for (const source of [...new Map(sources.map(s=>[s.src,s])).values()].slice(0,5)) {
-      if (/tiktok|mess-icon|facebook|faculty_logos|doanhnghiep|kiem-dinh|tap-doan/i.test(source.src)) continue;
+  while (next < entries.length) {
+    const [code, website] = entries[next++];
+    let choices = [overrides[code], logos[code]].filter(Boolean).map(src => ({ src }));
+    let error;
+    let url;
+    for (const choice of choices) {
+      if (absolute(choice.src, website) === choice.src && await verify(choice.src)) { url = choice.src; break; }
+    }
+    if (!url) {
       try {
-        const response=await fetch(source.src,{signal:AbortSignal.timeout(15000)});
-        if(!response.ok) continue;
-        const bytes=Buffer.from(await response.arrayBuffer());
-        if(bytes.length>5_000_000) continue;
-        const metadata=await sharp(bytes,{limitInputPixels:25_000_000}).metadata();
-        if(!metadata.width||!metadata.height||Math.min(metadata.width,metadata.height)<24||metadata.width/metadata.height>30) continue;
-        const rank=source.score*100-Math.abs(Math.log(metadata.width/metadata.height));
-        candidates.push({source:source.src,bytes,rank,width:metadata.width,height:metadata.height});
-      }catch{}
+        const response = await fetch(website, {
+          signal: AbortSignal.timeout(20000),
+          headers: { 'User-Agent': 'Trovio school logo URL collection' },
+        });
+        if (!response.ok) throw new Error(`Homepage HTTP ${response.status}`);
+        const html = await response.text();
+        choices = candidates(html, response.url).slice(0, 8);
+        for (const choice of choices) {
+          if (await verify(choice.src)) { url = choice.src; break; }
+        }
+        if (!url) error = 'No working HTTPS logo URL found';
+      } catch (cause) { error = cause.message; }
     }
-    candidates.sort((a,b)=>b.rank-a.rank);
-    let result={code:p.code,error:'No verified downloadable logo candidate'};
-    if(candidates.length) {
-      const best=candidates[0];
-      const file=`public/images/schools/${p.code}.png`;
-      await sharp(best.bytes).rotate().resize({width:600,height:600,fit:'inside',withoutEnlargement:true}).png().toFile(file);
-      result={code:p.code,path:`/images/schools/${p.code}.png`,source:best.source,width:best.width,height:best.height};
-    }
-    const i=results.findIndex(r=>r.code===p.code);if(i>=0)results[i]=result;else results.push(result);
-    console.log(`${p.code}: ${result.error||`${result.width}x${result.height} ${result.source}`}`);
+    const result = { code, website, ...(url ? { url } : { error }), candidates: choices.map(choice => choice.src) };
+    if (url) logos[code] = url;
+    const index = results.findIndex(item => item.code === code);
+    if (index >= 0) results[index] = result; else results.push(result);
+    console.log(`${code}: ${url || error}`);
   }
 }
-await Promise.all(Array.from({length:6},worker));
-await fs.writeFile('scratch/school-logo-results.json',JSON.stringify(results,null,2));
+await Promise.all(Array.from({ length: 8 }, worker));
+await fs.writeFile(output, JSON.stringify(Object.fromEntries(Object.entries(logos).sort(([a], [b]) => a.localeCompare(b))), null, 2) + '\n');
+await fs.writeFile(reportPath, JSON.stringify(results.sort((a, b) => a.code.localeCompare(b.code)), null, 2) + '\n');
+const failed = results.filter(item => entries.some(([code]) => code === item.code) && !item.url);
+console.log(`Verified ${entries.length - failed.length}/${entries.length} school logo URLs. No image files written.`);
+if (failed.length) process.exitCode = 1;

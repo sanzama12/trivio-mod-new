@@ -178,22 +178,24 @@ export function MobileFilterSheet({ open, onClose, filters, combos, subjects, gr
               ))}
             </div>
           </fieldset>
-          <fieldset>
-            <legend className="text-[15px] font-semibold text-slate-900">Loại hình</legend>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button type="button" aria-pressed={!draft.types?.length} className={chip(!draft.types?.length)} onClick={() => applyDraft({ ...draft, types: [] })}>
-                Tất cả
-              </button>
-              {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => {
-                const on = !!draft.types?.includes(t);
-                return (
-                  <button key={t} type="button" aria-pressed={on} className={chip(on)} onClick={() => applyDraft({ ...draft, types: toggle(draft.types, t) })}>
-                    {SCHOOL_TYPE_LABELS[t]}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
+          {resultKind !== "schools" && (
+            <fieldset>
+              <legend className="text-[15px] font-semibold text-slate-900">Loại hình</legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" aria-pressed={!draft.types?.length} className={chip(!draft.types?.length)} onClick={() => applyDraft({ ...draft, types: [] })}>
+                  Tất cả
+                </button>
+                {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => {
+                  const on = !!draft.types?.includes(t);
+                  return (
+                    <button key={t} type="button" aria-pressed={on} className={chip(on)} onClick={() => applyDraft({ ...draft, types: toggle(draft.types, t) })}>
+                      {SCHOOL_TYPE_LABELS[t]}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
         </div>
         <div className="border-t border-slate-100 px-5 py-4">
           <button type="button" className="h-12 w-full rounded-xl bg-primary-600 text-base font-semibold text-white hover:bg-primary-700" onClick={onClose}>

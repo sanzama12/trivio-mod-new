@@ -7,7 +7,7 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "demo": "next build && TROVIO_DEMO=true next start -p 3000",
@@ -16,6 +16,9 @@
     "db:status": "tsx database/scripts/migrate-pg.ts --status",
     "admissions:export": "tsx database/scripts/export-tong-hop.ts",
     "admissions:publish": "tsx database/scripts/publish-catalog.ts",
+    "school-logos:collect": "node database/scripts/collect-school-logos.mjs",
+    "school-logos:check": "node --conditions=react-server --import tsx database/scripts/publish-school-logos.ts --check",
+    "school-logos:publish": "node --conditions=react-server --import tsx database/scripts/publish-school-logos.ts",
     "db:audit": "tsx database/scripts/audit.ts",
     "db:test": "node --conditions=react-server --import tsx --test database/tests/*.test.ts",
     "db:verify": "tsx database/scripts/verify-migrations.ts",
@@ -33,6 +36,7 @@
     "exceljs": "^4.4.0",
     "next": "^16.0.0",
     "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
@@ -41,6 +45,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "dotenv": "^18.0.7",

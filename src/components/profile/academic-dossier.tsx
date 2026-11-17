@@ -157,11 +157,17 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
     // 2. Synchronize / update ScoreProfile
     const activeScore = validEstimatedScore ?? (profile?.admission?.rawTotal ?? null);
     if (activeScore != null) {
-      const computedAdmission = computeAdmissionScore(activeScore, priorityRegion, priorityGroup, method);
+      const computedAdmission = computeAdmissionScore(activeScore, priorityRegion, priorityGroup, method, profile ?? {});
+      const keepDetailedScores = profileMethod(profile) === method && profile?.admission.rawTotal === activeScore;
       setProfile({
+        ...profile,
         method,
         combo: estimatedCombo,
-        scores: profile?.scores ?? {},
+        scores: keepDetailedScores ? profile?.scores ?? {} : {},
+        methods: keepDetailedScores ? profile?.methods : [method],
+        scoresByMethod: keepDetailedScores ? profile?.scoresByMethod : undefined,
+        combosByMethod: keepDetailedScores ? { ...profile?.combosByMethod, [method]: estimatedCombo } : undefined,
+        transcriptAnnualScores: keepDetailedScores ? profile?.transcriptAnnualScores : undefined,
         priorityRegion,
         priorityGroup,
         regions: targetRegions,

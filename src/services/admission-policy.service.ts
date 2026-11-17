@@ -4,6 +4,9 @@
  */
 import type { AdmissionPolicy } from "../domain/admission-policy";
 
+const normalizeSubject = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s_-]+/g, "").trim();
+export const isMathOrLiterature = (value: string) => ["toan", "van", "nguvan"].includes(normalizeSubject(value));
+
 export const OFFICIAL_POLICY_2026: AdmissionPolicy = {
   season: 2026,
   effectiveFrom: "2026-02-15",
@@ -13,14 +16,13 @@ export const OFFICIAL_POLICY_2026: AdmissionPolicy = {
   legalDocumentNumber: "Thông tư số 06/2026/TT-BGDĐT",
   officialSourceUrl: "https://vanban.chinhphu.vn/?classid=1&docid=217071&orggroupid=4&pageid=27160",
   publishedAt: "2026-02-15",
-  accessedAt: "2026-10-11",
+  accessedAt: "2026-11-16",
   maxWishlistItems: 15,
   teacherTrainingAllowedRanks: [1, 5],
   transcriptSemesterCount: 6,
   transcriptMinimumSubjectCount: 3,
   mandatorySubjectsForTranscript: ["Toán", "Ngữ văn", "Toan", "Ngu van", "Văn"],
   mandatorySubjectMinWeightRatio: 1 / 3,
-  transcriptMinimumThptScore: 16.0,
   minimumThptScoreThreshold: 15.0,
   priorityRules: {
     reductionThreshold: 22.5,
@@ -124,8 +126,7 @@ export const admissionPolicyService = {
   getPolicy(season: number = 2026): AdmissionPolicy {
     const policy = POLICIES_REGISTRY[season];
     if (!policy) {
-      // Fallback về 2026 chính thức
-      return OFFICIAL_POLICY_2026;
+      throw new RangeError(`Chưa có quy chế được xác minh cho mùa ${season}.`);
     }
     return policy;
   },
@@ -137,7 +138,7 @@ export const admissionPolicyService = {
   /**
    * Kiểm tra xem policy có đang là chính thức và còn hiệu lực tại ngày khảo sát không.
    */
-  isPolicyEffective(policy: AdmissionPolicy, dateStr: string = "2026-10-11"): boolean {
+  isPolicyEffective(policy: AdmissionPolicy, dateStr: string = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" })): boolean {
     if (policy.status !== "official") return false;
     return dateStr >= policy.effectiveFrom && dateStr <= policy.effectiveTo;
   },
@@ -188,39 +189,36 @@ export const admissionPolicyService = {
     const policy = this.getPolicy(season);
     const reasons: string[] = [];
 
-    if (input.semesterCount < policy.transcriptSemesterCount) {
+    if (!Number.isInteger(input.semesterCount) || input.semesterCount !== policy.transcriptSemesterCount) {
       reasons.push(
         `Phương thức xét học bạ năm ${policy.season} yêu cầu kết quả học tập đủ ${policy.transcriptSemesterCount} học kỳ (lớp 10, 11, 12). Hồ sơ hiện có ${input.semesterCount} học kỳ.`
       );
     }
 
-    if (input.subjects.length < policy.transcriptMinimumSubjectCount) {
+    if (new Set(input.subjects.map(normalizeSubject)).size < policy.transcriptMinimumSubjectCount) {
       reasons.push(
         `Tổ hợp xét học bạ phải có ít nhất ${policy.transcriptMinimumSubjectCount} môn học.`
       );
     }
 
-    const hasMandatorySubject = input.subjects.some((s) =>
-      policy.mandatorySubjectsForTranscript.some((m) => s.toLowerCase().includes(m.toLowerCase()))
-    );
+    const hasMandatorySubject = input.subjects.some(isMathOrLiterature);
 
     if (!hasMandatorySubject) {
       reasons.push(
         `Tổ hợp xét học bạ theo quy chế ${policy.season} bắt buộc phải có môn Toán hoặc Ngữ văn.`
       );
-    } else if (input.mathOrLiteratureWeight < policy.mandatorySubjectMinWeightRatio - 0.01) {
+    } else if (!Number.isFinite(input.mathOrLiteratureWeight) || input.mathOrLiteratureWeight < policy.mandatorySubjectMinWeightRatio) {
       reasons.push(
         `Môn Toán hoặc Ngữ văn phải chiếm tối thiểu 1/3 tổng trọng số (xấp xỉ 33.3%) tính điểm xét tuyển theo thang điểm 30.`
       );
     }
 
     if (
-      policy.transcriptMinimumThptScore != null &&
       input.thptScore != null &&
-      input.thptScore < policy.transcriptMinimumThptScore
+      (!Number.isFinite(input.thptScore) || input.thptScore < 0 || input.thptScore > 30)
     ) {
       reasons.push(
-        `Tổng điểm 3 môn thi tốt nghiệp THPT theo tổ hợp xét tuyển phải đạt tối thiểu ${policy.transcriptMinimumThptScore} điểm theo quy chế.`
+        "Tổng điểm thi THPT phải là số từ 0 đến 30. Ngưỡng nguồn tuyển được kiểm tra riêng theo năm tốt nghiệp và diện ngoại lệ."
       );
     }
 
@@ -238,19 +236,31 @@ export const admissionPolicyService = {
     group: "none" | "UT1" | "UT2",
     rawTotal: number,
     scale: number = 30,
-    season: number = 2026
+    season: number = 2026,
+    graduationYear?: number,
   ): {
     rawPriority: number;
     appliedPriority: number;
     isReduced: boolean;
     reductionThreshold: number;
   } {
-    const policy = this.getPolicy(season);
-    const regPoints = policy.priorityRules.regions[region]?.points ?? 0;
-    const grpPoints = policy.priorityRules.groups[group]?.points ?? 0;
-    const rawPriority = Math.round((regPoints + grpPoints) * 100) / 100;
+    const policy = this.getOfficialPolicy(season);
+    if (!Number.isFinite(scale) || scale <= 0 || !Number.isFinite(rawTotal) || rawTotal < 0 || rawTotal > scale) {
+      throw new RangeError("Điểm phải nằm trong thang điểm xét tuyển hợp lệ.");
+    }
+    if (!Object.hasOwn(policy.priorityRules.regions, region) || !Object.hasOwn(policy.priorityRules.groups, group)) {
+      throw new RangeError("Khu vực hoặc đối tượng ưu tiên không hợp lệ.");
+    }
+    if (graduationYear !== undefined && (!Number.isInteger(graduationYear) || graduationYear < 1900 || graduationYear > season)) {
+      throw new RangeError("Năm tốt nghiệp không hợp lệ với mùa tuyển sinh.");
+    }
+    // Chưa biết năm tốt nghiệp thì không tự cấp ưu tiên khu vực.
+    const regionEligible = graduationYear !== undefined && season - graduationYear <= 1;
+    const regPoints = regionEligible ? policy.priorityRules.regions[region].points : 0;
+    const grpPoints = policy.priorityRules.groups[group].points;
 
     const factor = scale / 30;
+    const rawPriority = Math.round((regPoints + grpPoints) * factor * 100) / 100;
     const threshold = policy.priorityRules.reductionThreshold * factor;
 
     if (rawTotal < threshold) {
@@ -321,14 +331,15 @@ export function validateTranscriptRule(
   const subjects = input.subjects || [];
   let mathOrLitWeight = 0;
   if (input.subjectWeights) {
-    const totalWeight = Object.values(input.subjectWeights).reduce((a, b) => a + b, 0) || 1;
-    const targetKeys = ["toan", "toán", "van", "văn", "ngu van", "ngữ văn"];
-    const mathOrLitWeightVal = Object.entries(input.subjectWeights)
-      .filter(([k]) => targetKeys.some((t) => k.toLowerCase().includes(t)))
-      .reduce((sum, [, w]) => sum + w, 0);
-    mathOrLitWeight = mathOrLitWeightVal / totalWeight;
+    const weights = subjects.map(subject => input.subjectWeights![subject]);
+    if (weights.some(weight => !Number.isFinite(weight) || weight <= 0)) {
+      return { valid: false, message: "Trọng số từng môn phải là số dương hợp lệ." };
+    }
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    // Một môn Toán HOẶC Văn phải đạt 1/3, không cộng trọng số hai môn để lách ngưỡng.
+    mathOrLitWeight = Math.max(0, ...subjects.filter(isMathOrLiterature).map(subject => input.subjectWeights![subject] / totalWeight));
   } else {
-    mathOrLitWeight = 1 / 3;
+    mathOrLitWeight = subjects.some(isMathOrLiterature) ? 1 / new Set(subjects).size : 0;
   }
 
   const res = admissionPolicyService.validateTranscriptMethod(
@@ -365,7 +376,7 @@ export function validateAdmissionScoreThreshold(
   season: number = 2026
 ): { valid: boolean; message?: string } {
   const policy = admissionPolicyService.getPolicy(season);
-  if (score < policy.minimumThptScoreThreshold) {
+  if (!Number.isFinite(score) || score < policy.minimumThptScoreThreshold || score > 30) {
     return {
       valid: false,
       message: `Ngưỡng điểm đầu vào từ điểm thi tốt nghiệp THPT phải đạt tối thiểu ${policy.minimumThptScoreThreshold}/30 điểm theo quy chế mùa ${policy.season}.`,

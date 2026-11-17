@@ -52,8 +52,8 @@ export default async function ProgramDetailPage({ params }: Props) {
   return (
     <div className="container-page py-8">
       <UsageBeacon kind="program_view" id={program.id} />
-      <UsageBeacon kind="school_view" id={school.id} />
-      <UsageBeacon kind="major_view" id={major.id} />
+      <UsageBeacon kind="school_view" id={school.id} personalize={false} />
+      <UsageBeacon kind="major_view" id={major.id} personalize={false} />
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: "/" },

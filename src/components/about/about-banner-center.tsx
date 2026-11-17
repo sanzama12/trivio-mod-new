@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import { LuChevronLeft, LuChevronRight, LuPause, LuPlay } from "react-icons/lu";
 import styles from "./about-animations.module.css";
 import { cn } from "@/lib/cn";
 import { LogoMark } from "@/components/layout/logo";
@@ -15,20 +15,28 @@ const heroImages = [
 
 export function AboutBannerCenter() {
   const [active, setActive] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [interacting, setInteracting] = useState(false);
 
   useEffect(() => {
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!playing || interacting || motion.matches) return;
     const timer = window.setInterval(() => {
       setActive((current) => (current + 1) % heroImages.length);
-    }, 4500);
+    }, 6500);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [playing, interacting]);
 
   const move = (step: number) => {
     setActive((current) => (current + step + heroImages.length) % heroImages.length);
   };
 
   return (
-    <section className={styles.aboutKeyVisual} aria-labelledby="about-key-title">
+    <section className={styles.aboutKeyVisual} aria-labelledby="about-key-title"
+      aria-roledescription="carousel"
+      onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)}
+      onFocusCapture={() => setInteracting(true)}
+      onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
       <div className={styles.aboutPhotoFrame}>
         {heroImages.map((image, index) => (
           <div
@@ -40,7 +48,8 @@ export function AboutBannerCenter() {
               src={image.src}
               alt={index === active ? image.alt : ""}
               fill
-              sizes="(max-width: 768px) 100vw, 86vw"
+              sizes="(max-width: 1280px) 100vw, 1184px"
+              quality={90}
               className={styles.aboutPhoto}
               priority={index === 0}
             />
@@ -55,12 +64,6 @@ export function AboutBannerCenter() {
             <h1 id="about-key-title">Trovio</h1>
           </div>
         </div>
-
-        <svg className={styles.aboutBirds} viewBox="0 0 230 120" fill="none" aria-hidden>
-          <path d="M10 72c32-30 58-25 80 5 17-20 39-24 66-8" />
-          <path d="M75 30c22-21 43-18 59 4 15-16 33-18 54-5" />
-          <path d="M144 89c16-15 31-13 44 3 11-12 23-13 36-4" />
-        </svg>
 
         <div className={styles.aboutSliderControls}>
           <button type="button" onClick={() => move(-1)} aria-label="Ảnh trước">
@@ -80,6 +83,11 @@ export function AboutBannerCenter() {
           </div>
           <button type="button" onClick={() => move(1)} aria-label="Ảnh tiếp theo">
             <LuChevronRight aria-hidden />
+          </button>
+          <span className={styles.aboutSlideCount} aria-hidden>{String(active + 1).padStart(2, "0")} / 03</span>
+          <button type="button" onClick={() => setPlaying(value => !value)}
+            aria-label={playing ? "Tạm dừng chuyển ảnh" : "Tiếp tục chuyển ảnh"} aria-pressed={!playing}>
+            {playing ? <LuPause aria-hidden /> : <LuPlay aria-hidden />}
           </button>
         </div>
       </div>

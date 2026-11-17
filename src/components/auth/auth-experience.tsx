@@ -4,7 +4,7 @@ import { buttonClass } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
-import { LuArrowLeft, LuArrowRight, LuCheck, LuShieldCheck, LuSparkles } from "react-icons/lu";
+import { LuArrowLeft, LuArrowRight, LuCheck, LuSparkles } from "react-icons/lu";
 import { Logo } from "@/components/layout/logo";
 import { Input, Label, FieldError, Checkbox } from "@/components/ui/field";
 import { emailError } from "@/lib/email-validation";
@@ -107,7 +107,6 @@ export function AuthExperience({ next, error, demo, initialMode = "login" }: { n
           </fieldset>
         </form>
         <p className={styles.switchHint}>{register ? "Đã có tài khoản?" : "Bạn mới đến Trovio?"} <button type="button" disabled={loading} onClick={() => switchMode(register ? "login" : "register")}>{register ? "Đăng nhập" : "Đăng ký miễn phí"}</button></p>
-        <p className={styles.privacy}><LuShieldCheck aria-hidden /> Chỉ cần email. Không hỏi số điện thoại.</p>
         {demo && <details className={styles.demo}><summary>Dùng thử với tài khoản demo</summary><p>Mật khẩu: Trovio@2026<br />Học sinh: an@trovio.vn<br />Quản trị: admin@trovio.vn<br />Bị khóa: binh.locked@trovio.vn</p></details>}
       </section>
     </div>

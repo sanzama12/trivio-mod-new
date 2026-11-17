@@ -1,22 +1,90 @@
 import type { RiasecResult, RiasecType } from "../domain/types";
 import { RIASEC_ORDER } from "../domain/riasec";
+import { RIASEC_ASSESSMENT_VERSION, RIASEC_QUESTIONS, RIASEC_SCORING_VERSION } from "../domain/riasec-questions";
+
 export const RIASEC_TYPES = RIASEC_ORDER;
 export type QuizAnswers = Record<string, number>;
-export function matchMajor(r: any, m: { riasec: RiasecType[] }): number {
-  if (!r) return 50;
-  const code: string[] = r.code ?? [];
-  let s = 0;
-  m.riasec.forEach((t, i) => { const idx = code.indexOf(t); if (idx >= 0) s += 3 - idx + (3 - i) * 0.5; });
-  return Math.max(0, Math.min(100, Math.round(40 + s * 8)));
+type InterestProfile = Pick<RiasecResult, "percents" | "code">;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+const rank = (percents: Record<RiasecType, number>) =>
+  [...RIASEC_ORDER].sort((a, b) => percents[b] - percents[a]);
+
+/** Relative interest index, weighted by the major's ordered RIASEC tags. */
+export function matchMajor(result: InterestProfile | null | undefined, major: { riasec: RiasecType[] }): number {
+  if (!result || !major.riasec.length) return 50;
+  const types = [...new Set(major.riasec)].filter((type) => RIASEC_ORDER.includes(type)).slice(0, 3);
+  if (!types.length) return 50;
+  let total = 0;
+  let weights = 0;
+  types.forEach((type, index) => {
+    const weight = 3 - index;
+    total += result.percents[type] * weight;
+    weights += weight;
+  });
+  return Math.round(total / weights);
 }
-export function sanitizeRiasec(v: unknown): Pick<RiasecResult, "percents" | "code"> | null {
-  if (!v || typeof v !== "object") return null;
-  const o = v as any;
-  if (!Array.isArray(o.code)) return null;
-  return o as any;
+
+export function sanitizeRiasec(value: unknown): InterestProfile | null {
+  if (!isRecord(value) || !isRecord(value.percents)) return null;
+  const percents = {} as Record<RiasecType, number>;
+  for (const type of RIASEC_ORDER) {
+    const score = value.percents[type];
+    if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 100) return null;
+    percents[type] = Math.round(score * 100) / 100;
+  }
+  const ranking = rank(percents);
+  return { percents, code: ranking.slice(0, 3) as InterestProfile["code"] };
 }
-export function sanitizeRiasecResult(v: unknown): RiasecResult | null { return (v as RiasecResult) ?? null; }
-export function scoreAnswers(_a: QuizAnswers): null { return null; }
-export const riasecService = {
-  async recommendMajors(_r: Pick<RiasecResult, "percents" | "code">, _n = 3): Promise<never[]> { return []; },
-};
+
+function describeProfile(percents: Record<RiasecType, number>) {
+  const values = Object.values(percents);
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const differentiation = Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length);
+  const ranking = rank(percents);
+  return {
+    ranking,
+    differentiation: Math.round(differentiation * 100) / 100,
+    isFlatProfile: differentiation < 8,
+    tiedDimensions: ranking.filter((type) => percents[ranking[0]] - percents[type] <= 2),
+  };
+}
+
+export function sanitizeRiasecResult(value: unknown): RiasecResult | null {
+  const profile = sanitizeRiasec(value);
+  if (!profile || !isRecord(value) || typeof value.completedAt !== "string" || !Number.isFinite(Date.parse(value.completedAt))) return null;
+  const answered = value.answered;
+  const count = value.questionCount ?? answered;
+  if (typeof answered !== "number" || !Number.isInteger(answered) || answered < 6 || answered > 300 || count !== answered) return null;
+  return {
+    ...profile,
+    ...describeProfile(profile.percents),
+    completedAt: new Date(value.completedAt).toISOString(),
+    answered,
+    questionCount: answered,
+    assessmentVersion: typeof value.assessmentVersion === "string" ? value.assessmentVersion.slice(0, 100) : "legacy",
+    scoringModelVersion: typeof value.scoringModelVersion === "string" ? value.scoringModelVersion.slice(0, 100) : "legacy",
+  };
+}
+
+/** Ten items per type, rated 0–4, yield raw scores 0–40 and a 0–100 scale. */
+export function scoreAnswers(answers: QuizAnswers): RiasecResult | null {
+  const totals: Record<RiasecType, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+  for (const question of RIASEC_QUESTIONS) {
+    const value = answers[question.id];
+    if (!Number.isInteger(value) || value < 0 || value > 4) return null;
+    totals[question.type] += value;
+  }
+  const percents = Object.fromEntries(RIASEC_ORDER.map((type) => [type, totals[type] * 2.5])) as Record<RiasecType, number>;
+  const description = describeProfile(percents);
+  return {
+    percents,
+    ...description,
+    code: description.ranking.slice(0, 3) as RiasecResult["code"],
+    completedAt: new Date().toISOString(),
+    answered: RIASEC_QUESTIONS.length,
+    questionCount: RIASEC_QUESTIONS.length,
+    assessmentVersion: RIASEC_ASSESSMENT_VERSION,
+    scoringModelVersion: RIASEC_SCORING_VERSION,
+  };
+}

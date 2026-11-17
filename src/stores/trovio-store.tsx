@@ -9,7 +9,8 @@
  * - Đăng xuất / hết phiên: xoá bản sao dữ liệu tài khoản khỏi trình duyệt (giữ danh sách so sánh).
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Goal, RecommendationPreferences, StoredProfile, UserData, WishlistItem } from "@/domain/types";
+import type { Goal, RecommendationPreferences, RiasecResult, StoredProfile, UserData, WishlistItem } from "@/domain/types";
+import { sanitizeRiasecResult } from "@/services/riasec.service";
 import { track, trackUsage } from "@/lib/track";
 import { useToast } from "@/components/ui/toast";
 
@@ -37,6 +38,7 @@ interface State {
   wishlist: WishlistItem[];
   compare: string[];
   profile: StoredProfile | null;
+  riasec: RiasecResult | null;
   /** Mục tiêu đặt qua hội thoại. */
   goal: Goal | null;
   preferences: RecommendationPreferences | null;
@@ -46,7 +48,7 @@ interface State {
   owner: string | null;
 }
 
-const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, goal: null, preferences: null, owner: null };
+const initialState: State = { saved: [], wishlist: [], compare: [], profile: null, riasec: null, goal: null, preferences: null, owner: null };
 
 interface Store extends Omit<State, "owner"> {
   hydrated: boolean;
@@ -65,6 +67,7 @@ interface Store extends Omit<State, "owner"> {
   toggleCompare: (id: string) => "added" | "removed" | "full";
   clearCompare: () => void;
   setProfile: (profile: StoredProfile | null) => void;
+  setRiasec: (result: RiasecResult | null) => void;
   setGoal: (goal: Goal | null) => void;
   setRecommendationPreferences: (preferences: RecommendationPreferences) => void;
   isInterestedMajor: (id: string) => boolean;
@@ -93,6 +96,7 @@ function load(): State {
     return {
       ...initialState,
       profile: s.profile ?? null,
+      riasec: sanitizeRiasecResult(s.riasec),
       owner: s.owner ?? null,
       saved: Array.isArray(s.saved) ? s.saved : [],
       wishlist: Array.isArray(s.wishlist) ? s.wishlist : [],
@@ -105,9 +109,9 @@ function load(): State {
   }
 }
 
-const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, goal: s.goal, preferences: s.preferences });
+const syncedPart = (s: State) => ({ saved: s.saved, wishlist: s.wishlist, profile: s.profile, riasec: s.riasec, goal: s.goal, preferences: s.preferences });
 const hasGuestData = (s: State) =>
-  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || !!s.goal || !!s.preferences;
+  s.saved.length > 0 || s.wishlist.length > 0 || !!s.profile || !!s.riasec || !!s.goal || !!s.preferences;
 
 function takeIntent(): PendingIntent | null {
   try {
@@ -179,7 +183,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       syncedFor.current = null;
       inflight.current = null;
       setSync("guest");
-      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, goal: null, preferences: null, owner: null }));
+      if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, riasec: null, goal: null, preferences: null, owner: null }));
       return;
     }
     if (syncedFor.current === uid || inflight.current === uid) return;
@@ -203,6 +207,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
           saved: data.saved,
           wishlist: data.wishlist,
           profile: data.profile,
+          riasec: sanitizeRiasecResult(data.riasec),
           goal: data.goal ?? null,
           preferences: data.preferences ?? null,
           owner: uid,
@@ -230,7 +235,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         .catch(() => setSync("error"));
     }, 600);
     return () => clearTimeout(t);
-  }, [uid, state.saved, state.wishlist, state.profile, state.goal, state.preferences, state.owner]);
+  }, [uid, state.saved, state.wishlist, state.profile, state.riasec, state.goal, state.preferences, state.owner]);
 
   useEffect(() => {
     const flush = () => {
@@ -248,6 +253,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       wishlist: state.wishlist,
       compare: state.compare,
       profile: state.profile,
+      riasec: state.riasec,
       goal: state.goal,
       preferences: state.preferences,
       hydrated,
@@ -309,6 +315,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
       },
       clearCompare: () => update((s) => ({ ...s, compare: [] })),
       setProfile: (profile) => update((s) => ({ ...s, profile })),
+      setRiasec: (result) => update((s) => ({ ...s, riasec: sanitizeRiasecResult(result) })),
       setGoal: (goal) => update((s) => ({ ...s, goal })),
       setRecommendationPreferences: (preferences) => update((s) => ({ ...s, preferences })),
       isInterestedMajor: (id) => state.preferences?.interestMajorIds.includes(id) ?? false,
@@ -319,6 +326,7 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         update((s) => ({
           ...s,
           preferences: {
+            ...s.preferences,
             groupIds: s.preferences?.groupIds ?? s.profile?.groupIds ?? [],
             strongSubjectIds: s.preferences?.strongSubjectIds ?? [],
             useSavedBehavior: s.preferences?.useSavedBehavior ?? false,

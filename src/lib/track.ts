@@ -46,9 +46,11 @@ export function setTrackingOptOut(off: boolean) {
       window.localStorage.setItem(OPT_OUT_KEY, "1");
       window.localStorage.removeItem(ANON_KEY);
       window.localStorage.removeItem(SENT_KEY);
+      window.localStorage.removeItem("trovio:content-views:v1");
     } else {
       window.localStorage.removeItem(OPT_OUT_KEY);
     }
+    window.dispatchEvent(new Event("trovio:consent-changed"));
   } catch {
     /* storage bị chặn: không lưu được lựa chọn, nhưng khi storage bị chặn cũng không gửi gì */
   }

@@ -7,7 +7,30 @@ import type { PublicUser } from "../../src/domain/types";
 
 const commands: string[]=[];
 const fakeClient={ query: async(sql:string)=>{commands.push(sql);return {rows:[]};}, release:()=>commands.push('RELEASE') };
-global.__pgPool={connect:async()=>fakeClient} as unknown as Pool;
+const fakePool={connect:async()=>fakeClient} as unknown as Pool;
+global.__pgPool=fakePool;
+
+test('connection errors never replay an ambiguous database write', async()=>{
+  let attempts=0;
+  const originalNodeEnv=process.env.NODE_ENV;
+  process.env.NODE_ENV='test';
+  global.__pgPool={
+    query:async()=>{
+      attempts++;
+      throw new Error('Connection terminated unexpectedly');
+    },
+  } as unknown as Pool;
+  try {
+    await assert.rejects(
+      query('INSERT INTO trovio.usage_events(day,kind,entity_id,anon_id) VALUES (current_date,$1,$2,$3)', ['search','it','anonymous']),
+      /Connection terminated/,
+    );
+    assert.equal(attempts,1);
+  } finally {
+    global.__pgPool=fakePool;
+    process.env.NODE_ENV=originalNodeEnv;
+  }
+});
 
 test('nested repository writes share one transaction; failed workflow rolls back', async()=>{
   commands.length=0;

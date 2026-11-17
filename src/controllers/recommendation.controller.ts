@@ -15,10 +15,12 @@ import {
 import { majorRecommendationService } from "../services/major-recommendation.service";
 import { getCurrentUser } from "../lib/auth";
 import { jsonBody } from "../lib/http";
+import { sanitizeRiasec } from "../services/riasec.service";
+import { sanitizeContentViews } from "../domain/browsing";
 
 export class RecommendationController {
   static async getMajorRecommendations(req: Request): Promise<Response> {
-    const { body, error } = await jsonBody(req, 16 * 1024);
+    const { body, error } = await jsonBody(req, 48 * 1024);
     if (error) return error;
     const source = body ?? {};
     const ids = (value: unknown, max: number) =>
@@ -33,6 +35,8 @@ export class RecommendationController {
         strongSubjectIds: ids(source.strongSubjectIds, 12),
         interestIds: ids(source.interestIds, 20),
         behaviorProgramIds: useSavedBehavior ? ids(source.behaviorProgramIds, 200) : [],
+        riasec: sanitizeRiasec(source.riasec),
+        contentViews: source.useBrowsingBehavior === true ? sanitizeContentViews(source.contentViews) : [],
         query: typeof source.query === "string" ? source.query.trim().slice(0, 100) : undefined,
       },
       typeof source.limit === "number" && Number.isInteger(source.limit) ? source.limit : 8,
@@ -95,6 +99,7 @@ export class RecommendationController {
         province: user?.province ?? null,
         goalMajorId,
         focus,
+        riasec: sanitizeRiasec(b.riasec),
       },
       limit,
     );

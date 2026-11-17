@@ -269,6 +269,14 @@ export interface ScoreProfile {
   combo: string;
   /** Điểm từng môn (thang 10). Dùng để tính tổ hợp mạnh, không chỉ 3 môn của một tổ hợp. */
   scores: Record<string, number>;
+  /** Mùa quy chế dùng để tính; hồ sơ nhập mới hiện hỗ trợ mùa 2026. */
+  admissionSeason?: number;
+  graduationYear?: number;
+  /** Điểm THPT và học bạ tách riêng; không dùng điểm của phương thức này cho phương thức khác. */
+  scoresByMethod?: Partial<Record<AdmissionMethodKey, Record<string, number>>>;
+  combosByMethod?: Partial<Record<AdmissionMethodKey, string>>;
+  /** Điểm trung bình CẢ NĂM lớp 10, 11, 12, theo đúng học bạ. */
+  transcriptAnnualScores?: Record<string, [number, number, number]>;
   priorityRegion: PriorityRegion;
   priorityGroup: PriorityGroup;
   regions: Region[];
@@ -369,6 +377,7 @@ export interface UserData {
   saved: string[];
   wishlist: WishlistItem[];
   profile: StoredProfile | null;
+  riasec?: RiasecResult | null;
   /** Mục tiêu đặt qua hội thoại (/muc-tieu); thiếu = chưa đặt. */
   goal?: Goal | null;
   /** Sở thích và môn thế mạnh do học sinh chủ động cung cấp cho bộ gợi ý ngành. */

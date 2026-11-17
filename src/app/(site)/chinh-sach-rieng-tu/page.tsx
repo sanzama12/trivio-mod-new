@@ -9,7 +9,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Chính sách riêng tư"
-      updated="29/09/2026"
+      updated="16/11/2026"
       sections={[
         { id: "gioi-thieu", title: "Giới thiệu chung", body: <p>Trovio cam kết bảo vệ quyền riêng tư của học sinh và phụ huynh. Chính sách này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân khi bạn dùng nền tảng.</p> },
         {
@@ -20,7 +20,8 @@ export default function PrivacyPage() {
               <li><strong>Thông tin tài khoản:</strong> họ tên, email; nếu đăng nhập bằng Google thì thêm ảnh đại diện và mã định danh Google (chỉ quyền openid, email, profile). Chúng tôi không thu thập số điện thoại, ngày sinh hay số CCCD.</li>
               <li><strong>Hồ sơ tuỳ chọn:</strong> vai trò (học sinh/phụ huynh), năm tốt nghiệp THPT, tỉnh/thành; xác nhận độ tuổi và sự đồng ý của phụ huynh với người dùng dưới 16 tuổi.</li>
               <li><strong>Dữ liệu học tập & điểm số:</strong> điểm thi dự kiến, tổ hợp môn, khu vực ưu tiên bạn nhập.</li>
-              <li><strong>Sở thích nghề nghiệp:</strong> lĩnh vực, ngành quan tâm và môn học thế mạnh do bạn chủ động chọn. Nếu bạn bật “Dùng lựa chọn đã lưu”, hệ thống chỉ dùng mã chương trình bạn đã lưu hoặc thêm vào nguyện vọng để điều chỉnh gợi ý; không đọc lịch sử duyệt web, nội dung tìm kiếm hoặc dữ liệu mạng xã hội.</li>
+              <li><strong>Sở thích nghề nghiệp:</strong> kết quả trắc nghiệm RIASEC, lĩnh vực, ngành quan tâm và môn học thế mạnh do bạn cung cấp. Kết quả hoàn thành được lưu trên trình duyệt, đồng bộ vào tài khoản khi đăng nhập. Các chương trình đã lưu và nguyện vọng được dùng để điều chỉnh gợi ý khi bạn bật “Dùng mục đã lưu”.</li>
+              <li><strong>Cá nhân hóa theo lượt xem:</strong> khi bạn cho phép, Trovio lưu mã ngành, trường hoặc chương trình đã xem, số lượt và thời điểm xem trong trình duyệt tối đa 90 ngày. Các mã này được gửi tới bộ gợi ý của Trovio để ưu tiên nội dung liên quan, với trọng số giảm dần theo thời gian. Bạn có thể tắt hoặc xóa lịch sử gợi ý ngay trong khung “Ngành phù hợp với bạn”. Tính năng tuân theo Do Not Track, Global Privacy Control và lựa chọn quyền riêng tư của bạn.</li>
               <li><strong>Chia sẻ với phụ huynh (khi bạn chủ động tạo link):</strong> người có link xem được tên (không có email) và danh sách nguyện vọng; điểm và ghi chú chỉ hiện nếu bạn cho phép. Link có hạn 7 hoặc 30 ngày và thu hồi được bất cứ lúc nào. Góp ý người xem gửi (tên tự điền, nội dung) chỉ bạn đọc được.</li>
               <li><strong>Trợ lý hỏi đáp:</strong> nhật ký cải thiện chất lượng được lưu ẩn danh và tự che email, số điện thoại. Lịch sử để bạn xem lại được lưu cục bộ khi chưa đăng nhập hoặc lưu riêng theo tài khoản khi đã đăng nhập; bạn có thể xoá từng cuộc trò chuyện. Đừng nhập thông tin cá nhân vào khung chat.</li>
               <li><strong>Thông báo trong tài khoản:</strong> câu trả lời hỏi đáp, xét tuyển bổ sung và bản sửa dữ liệu từ trường được lưu theo tài khoản.</li>

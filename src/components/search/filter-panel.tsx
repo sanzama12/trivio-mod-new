@@ -268,17 +268,19 @@ export function FilterPanel({ filters, combos, subjects, groups, resultKind = "p
           </fieldset>
         </div>
 
-        {/* 6. Loại hình trường */}
-        <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-paper-50 p-3">
-          <fieldset>
-            <legend className="mb-3 text-sm font-semibold text-slate-700">Loại hình trường</legend>
-            <div className="space-y-2.5">
-              {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => (
-                <Checkbox key={t} label={SCHOOL_TYPE_LABELS[t]} checked={draft.types?.includes(t) ?? false} onChange={() => apply({ types: toggle(draftRef.current.types, t) })} />
-              ))}
-            </div>
-          </fieldset>
-        </div>
+        {/* 6. Loại hình trường (Đã có ở banner tìm trường bên trên, ẩn khi xem danh sách trường) */}
+        {resultKind !== "schools" && (
+          <div className="min-w-0 flex-1 basis-[180px] rounded-lg border border-slate-200 bg-paper-50 p-3">
+            <fieldset>
+              <legend className="mb-3 text-sm font-semibold text-slate-700">Loại hình trường</legend>
+              <div className="space-y-2.5">
+                {(Object.keys(SCHOOL_TYPE_LABELS) as SchoolType[]).map((t) => (
+                  <Checkbox key={t} label={SCHOOL_TYPE_LABELS[t]} checked={draft.types?.includes(t) ?? false} onChange={() => apply({ types: toggle(draftRef.current.types, t) })} />
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
       </div>
     </aside>
   );

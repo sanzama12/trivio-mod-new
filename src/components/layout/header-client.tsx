@@ -23,6 +23,7 @@ const NAV = [
   { href: "/diem-cua-toi", label: "Nhập điểm", match: ["/diem-cua-toi"] },
   { href: "/truong", label: "Tìm trường", match: ["/truong"] },
   { href: "/nganh", label: "Tìm ngành", match: ["/nganh"] },
+  { href: "/trac-nghiem", label: "Trắc nghiệm RIASEC", match: ["/trac-nghiem"] },
   { href: "/so-sanh", label: "So sánh", match: ["/so-sanh"] },
   { href: "/gioi-thieu", label: "Giới thiệu", match: ["/gioi-thieu"] },
   { href: "/lien-he", label: "Liên hệ", match: ["/lien-he"] },

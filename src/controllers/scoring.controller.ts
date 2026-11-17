@@ -24,7 +24,15 @@ export class ScoringController {
     if (error) return error;
     const b = body ?? {};
 
-    const rawTotal = typeof b.rawTotal === "number" ? b.rawTotal : 0;
+    if (typeof b.rawTotal !== "number" || !Number.isFinite(b.rawTotal) || b.rawTotal < 0 || b.rawTotal > 30 ||
+        (b.method !== undefined && !isMethodKey(b.method)) ||
+        (b.region !== undefined && (typeof b.region !== "string" || !["KV1", "KV2-NT", "KV2", "KV3"].includes(b.region))) ||
+        (b.group !== undefined && (typeof b.group !== "string" || !["none", "UT1", "UT2"].includes(b.group))) ||
+        (b.season !== undefined && b.season !== 2026) ||
+        (b.graduationYear !== undefined && (typeof b.graduationYear !== "number" || !Number.isInteger(b.graduationYear) || b.graduationYear < 1900 || b.graduationYear > 2026))) {
+      return NextResponse.json({ ok: false, error: "Điểm phải từ 0 đến 30; phương thức, khu vực, đối tượng và năm tốt nghiệp phải hợp lệ cho mùa 2026." }, { status: 400 });
+    }
+    const rawTotal = b.rawTotal;
     const region: PriorityRegion =
       typeof b.region === "string" && ["KV1", "KV2-NT", "KV2", "KV3"].includes(b.region)
         ? (b.region as PriorityRegion)
@@ -35,8 +43,11 @@ export class ScoringController {
         : "none";
     const method = isMethodKey(b.method) ? b.method : "thpt";
 
-    const admission = computeAdmissionScore(rawTotal, region, group, method);
-    return NextResponse.json({ ok: true, admission });
+    if (region !== "KV3" && b.graduationYear === undefined) {
+      return NextResponse.json({ ok: false, error: "Cần năm tốt nghiệp để kiểm tra thời hạn ưu tiên khu vực." }, { status: 400 });
+    }
+    const admission = computeAdmissionScore(rawTotal, region, group, method, { admissionSeason: 2026, graduationYear: typeof b.graduationYear === "number" ? b.graduationYear : undefined });
+    return NextResponse.json({ ok: true, admission, season: 2026, referenceOnly: true });
   }
 
   /**
@@ -54,7 +65,7 @@ export class ScoringController {
       return NextResponse.json({ ok: false, error: "Thiếu điểm chứng chỉ" }, { status: 400 });
     }
     const score = typeof rawScore === "number" ? rawScore : parseFloat(String(rawScore));
-    if (isNaN(score)) {
+    if (!Number.isFinite(score) || (typeof rawScore === "string" && !/^\d+(?:\.\d+)?$/.test(rawScore.trim()))) {
       return NextResponse.json({ ok: false, error: "Điểm chứng chỉ không hợp lệ" }, { status: 400 });
     }
     const institutionId = typeof b.institutionId === "string" ? b.institutionId.trim() : undefined;
@@ -119,12 +130,13 @@ export class ScoringController {
     const mainSubject = typeof b.mainSubject === "string" ? b.mainSubject : undefined;
     const scale = b.scale === 40 ? 40 : 30;
 
-    if (!combo || !Array.isArray(combo.subjects) || combo.subjects.length < 3) {
-      return NextResponse.json({ ok: false, error: "Tổ hợp môn không hợp lệ (cần ít nhất 3 môn)" }, { status: 400 });
+    if (!combo || !Array.isArray(combo.subjects) || combo.subjects.length !== 3 || combo.subjects.some(subject => typeof subject !== "string") || new Set(combo.subjects).size !== 3) {
+      return NextResponse.json({ ok: false, error: "Cần đúng 3 môn khác nhau trong tổ hợp" }, { status: 400 });
     }
 
     const total = computeWeightedComboTotal(scores, combo, mainSubject, scale);
-    return NextResponse.json({ ok: true, total, scale, mainSubject });
+    if (total === null) return NextResponse.json({ ok: false, error: "Điểm từng môn hoặc môn nhân hệ số không hợp lệ" }, { status: 400 });
+    return NextResponse.json({ ok: true, total, scale, mainSubject, referenceOnly: true });
   }
 
   /**

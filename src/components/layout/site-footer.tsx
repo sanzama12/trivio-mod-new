@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LuMail, LuPhone } from "react-icons/lu";
 import { siteContact } from "@/lib/site-contact";
 import { Logo } from "./logo";
+import { TurningBook } from "./turning-book";
 
 const cols = [
   {
@@ -34,7 +35,9 @@ const cols = [
 export function SiteFooter() {
   return (
     <footer data-site-footer className="bg-slate-900 pb-24 text-slate-400">
-      <div className="container-page grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.2fr]">
+      <div className="relative isolate overflow-hidden">
+        <TurningBook />
+      <div className="container-page relative z-10 grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.2fr]">
         <div>
           <Logo tone="white" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed">
@@ -66,6 +69,7 @@ export function SiteFooter() {
 
           </ul>
         </div>
+      </div>
       </div>
       <div className="border-t border-slate-800 py-6 text-center text-xs text-slate-400">
         <div className="container-page flex flex-col items-center justify-between gap-4 sm:flex-row">

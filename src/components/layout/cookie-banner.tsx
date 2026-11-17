@@ -33,7 +33,7 @@ export function CookieBanner() {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-elevated">
         <p className="text-xs font-semibold tracking-wide text-primary-600">Quyền riêng tư &amp; cài đặt</p>
         <p className="mt-2 text-sm text-slate-700">
-          Trovio dùng cookie cần thiết để giữ đăng nhập, và (nếu bạn đồng ý) thống kê lượt dùng <b>ẩn danh</b> để biết người dùng gặp khó ở bước nào. Bấm “Chấp nhận” nghĩa là bạn đồng ý với{" "}
+          Trovio dùng cookie cần thiết để giữ đăng nhập. Khi bạn đồng ý, Trovio thống kê lượt dùng <b>ẩn danh</b> và dùng lượt xem ngành, trường, chương trình để cá nhân hóa gợi ý. Bấm “Chấp nhận” nghĩa là bạn đồng ý với{" "}
           <Link href="/chinh-sach-rieng-tu" className="font-semibold text-primary-700 underline">
             chính sách riêng tư
           </Link>
@@ -45,7 +45,7 @@ export function CookieBanner() {
               <input type="checkbox" checked disabled className="mt-0.5 size-4" /> Cookie cần thiết (đăng nhập, bảo mật) — luôn bật
             </label>
             <label className="flex items-start gap-2 text-slate-800">
-              <input type="checkbox" className="mt-0.5 size-4 accent-primary-600" checked={analytics} onChange={(e) => setAnalytics(e.target.checked)} /> Thống kê hành vi ẩn danh (không gắn với tài khoản)
+              <input type="checkbox" className="mt-0.5 size-4 accent-primary-600" checked={analytics} onChange={(e) => setAnalytics(e.target.checked)} /> Thống kê ẩn danh và cá nhân hóa theo lượt xem
             </label>
           </div>
         )}

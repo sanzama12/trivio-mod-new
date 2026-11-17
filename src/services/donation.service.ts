@@ -1,7 +1,10 @@
 import { repositories, type DonationRecord, type DonationStats } from "@database/repositories";
-import { buildVnpayPaymentUrl, isVnpayConfigured, verifyVnpayCallback } from "./vnpay.service";
+import { buildVnpayPaymentUrl, verifyVnpayCallback } from "./vnpay.service";
 import { randomUUID } from "node:crypto";
 import { emailError } from "@/lib/email-validation";
+import QRCode from "qrcode";
+import type { DonationPayment, DonationPaymentMethod } from "@/domain/donation";
+import { buildTransferQr, getDonationPaymentAvailability, getTransferConfig, isDonationPaymentMethod } from "./donation-payment.service";
 
 export interface CreateDonationInput {
   amount: number;
@@ -9,14 +12,10 @@ export interface CreateDonationInput {
   donorEmail?: string;
   message?: string;
   bankCode?: string;
+  method?: DonationPaymentMethod;
 }
 
-export interface CreateDonationResult {
-  donationId: string;
-  txnRef: string;
-  paymentUrl: string;
-  amount: number;
-}
+export type CreateDonationResult = DonationPayment;
 
 export class DonationValidationError extends Error {
   constructor(message: string) {
@@ -53,7 +52,7 @@ export const donationService = {
     userId?: string | null
   ): Promise<CreateDonationResult> {
     const rawAmount = Number(input.amount);
-    if (!Number.isFinite(rawAmount) || rawAmount < 10000) {
+    if (!Number.isSafeInteger(rawAmount) || rawAmount < 10000) {
       throw new DonationValidationError("Số tiền ủng hộ tối thiểu là 10.000 VNĐ.");
     }
     if (rawAmount > 100000000) {
@@ -83,12 +82,22 @@ export const donationService = {
     }
 
     // Tạo mã tham chiếu giao dịch độc nhất: TROVIO_TIME_RANDOM
-    if (!isVnpayConfigured()) throw new DonationUnavailableError("Cổng thanh toán đang chờ cấu hình. Vui lòng liên hệ đội ngũ Trovio.");
+    const method = input.method ?? "vnpay";
+    if (!isDonationPaymentMethod(method)) throw new DonationValidationError("Phương thức thanh toán không hợp lệ.");
+    if (!getDonationPaymentAvailability()[method]) throw new DonationUnavailableError("Phương thức này đang chờ cấu hình nhận tiền. Vui lòng chọn phương thức khác hoặc liên hệ đội ngũ.");
     if (input.bankCode && !["VNPAYQR", "VNBANK", "INTCARD"].includes(input.bankCode)) {
       throw new DonationValidationError("Phương thức thanh toán không hợp lệ.");
     }
-    const txnRef = `TROVIO_${randomUUID().replaceAll("-", "")}`;
+    const prefix = method === "vnpay" ? "TROVIO_" : method === "sepay" ? "TROVIOSEPAY" : "TROVIOQR";
+    const txnRef = `${prefix}${randomUUID().replaceAll("-", "").toUpperCase()}`;
     const orderInfo = `Ung ho Trovio ${txnRef}`;
+
+    const paymentUrl = method === "vnpay" ? buildVnpayPaymentUrl({
+      txnRef, amount, orderInfo, ipAddress: clientIp, bankCode: input.bankCode,
+    }) : "";
+    const payment = method === "vnpay"
+      ? { qrImageUrl: await QRCode.toDataURL(paymentUrl, { width: 320, margin: 4, errorCorrectionLevel: "M" }) }
+      : buildTransferQr(method, amount, txnRef);
 
     // Lưu bản ghi trạng thái pending vào cơ sở dữ liệu
     const donation = await repositories.donations.create({
@@ -102,21 +111,37 @@ export const donationService = {
       userId: userId ?? null,
     });
 
-    // Tạo link thanh toán VNPay 2.1.0
-    const paymentUrl = buildVnpayPaymentUrl({
-      txnRef,
-      amount,
-      orderInfo,
-      ipAddress: clientIp,
-      bankCode: input.bankCode,
-    });
-
     return {
       donationId: donation.id,
       txnRef,
       paymentUrl,
       amount,
+      method,
+      ...payment,
     };
+  },
+
+  async processSepayWebhook(payload: Record<string, unknown>): Promise<void> {
+    if (payload.transferType !== "in") return;
+    const transactionId = payload.id;
+    const amount = Number(payload.transferAmount);
+    if ((!Number.isSafeInteger(transactionId) && typeof transactionId !== "string") || !transactionId || !Number.isSafeInteger(amount) || amount <= 0) {
+      throw new DonationValidationError("Giao dịch SePay không hợp lệ.");
+    }
+    const content = `${typeof payload.code === "string" ? payload.code : ""} ${typeof payload.content === "string" ? payload.content : ""}`;
+    const refs = [...new Set(content.toUpperCase().match(/TROVIO(?:SEPAY|QR)[A-F0-9]{32}(?![A-Z0-9])/g))];
+    if (refs.length !== 1) return;
+    const txnRef = refs[0];
+    const config = getTransferConfig(txnRef.startsWith("TROVIOSEPAY") ? "sepay" : "qr");
+    if (!config || String(payload.accountNumber ?? "") !== config.accountNumber) {
+      throw new DonationValidationError("Tài khoản nhận tiền không khớp.");
+    }
+    const existing = await repositories.donations.getByTxnRef(txnRef);
+    if (!existing) return;
+    if (existing.amount !== amount) throw new DonationValidationError("Số tiền không khớp với giao dịch.");
+    if (existing.status !== "pending") return;
+    await repositories.donations.confirmBankTransfer(txnRef, amount, `SEPAY_${transactionId}`, config.bankName);
+    invalidateDonationCache();
   },
 
   /**

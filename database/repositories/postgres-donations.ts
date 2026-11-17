@@ -1,4 +1,4 @@
-import { query } from "@database/client";
+import { query, withTransaction } from "@database/client";
 
 export interface DonationRecord {
   id: string;
@@ -55,6 +55,20 @@ const cols = `
 `;
 
 export const postgresDonationsRepository = {
+  async confirmBankTransfer(txnRef: string, amount: number, transactionNo: string, bankCode: string): Promise<DonationRecord | null> {
+    return withTransaction(async (client) => {
+      // Serialize retries of the same provider transaction before checking for reuse.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [transactionNo]);
+      const result = await client.query<DonationRecord>(`UPDATE trovio.donations
+        SET status = 'success', vnp_transaction_no = $3, vnp_bank_code = $4,
+            vnp_response_code = '00', paid_at = now()
+        WHERE vnp_txn_ref = $1 AND amount = $2 AND status = 'pending'
+          AND NOT EXISTS (SELECT 1 FROM trovio.donations WHERE vnp_transaction_no = $3)
+        RETURNING ${cols}`, [txnRef, amount, transactionNo, bankCode]);
+      return result.rows[0] ?? null;
+    });
+  },
+
   async create(data: {
     donorName: string;
     donorEmail?: string | null;

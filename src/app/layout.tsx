@@ -1,15 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
+import { Be_Vietnam_Pro, Playfair_Display } from "next/font/google";
 import { Suspense, type ReactNode } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { Providers } from "./providers";
 import { NavProgress } from "@/components/layout/nav-progress";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { FooterFrame } from "@/components/layout/footer-frame";
 import "./globals.css";
 
 const font = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-be-vietnam",
+  display: "swap",
+});
+
+const serifFont = Playfair_Display({
+  subsets: ["latin", "vietnamese"],
+  weight: ["600", "700", "800"],
+  variable: "--font-serif",
   display: "swap",
 });
 
@@ -28,12 +37,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const user = await getCurrentUser();
   const session = user ? { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl } : null;
   return (
-    <html lang="vi" className={font.variable} data-scroll-behavior="smooth">
+    <html lang="vi" className={`${font.variable} ${serifFont.variable}`} data-scroll-behavior="smooth">
       <body>
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
-        <Providers user={session}>{children}</Providers>
+        <Providers user={session}>
+          {children}
+          <FooterFrame><SiteFooter /></FooterFrame>
+        </Providers>
       </body>
     </html>
   );

@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { donationService, DonationUnavailableError, DonationValidationError } from "@/services/donation.service";
 import { getCurrentUser, requireAdmin } from "@/lib/auth";
 import { clientIp } from "@/lib/http";
+import { isDonationPaymentMethod } from "@/services/donation-payment.service";
 
 export class DonationController {
   /**
@@ -15,6 +16,12 @@ export class DonationController {
   static async createDonation(req: NextRequest): Promise<Response> {
     try {
       const body = await req.json().catch(() => ({}));
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return NextResponse.json({ ok: false, message: "Thông tin đóng góp không hợp lệ." }, { status: 400 });
+      }
+      if (body?.method !== undefined && !isDonationPaymentMethod(body.method)) {
+        return NextResponse.json({ ok: false, message: "Phương thức thanh toán không hợp lệ." }, { status: 400 });
+      }
       const ip = clientIp(req);
       const user = await getCurrentUser().catch(() => null);
 
@@ -25,6 +32,7 @@ export class DonationController {
           donorEmail: typeof body.donorEmail === "string" ? body.donorEmail : undefined,
           message: typeof body.message === "string" ? body.message : undefined,
           bankCode: typeof body.bankCode === "string" ? body.bankCode : undefined,
+          method: isDonationPaymentMethod(body?.method) ? body.method : undefined,
         },
         ip,
         user?.id ?? null

@@ -17,7 +17,7 @@ import { repositories } from "@database/repositories";
 import { hasTuitionData } from "../lib/format";
 import { normalizeVi } from "../lib/text";
 import { ADMISSION_METHODS, cutoffFor, formatMethodScore } from "./scoring.service";
-import { matchMajor, riasecService, sanitizeRiasec } from "./riasec.service";
+import { matchMajor, sanitizeRiasec } from "./riasec.service";
 import { polishWithLlm } from "./chatbot-llm";
 import { majorRecommendationService } from "./major-recommendation.service";
 import { userDataService } from "./user-data.service";

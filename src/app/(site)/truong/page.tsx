@@ -9,6 +9,8 @@ import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
 import { buttonClass } from "@/components/ui/button";
 import { FilterPanel } from "@/components/search/filter-panel";
 import { SchoolCard } from "@/components/school/school-card";
+import { SchoolHeroBanner } from "@/components/school/school-hero-banner";
+import { PersonalizedSuggestions } from "@/components/search/personalized-suggestions";
 import { OpenCompareButton } from "@/components/program/program-actions";
 
 export const metadata: Metadata = { title: "Tìm trường" };
@@ -30,43 +32,16 @@ export default async function SchoolsPage({ searchParams }: Props) {
   return (
     <div className="bg-paper-50">
       <UsageBeacon key={filters.q ?? ""} kind="search" active={!!filters.q} />
-    <div className="container-page min-w-0 py-6 md:py-10">
+    <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 min-w-0 py-6 md:py-8">
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Tìm trường" }]} />
-      <section className="relative isolate mt-4 overflow-hidden rounded-3xl bg-slate-950">
-        <Image
-          src="https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2000&q=75"
-          alt="Sân trường đại học mùa tuyển sinh"
-          fill
-          sizes="(max-width: 1024px) 100vw, 1280px"
-          className="object-cover opacity-55"
-        />
-        <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/65 to-primary-900/30" />
-        <div className="relative px-5 py-8 sm:px-8 sm:py-10">
-          <p className="inline-flex bg-accent-500 px-3 py-1 text-xs font-black tracking-wide text-slate-950 uppercase">Sổ tuyển sinh</p>
-          <h1 className="mt-4 max-w-3xl text-3xl leading-tight font-black tracking-tight text-white md:text-5xl">Tìm trường phù hợp với bạn</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 md:text-base">Lọc theo điểm, tổ hợp, học phí và khu vực. Chọn trường để xem giới thiệu và các ngành đào tạo.</p>
-        </div>
-      </section>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <SchoolHeroBanner filters={filters} groups={groups} totalSchools={result.total} />
+      <PersonalizedSuggestions query={filters.q} />
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm break-words text-slate-600">
-          Tìm thấy <strong className="text-slate-900">{result.total}</strong> trường phù hợp
+          Tìm thấy <strong className="font-bold text-slate-900">{result.total}</strong> trường phù hợp
         </p>
         <OpenCompareButton />
-      </div>
-      <div className="mt-5 min-w-0">
-        <form action="/truong" role="search" className="mx-auto flex w-full min-w-0 max-w-lg flex-col gap-2 rounded-xl border-2 border-slate-900 bg-white p-2">
-          {Object.entries({ ...filters, q: undefined, page: undefined }).map(([k, v]) =>
-            v == null || (Array.isArray(v) && v.length === 0) ? null : <input key={k} type="hidden" name={k} value={Array.isArray(v) ? v.join(",") : String(v)} />,
-          )}
-          <div className="flex min-w-0 items-center gap-1">
-            <LuSearch className="ml-2 size-4 shrink-0 text-slate-400" aria-hidden />
-            <label htmlFor="s-q" className="sr-only">
-              Từ khoá
-            </label>
-            <input id="s-q" name="q" defaultValue={filters.q} placeholder="Tên trường, ngành, mã xét tuyển…" className="h-9 min-w-0 flex-1 bg-transparent text-sm focus:outline-none" />
-          </div>
-          <button className={cn(buttonClass({ size: "sm" }), "w-full sm:w-auto")}>Tìm</button>
-        </form>
       </div>
 
       <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">

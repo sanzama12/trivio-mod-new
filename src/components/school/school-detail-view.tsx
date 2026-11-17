@@ -158,7 +158,7 @@ export function SchoolDetailView({ school, programs }: SchoolDetailViewProps) {
             {/* Logo trường */}
             <div className="flex items-end gap-4 sm:gap-5">
               <div className="relative -mt-12 flex size-24 sm:-mt-14 sm:size-28 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-white p-1 shadow-md">
-                <SchoolLogo school={school} size="lg" priority className="size-full rounded-xl" />
+                <SchoolLogo school={school} size="lg" className="size-full rounded-xl" />
               </div>
 
               <div className="min-w-0 pt-5">

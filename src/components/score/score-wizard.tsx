@@ -16,7 +16,13 @@ import {
   PRIORITY_REGION_LABELS,
   profileMethod,
   rankCombos,
+  scoresForMethod,
+  transcriptScores,
+  assess2026EntrySource,
+  isValidSubjectScore,
 } from "@/services/scoring.service";
+import { OFFICIAL_POLICY_2026 } from "@/services/admission-policy.service";
+import { THPT_2026_SUBJECTS } from "@/domain/admission-2026";
 import { cn } from "@/lib/cn";
 import { useTrovio } from "@/stores/trovio-store";
 import { Button } from "@/components/ui/button";
@@ -62,13 +68,15 @@ function LedgerStep({ no, icon, title, desc }: { no: string; icon: ReactNode; ti
 }
 
 const parseNum = (s: string) => {
-  const v = Number(s.replace(",", "."));
-  return s !== "" && Number.isFinite(v) ? v : null;
+  const normalized = s.trim().replace(",", ".");
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const v = Number(normalized);
+  return Number.isFinite(v) ? v : null;
 };
 
 export function ScoreWizard({
   combos,
-  subjects,
+  subjects: catalogSubjects,
   groups,
   majors = [],
 }: {
@@ -78,11 +86,15 @@ export function ScoreWizard({
   majors?: MajorOpt[];
 }) {
   const router = useRouter();
+  const subjects = THPT_2026_SUBJECTS;
   const { profile, setProfile, hydrated } = useTrovio();
   const [raw, setRaw] = useState<Record<string, string>>({});
-  const [combo, setCombo] = useState("A00");
+  const [chosenCombos, setChosenCombos] = useState<Partial<Record<AdmissionMethodKey, string>>>({});
+  const [annualRaw, setAnnualRaw] = useState<Record<string, [string, string, string]>>({});
+  const [graduationYearRaw, setGraduationYearRaw] = useState("2026");
+  const [exemptionClaimed, setExemptionClaimed] = useState(false);
   const [methods, setMethods] = useState<AdmissionMethodKey[]>(["thpt"]);
-    const [region, setRegion] = useState<PriorityRegion>("KV3");
+  const [region, setRegion] = useState<PriorityRegion>("KV3");
   const [group, setGroup] = useState<PriorityGroup>("none");
   const [regions, setRegions] = useState<Region[]>([]);
   const [budget, setBudget] = useState<TuitionRange | "">("");
@@ -96,8 +108,10 @@ export function ScoreWizard({
     if (!hydrated || !profile) return;
     const m = profileMethod(profile);
     setMethods(profile.methods?.length ? profile.methods : [m]);
-    if (profile.combo) setCombo(profile.combo);
-    setRaw(Object.fromEntries(Object.entries(profile.scores ?? {}).map(([k, v]) => [k, String(v)])));
+    setChosenCombos(profile.combosByMethod ?? { [m]: profile.combo });
+    setRaw(Object.fromEntries(Object.entries(scoresForMethod(profile, "thpt")).map(([k, v]) => [k, String(v)])));
+    setAnnualRaw(Object.fromEntries(Object.entries(profile.transcriptAnnualScores ?? {}).map(([id, values]) => [id, values.map(String) as [string, string, string]])));
+    setGraduationYearRaw(profile.graduationYear ? String(profile.graduationYear) : "2026");
     setRegion(profile.priorityRegion);
     setGroup(profile.priorityGroup);
     setRegions(profile.regions);
@@ -109,7 +123,7 @@ export function ScoreWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
-  const subjectShort = (id: string) => subjects.find((s) => s.id === id)?.short ?? id;
+  const subjectShort = (id: string) => subjects.find((s) => s.id === id)?.short ?? catalogSubjects.find(s => s.id === id)?.short ?? id;
 
   const scores = useMemo(() => {
     const out: Record<string, number> = {};
@@ -125,15 +139,25 @@ export function ScoreWizard({
     return raw[id] != null && raw[id] !== "" && !(n != null && n >= 0 && n <= 10);
   };
 
-  const ranked = useMemo(() => rankCombos(scores, combos), [scores, combos]);
-  const pinned = ranked.find((row) => row.code === combo) ?? ranked[0];
-
   const selected = methods.length ? methods : (["thpt"] as AdmissionMethodKey[]);
+  const annualScores = useMemo(() => Object.fromEntries(Object.entries(annualRaw).flatMap(([id, values]) => {
+    const parsed = values.map(parseNum);
+    return parsed.every(isValidSubjectScore) ? [[id, parsed as [number, number, number]]] : [];
+  })), [annualRaw]);
+  const methodSubjects = { thpt: scores, hocba: transcriptScores(annualScores) };
+  const graduationYear = Number(graduationYearRaw);
+  const validYear = /^\d{4}$/.test(graduationYearRaw) && Number.isInteger(graduationYear) && graduationYear >= 1900 && graduationYear <= 2026;
+  const rankedByMethod = { thpt: rankCombos(methodSubjects.thpt, combos), hocba: rankCombos(methodSubjects.hocba, combos) };
+  const entrySource = assess2026EntrySource(scores, combos, validYear ? graduationYear : undefined, exemptionClaimed);
   const methodTotals = selected.map((m) => {
+    const ranked = rankedByMethod[m];
+    const pinned = ranked.find(row => row.code === chosenCombos[m]) ?? ranked[0];
     if (!pinned) return { method: m, admission: null as ReturnType<typeof computeAdmissionScore> | null, combo: "" };
-    return { method: m, admission: computeAdmissionScore(pinned.raw, region, group, m), combo: pinned.code };
+    return { method: m, admission: validYear ? computeAdmissionScore(pinned.raw, region, group, m, { admissionSeason: 2026, graduationYear }) : null, combo: pinned.code };
   });
-  const canSave = methodTotals.some((row) => row.admission != null);
+  const invalidThpt = subjects.some(subject => invalid(subject.id));
+  const invalidAnnual = selected.includes("hocba") && Object.values(annualRaw).some(values => values.some(value => value.trim() !== "" && !isValidSubjectScore(parseNum(value))));
+  const canSave = validYear && !invalidThpt && !invalidAnnual && methodTotals.every(row => row.admission != null);
 
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const toggleMethod = (k: AdmissionMethodKey) => {
@@ -156,13 +180,19 @@ export function ScoreWizard({
   const filledSubjects = subjects.filter((s) => scores[s.id] != null && !invalid(s.id)).length;
 
   const finish = () => {
+    if (!canSave) return;
     const usable = methodTotals.filter((row) => row.admission != null);
     const primary = usable[0];
     if (!primary?.admission) return;
     setProfile({
       method: primary.method,
-      combo: pinned?.code ?? "",
-      scores,
+      combo: primary.combo,
+      scores: methodSubjects[primary.method],
+      scoresByMethod: { thpt: scores, ...(selected.includes("hocba") ? { hocba: methodSubjects.hocba } : {}) },
+      combosByMethod: Object.fromEntries(usable.map(row => [row.method, row.combo])),
+      transcriptAnnualScores: selected.includes("hocba") ? annualScores : undefined,
+      admissionSeason: 2026,
+      graduationYear,
       methods: selected,
       interestMajorIds: interest.length ? interest : undefined,
       priorityRegion: region,
@@ -181,9 +211,17 @@ export function ScoreWizard({
   return (
     <div className="mx-auto max-w-3xl min-w-0">
       <div className="rounded-none border border-slate-200 border-t-4 border-t-primary-600 border-l-4 border-l-accent-500 bg-white p-4 shadow-card sm:p-6 md:p-8">
+        <p className="mb-6 text-sm leading-relaxed text-slate-600">
+          Mùa tuyển sinh <strong>2026</strong> · <a href={OFFICIAL_POLICY_2026.officialSourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-primary-700 underline">Thông tư 06/2026/TT-BGDĐT</a>. Đối chiếu ngày 16/11/2026. Bản tính tham khảo cho tổ hợp 3 môn đồng trọng số, thang 30; chưa gồm điểm cộng, hệ số môn và quy đổi riêng của từng trường.
+        </p>
         <div className="divide-y divide-dashed divide-slate-200 [&>section]:py-6 [&>section:first-child]:pt-0 [&>section:last-child]:pb-0">
           <section>
-            <LedgerStep no="1" icon={<LuCalculator />} title="Điểm các môn" desc="Nhập điểm thi hoặc điểm dự kiến, thang 10. Tổ hợp mạnh được tính từ những môn đã đủ." />
+            <LedgerStep no="1" icon={<LuCalculator />} title="Điểm theo phương thức" desc="THPT và học bạ được nhập, tính và lưu riêng. Chỉ nhập môn có điểm, tối đa 2 chữ số thập phân." />
+            <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Phương thức xét tuyển">
+              {METHOD_KEYS.map(k => <Pill key={k} active={selected.includes(k)} onClick={() => toggleMethod(k)}>{ADMISSION_METHODS[k].short}</Pill>)}
+            </div>
+            <h3 className="mt-5 font-bold text-slate-800">Điểm thi tốt nghiệp THPT</h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">Điểm thi thực tế hoặc dự kiến, thang 10. Không điền 0 cho môn không thi. Khi xét học bạ, dữ liệu này chỉ dùng kiểm tra ngưỡng nguồn tuyển chung; không dùng thay điểm học bạ. Điểm năng khiếu và điểm quy đổi chứng chỉ cần xét theo trường.</p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
               {subjects.map((s) => (
                 <div key={s.id}>
@@ -206,24 +244,58 @@ export function ScoreWizard({
                   />
                   {invalid(s.id) && touched[s.id] && (
                     <p id={`sc-${s.id}-err`} className="mt-1 text-xs font-medium text-danger-700">
-                      Điểm phải từ 0 đến 10.
+                      Nhập số từ 0 đến 10, tối đa 2 chữ số thập phân.
                     </p>
                   )}
                 </div>
               ))}
             </div>
             <p className="mt-2 text-xs text-slate-500">Đã nhập {filledSubjects}/{subjects.length} môn.</p>
+            {selected.includes("hocba") && (
+              <div className="mt-6">
+                <h3 className="font-bold text-slate-800">Học bạ · Điểm trung bình cả năm lớp 10, 11, 12</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">Nhập đúng điểm cả năm ghi trên học bạ, bao quát 6 học kỳ. Không dùng riêng lớp 12 hoặc trung bình đơn giản 6 học kỳ. Mỗi môn cần đủ 3 năm; trường hợp đổi môn phải đối chiếu quy định môn thay thế của trường.</p>
+                {profile && profileMethod(profile) === "hocba" && !profile.transcriptAnnualScores && <p className="mt-2 text-sm text-amber-800">Hồ sơ cũ chưa có điểm cả năm từng lớp. Vui lòng nhập lại để tính theo quy chế 2026.</p>}
+                <div className="mt-4 space-y-4">
+                  {subjects.map(subject => (
+                    <fieldset key={subject.id} className="rounded-lg border border-slate-200 p-3">
+                      <legend className="px-1 text-sm font-semibold text-slate-700">{subject.name}</legend>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[0, 1, 2].map(index => {
+                          const value = annualRaw[subject.id]?.[index] ?? "";
+                          const error = value.trim() !== "" && !isValidSubjectScore(parseNum(value));
+                          return <div key={index}>
+                            <label htmlFor={`hb-${subject.id}-${index}`} className="mb-1 block text-xs text-slate-600">Cả năm lớp {index + 10}</label>
+                            <input id={`hb-${subject.id}-${index}`} inputMode="decimal" value={value} placeholder="0 – 10" aria-invalid={error || undefined} aria-describedby={error ? `hb-${subject.id}-${index}-err` : undefined}
+                              onChange={event => setAnnualRaw(current => {
+                                const values: [string, string, string] = [...(current[subject.id] ?? ["", "", ""])];
+                                values[index] = event.target.value;
+                                return { ...current, [subject.id]: values };
+                              })}
+                              className={cn("h-11 w-full min-w-0 rounded-lg border px-2 font-semibold", error ? "border-danger-500" : "border-slate-300")} />
+                            {error && <p id={`hb-${subject.id}-${index}-err`} className="mt-1 text-xs text-danger-700">Từ 0 đến 10, tối đa 2 chữ số thập phân.</p>}
+                          </div>;
+                        })}
+                      </div>
+                      {methodSubjects.hocba[subject.id] != null && <p className="mt-2 text-xs text-slate-500">Trung bình 3 năm: {methodSubjects.hocba[subject.id].toFixed(2)} (hiển thị làm tròn; phép tính giữ độ chính xác).</p>}
+                    </fieldset>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           <section>
-            <LedgerStep no="2" icon={<LuBookOpen />} title="Tổ hợp mạnh" desc="Trovio cộng 3 môn của từng tổ hợp. Bấm để chọn tổ hợp dùng khi xét THPT hoặc học bạ." />
-            {ranked.length ? (
+            <LedgerStep no="2" icon={<LuBookOpen />} title="Tổ hợp theo từng phương thức" desc="Mỗi tổ hợp có 3 môn, gồm Toán hoặc Ngữ văn chiếm 1/3 trọng số. Chỉ hiện tổ hợp đã có trong danh mục; trường quyết định tổ hợp thực tế được xét." />
+            {selected.map(method => <div key={method} className="mt-4">
+              <h3 className="text-sm font-bold text-slate-700">{ADMISSION_METHODS[method].short}</h3>
+              {rankedByMethod[method].length ? (
               <div className="mt-4 flex flex-wrap gap-2">
-                {ranked.map((row, i) => {
+                {rankedByMethod[method].map((row, i) => {
                   const c = combos.find((x) => x.code === row.code);
-                  const active = pinned?.code === row.code;
+                  const active = methodTotals.find(total => total.method === method)?.combo === row.code;
                   return (
-                    <Pill key={row.code} active={active} onClick={() => setCombo(row.code)}>
+                    <Pill key={row.code} active={active} onClick={() => setChosenCombos(current => ({ ...current, [method]: row.code }))}>
                       {row.code} · {row.raw.toFixed(2)}
                       {c ? ` (${c.subjects.map(subjectShort).join(", ")})` : ""}
                       {i === 0 ? " · mạnh nhất" : ""}
@@ -232,19 +304,26 @@ export function ScoreWizard({
                 })}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-slate-500">Nhập đủ 3 môn của một tổ hợp để xem tổ hợp mạnh.</p>
-            )}
+              <p className="mt-4 text-sm text-slate-500">Nhập đủ điểm của 3 môn trong tổ hợp, có Toán hoặc Ngữ văn.</p>
+            )}</div>)}
           </section>
 
           <section>
-            <LedgerStep no="3" icon={<LuClipboardList />} title="Phương thức xét tuyển dự kiến" desc="Có thể chọn nhiều. Điểm tính từ tổ hợp 3 môn đã nhập ở trên." />
-            <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Phương thức xét tuyển">
-              {METHOD_KEYS.map((k) => (
-                <Pill key={k} active={selected.includes(k)} onClick={() => toggleMethod(k)}>
-                  {ADMISSION_METHODS[k].short}
-                </Pill>
-              ))}
-            </div>
+            <LedgerStep no="3" icon={<LuClipboardList />} title="Năm tốt nghiệp & ngưỡng nguồn tuyển" desc="Ngưỡng 15/30 tính từ điểm thi THPT, chưa cộng ưu tiên và điểm cộng; không dùng tổng học bạ để thay thế." />
+            <label htmlFor="graduation-year" className="mt-4 block text-sm font-semibold text-slate-700">Năm tốt nghiệp THPT</label>
+            <input id="graduation-year" inputMode="numeric" value={graduationYearRaw} onChange={event => setGraduationYearRaw(event.target.value)} aria-invalid={!validYear || undefined} aria-describedby="graduation-year-hint" className="mt-2 h-11 w-36 rounded-lg border border-slate-300 px-3" />
+            <p id="graduation-year-hint" className="mt-2 text-xs text-slate-500">{validYear ? "Ưu tiên khu vực chỉ áp dụng trong năm tốt nghiệp và một năm kế tiếp." : "Nhập năm tốt nghiệp hợp lệ, không sau mùa tuyển sinh 2026."}</p>
+            <label className="mt-4 flex items-start gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={exemptionClaimed} onChange={event => setExemptionClaimed(event.target.checked)} className="mt-1 size-4 shrink-0 accent-primary-700" />
+              <span>Tôi cần đối chiếu diện ngoại lệ theo khoản 3 Điều 6 (đặc cách tốt nghiệp hoặc các diện được dẫn chiếu tại Điều 8). Trường sẽ kiểm tra hồ sơ minh chứng.</span>
+            </label>
+            <p className="mt-4 text-sm leading-relaxed text-slate-600" aria-live="polite">
+              {entrySource.status === "met" && `Các môn thi đã nhập đạt ${entrySource.rawTotal!.toFixed(2)}/30, đáp ứng ngưỡng nguồn tuyển chung 15 điểm. Chưa kết luận đủ điều kiện từng trường/ngành.`}
+              {entrySource.status === "below" && `Tổng cao nhất kiểm tra được là ${entrySource.rawTotal!.toFixed(2)}/30, chưa đạt ngưỡng nguồn tuyển 15 điểm. Kiểm tra đủ điểm thi trước khi đăng ký; điểm ưu tiên không bù cho ngưỡng này.`}
+              {entrySource.status === "unknown" && "Chưa đủ dữ liệu kiểm tra ngưỡng nguồn tuyển. Cần điểm 3 môn thi theo tổ hợp xét tuyển hoặc Toán + Ngữ văn + một môn thi khác. Bạn vẫn có thể lưu điểm để tham khảo."}
+              {entrySource.status === "not-applicable" && "Ngưỡng nguồn tuyển chung 15 điểm tại khoản 3 Điều 6 áp dụng cho thí sinh thi tốt nghiệp từ năm 2026; vẫn cần đáp ứng điều kiện của trường/ngành."}
+              {entrySource.status === "exemption-review" && "Chưa xác nhận diện ngoại lệ. Cần trường kiểm tra đúng đối tượng và minh chứng; lựa chọn này không xác nhận đủ điều kiện dự tuyển."}
+            </p>
           </section>
 
           <section>
@@ -252,8 +331,10 @@ export function ScoreWizard({
               no="4"
               icon={<LuShieldCheck />}
               title="Khu vực & đối tượng ưu tiên"
-              desc="Điểm ưu tiên theo quy chế tuyển sinh. Thang khác 30 được quy đổi tương ứng."
+              desc="Mức ưu tiên thang 30 theo Điều 7; từ 22,50 điểm áp dụng công thức giảm dần, làm tròn điểm ưu tiên đến hàng phần trăm."
             />
+            {validYear && graduationYear < 2025 && <p className="mt-3 text-sm text-amber-800">Đã hết thời hạn ưu tiên khu vực trong mùa 2026. Hệ thống không cộng điểm khu vực; ưu tiên đối tượng vẫn được tính nếu đúng diện.</p>}
+            <p className="mt-3 text-xs leading-relaxed text-slate-500">Khu vực xác định theo nơi học THPT lâu nhất, không phải nơi muốn học đại học; nếu thời gian bằng nhau, dùng nơi học sau cùng. Chỉ chọn một nhóm đối tượng được hưởng mức cao nhất.</p>
             <p className="mt-4 mb-2 text-sm font-semibold text-slate-700">Khu vực</p>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(PRIORITY_REGION_LABELS) as PriorityRegion[]).map((k) => (
@@ -303,7 +384,7 @@ export function ScoreWizard({
                   );
                 })
               ) : (
-                <p className="text-sm text-primary-900">Nhập đủ 3 môn của một tổ hợp để xem điểm xét tuyển.</p>
+                <p className="text-sm text-primary-900">Nhập năm tốt nghiệp hợp lệ và đủ 3 môn của từng phương thức để xem điểm tham khảo.</p>
               )}
             </div>
           </section>
@@ -399,11 +480,11 @@ export function ScoreWizard({
 
         <p className="mt-8 flex items-start gap-2 border-l-4 border-l-accent-500 bg-slate-50 px-4 py-3 text-xs break-words text-slate-500">
           <LuShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Hồ sơ lưu trên trình duyệt và đồng bộ vào tài khoản khi đăng nhập, chỉ để gợi ý chương trình — không chia sẻ với bên thứ ba.
+          Kết quả là điểm tham khảo, chưa xác nhận đủ điều kiện dự tuyển hoặc trúng tuyển. Các ngành sư phạm, sức khỏe, pháp luật có ngưỡng và điều kiện riêng. Chứng chỉ ngoại ngữ chỉ quy đổi hoặc dùng cộng khuyến khích theo công bố của trường; không tự cộng đồng thời cả hai. Hồ sơ lưu trên trình duyệt và đồng bộ vào tài khoản khi đăng nhập.
         </p>
 
         <div className="mt-6 flex flex-col gap-3 border-t-2 border-dashed border-slate-200 pt-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">{canSave ? "Đủ dữ liệu để gợi ý." : "Cần ít nhất một tổ hợp đủ 3 môn."}</p>
+          <p className="text-sm text-slate-500">{canSave ? "Có thể lưu điểm tham khảo. Điều kiện tuyển sinh cần đối chiếu theo trường." : "Cần năm tốt nghiệp hợp lệ, đủ 3 môn cho mỗi phương thức đã chọn và sửa các điểm chưa hợp lệ."}</p>
           <Button onClick={finish} disabled={!canSave}>
             Lưu và xem gợi ý
           </Button>

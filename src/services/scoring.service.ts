@@ -12,7 +12,8 @@ import type {
   Program,
   ScoreProfile,
 } from "../domain/types";
-
+import { admissionPolicyService, isMathOrLiterature, OFFICIAL_POLICY_2026 } from "./admission-policy.service";
+import { THPT_2026_SUBJECT_IDS } from "../domain/admission-2026";
 
 /** Cấu hình từng phương thức xét tuyển. `factor` quy đổi ngưỡng so với thang 30. */
 export const ADMISSION_METHODS: Record<
@@ -24,39 +25,7 @@ export const ADMISSION_METHODS: Record<
 };
 
 export const METHOD_KEYS = Object.keys(ADMISSION_METHODS) as AdmissionMethodKey[];
-export const isMethodKey = (v: unknown): v is AdmissionMethodKey => typeof v === "string" && v in ADMISSION_METHODS;
-
-/** Bảng quy đổi chứng chỉ IELTS sang điểm môn Ngoại ngữ theo chuẩn xét tuyển ĐH. */
-export const IELTS_CONVERSION_TABLE: Record<string, number> = {
-  "4.0": 7.0,
-  "4.5": 7.5,
-  "5.0": 8.0,
-  "5.5": 8.5,
-  "6.0": 9.0,
-  "6.5": 9.5,
-  "7.0": 10.0,
-  "7.5": 10.0,
-  "8.0": 10.0,
-  "8.5": 10.0,
-  "9.0": 10.0,
-};
-
-/** Bảng quy đổi TOEFL iBT sang điểm môn Ngoại ngữ. */
-export const TOEFL_IBT_CONVERSION_TABLE: Record<number, number> = {
-  40: 7.0,
-  45: 8.0,
-  60: 8.5,
-  70: 9.0,
-  80: 9.5,
-  90: 10.0,
-};
-
-export function convertIeltsToSubjectScore(ieltsScore: number | string): number {
-  const key = typeof ieltsScore === "number" ? ieltsScore.toFixed(1) : String(ieltsScore).trim();
-  const num = parseFloat(key);
-  if (num >= 7.0) return 10.0;
-  return IELTS_CONVERSION_TABLE[key] ?? (num >= 4.0 ? 7.0 : 0);
-}
+export const isMethodKey = (v: unknown): v is AdmissionMethodKey => typeof v === "string" && Object.hasOwn(ADMISSION_METHODS, v);
 
 /** Định dạng điểm theo thang của phương thức (thang 30). */
 export function formatMethodScore(n: number | null | undefined, method: AdmissionMethodKey = "thpt"): string {
@@ -91,7 +60,7 @@ export const PRIORITY_GROUP_LABELS: Record<PriorityGroup, string> = {
 };
 
 /** Ngưỡng từ đó điểm ưu tiên bị giảm dần (quy chế tuyển sinh từ 2023). */
-export const PRIORITY_REDUCTION_THRESHOLD = 22.5;
+export const PRIORITY_REDUCTION_THRESHOLD = OFFICIAL_POLICY_2026.priorityRules.reductionThreshold;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -100,9 +69,39 @@ export function isValidSubjectScore(value: unknown): value is number {
 }
 
 export function computeComboTotal(scores: Record<string, number>, combo: Combo): number | null {
+  if (combo.subjects.length !== 3 || new Set(combo.subjects).size !== 3) return null;
   const values = combo.subjects.map((s) => scores[s]);
   if (!values.every(isValidSubjectScore)) return null;
-  return round2(values.reduce((a, b) => a + b, 0));
+  return values.reduce((a, b) => a + b, 0);
+}
+
+/** Bản tính chung dùng 3 môn đồng trọng số; mỗi tổ hợp có Toán hoặc Ngữ văn (Điều 6). */
+export const isAdmissionCombo = (combo: Combo) => combo.subjects.length === 3 && new Set(combo.subjects).size === 3 && combo.subjects.some(isMathOrLiterature) && combo.subjects.every(id => THPT_2026_SUBJECT_IDS.has(id));
+
+/** Trung bình ba điểm CẢ NĂM; không thay bằng trung bình sáu học kỳ có trọng số bằng nhau. */
+export function transcriptScores(annual: Record<string, readonly number[]>): Record<string, number> {
+  return Object.fromEntries(Object.entries(annual)
+    .filter(([, values]) => Array.isArray(values) && values.length === 3 && values.every(isValidSubjectScore))
+    .map(([id, values]) => [id, values.reduce((sum, score) => sum + score, 0) / 3]));
+}
+
+/** Điều 6.3: kiểm tra nguồn tuyển chung, không kết luận đủ điều kiện cho một trường/ngành. */
+export function assess2026EntrySource(scores: Record<string, number>, combos: Combo[], graduationYear?: number, exemptionClaimed = false): {
+  status: "met" | "below" | "unknown" | "not-applicable" | "exemption-review";
+  rawTotal: number | null;
+} {
+  if (!Number.isInteger(graduationYear) || graduationYear! < 1900 || graduationYear! > 2026) return { status: "unknown", rawTotal: null };
+  if (graduationYear! < 2026) return { status: "not-applicable", rawTotal: null };
+  if (exemptionClaimed) return { status: "exemption-review", rawTotal: null };
+  const totals = rankCombos(scores, combos).map(row => row.raw);
+  if (isValidSubjectScore(scores.toan) && isValidSubjectScore(scores.van)) {
+    for (const [id, score] of Object.entries(scores)) {
+      if (id !== "toan" && id !== "van" && THPT_2026_SUBJECT_IDS.has(id) && isValidSubjectScore(score)) totals.push(scores.toan + scores.van + score);
+    }
+  }
+  if (!totals.length) return { status: "unknown", rawTotal: null };
+  const rawTotal = Math.max(...totals);
+  return { status: rawTotal >= OFFICIAL_POLICY_2026.minimumThptScoreThreshold ? "met" : "below", rawTotal };
 }
 
 export interface ComboRank {
@@ -113,6 +112,7 @@ export interface ComboRank {
 /** Tổ hợp đủ 3 môn, mạnh → yếu theo tổng điểm. */
 export function rankCombos(scores: Record<string, number>, combos: Combo[]): ComboRank[] {
   return combos
+    .filter(isAdmissionCombo)
     .map((combo) => {
       const raw = computeComboTotal(scores, combo);
       return raw == null ? null : { code: combo.code, raw };
@@ -123,9 +123,14 @@ export function rankCombos(scores: Record<string, number>, combos: Combo[]): Com
 
 export type MethodScore = { method: AdmissionMethodKey; total: number; combo: string };
 
-type ProfileScoreSource = Pick<ScoreProfile, "method" | "combo" | "scores" | "priorityRegion" | "priorityGroup" | "methods"> & {
+type ProfileScoreSource = Pick<ScoreProfile, "method" | "combo" | "scores" | "priorityRegion" | "priorityGroup" | "methods" | "scoresByMethod" | "combosByMethod" | "transcriptAnnualScores" | "graduationYear" | "admissionSeason"> & {
   admission: Pick<AdmissionScore, "rawTotal">;
 };
+
+export function scoresForMethod(profile: Pick<ScoreProfile, "method" | "scores" | "scoresByMethod" | "transcriptAnnualScores">, method: AdmissionMethodKey): Record<string, number> {
+  if (method === "hocba" && profile.transcriptAnnualScores) return transcriptScores(profile.transcriptAnnualScores);
+  return profile.scoresByMethod?.[method] ?? (profileMethod(profile) === method ? profile.scores : {});
+}
 
 function plannedMethods(profile: Pick<ScoreProfile, "method" | "methods">): AdmissionMethodKey[] {
   const listed = (profile.methods ?? []).filter(isMethodKey);
@@ -135,18 +140,18 @@ function plannedMethods(profile: Pick<ScoreProfile, "method" | "methods">): Admi
 
 /** Mọi phương thức học sinh đã có điểm — dùng khi gợi ý / so khớp chương trình. */
 export function methodScoresFromProfile(profile: ProfileScoreSource, combos: Combo[]): MethodScore[] {
-  const ranked = rankCombos(profile.scores ?? {}, combos);
-  const pinned = ranked.find((row) => row.code === profile.combo) ?? ranked[0];
   const out: MethodScore[] = [];
   for (const method of plannedMethods(profile)) {
+    const ranked = rankCombos(scoresForMethod(profile, method), combos);
+    const pinned = ranked.find((row) => row.code === (profile.combosByMethod?.[method] ?? profile.combo)) ?? ranked[0];
     if (!pinned) continue;
     out.push({
       method,
-      total: computeAdmissionScore(pinned.raw, profile.priorityRegion, profile.priorityGroup, method).total,
+      total: computeAdmissionScore(pinned.raw, profile.priorityRegion, profile.priorityGroup, method, profile).total,
       combo: pinned.code,
     });
   }
-  if (!out.length) {
+  if (!out.length && !Object.keys(profile.scores ?? {}).length && !profile.scoresByMethod) {
     const current = profileScore(profile);
     out.push({ method: current.method, total: current.total, combo: profile.combo ?? "" });
   }
@@ -159,9 +164,9 @@ export function listScoresForProgram(
   program: CutoffSource & Pick<Program, "combos">,
   combos: Combo[],
 ): MethodScore[] {
-  const ranked = rankCombos(profile.scores ?? {}, combos);
   const out: MethodScore[] = [];
   for (const method of plannedMethods(profile)) {
+    const ranked = rankCombos(scoresForMethod(profile, method), combos);
     const cut = cutoffFor(program, method);
     if (!cut) continue;
     let total: number;
@@ -169,7 +174,7 @@ export function listScoresForProgram(
     const usable = ranked.filter((row) => program.combos.includes(row.code));
     if (!usable.length) continue;
     combo = usable[0].code;
-    total = computeAdmissionScore(usable[0].raw, profile.priorityRegion, profile.priorityGroup, method).total;
+    total = computeAdmissionScore(usable[0].raw, profile.priorityRegion, profile.priorityGroup, method, profile).total;
     if (!computeFit(total, program, method)) continue;
     out.push({ method, total, combo });
   }
@@ -196,7 +201,7 @@ export function scoreForProgram(
 }
 
 /**
- * Tính tổng điểm tổ hợp có môn chính nhân hệ số 2 theo chuẩn Bộ GD&ĐT:
+ * Công thức tham khảo khi trường công bố môn chính hệ số 2; không tự áp dụng cho mọi trường:
  * - Quy về thang 30: ((M1 + M2 + M_chính * 2) * 3) / 4
  * - Giữ thang 40: M1 + M2 + M_chính * 2
  */
@@ -206,6 +211,8 @@ export function computeWeightedComboTotal(
   mainSubject?: string,
   scale: 30 | 40 = 30,
 ): number | null {
+  if (combo.subjects.length !== 3 || new Set(combo.subjects).size !== 3 || ![30, 40].includes(scale)) return null;
+  if (mainSubject && !combo.subjects.includes(mainSubject)) return null;
   const values = combo.subjects.map((s) => scores[s]);
   if (!values.every(isValidSubjectScore)) return null;
   if (!mainSubject || !combo.subjects.includes(mainSubject)) {
@@ -259,14 +266,16 @@ export function computeAdmissionScore(
   region: PriorityRegion,
   group: PriorityGroup,
   method: AdmissionMethodKey = "thpt",
+  context: Pick<ScoreProfile, "admissionSeason" | "graduationYear"> = {},
 ): AdmissionScore {
-  const { max, factor } = ADMISSION_METHODS[method];
-  const priorityPoints = round2((PRIORITY_REGION_POINTS[region] + PRIORITY_GROUP_POINTS[group]) * factor);
-  const threshold = PRIORITY_REDUCTION_THRESHOLD * factor;
-  const reduced = rawTotal >= threshold;
-  const priorityApplied = round2(reduced ? ((max - rawTotal) / (max - threshold)) * priorityPoints : priorityPoints);
+  if (!isMethodKey(method)) throw new RangeError("Phương thức xét tuyển không hợp lệ.");
+  const { max } = ADMISSION_METHODS[method];
+  const priority = admissionPolicyService.computePriorityPoints(region, group, rawTotal, max, context.admissionSeason ?? 2026, context.graduationYear);
+  const priorityPoints = priority.rawPriority;
+  const priorityApplied = priority.appliedPriority;
+  const reduced = priority.isReduced;
   return {
-    rawTotal: round2(rawTotal),
+    rawTotal,
     priorityPoints,
     priorityApplied,
     total: round2(Math.min(max, rawTotal + priorityApplied)),
@@ -331,14 +340,14 @@ export function computeFit(userScore: number | null | undefined, program: Cutoff
 export const profileMethod = (p: Pick<ScoreProfile, "method"> | null | undefined): AdmissionMethodKey =>
   p?.method && isMethodKey(p.method) ? p.method : "thpt";
 
-type ProfileLike = Pick<ScoreProfile, "method" | "combo" | "priorityRegion" | "priorityGroup"> & { admission: Pick<AdmissionScore, "rawTotal"> };
+type ProfileLike = Pick<ScoreProfile, "method" | "combo" | "priorityRegion" | "priorityGroup" | "graduationYear" | "admissionSeason"> & { admission: Pick<AdmissionScore, "rawTotal"> };
 
 /** Điểm xét tuyển hiện hành của hồ sơ (tính lại theo quy chế, cộng thêm `delta` khi mô phỏng). */
 export function profileScore(profile: ProfileLike, delta = 0): { method: AdmissionMethodKey; total: number } {
   const method = profileMethod(profile);
   const max = ADMISSION_METHODS[method].max;
   const raw = Math.max(0, Math.min(max, profile.admission.rawTotal + delta));
-  return { method, total: computeAdmissionScore(raw, profile.priorityRegion, profile.priorityGroup, method).total };
+  return { method, total: computeAdmissionScore(raw, profile.priorityRegion, profile.priorityGroup, method, profile).total };
 }
 
 export type FitResult =

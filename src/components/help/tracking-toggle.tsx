@@ -34,7 +34,7 @@ export function TrackingToggle() {
         <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-5" : ""}`} />
       </button>
       <span id="stats-toggle-label" className="text-sm text-slate-700">
-        Gửi thống kê ẩn danh từ trình duyệt này: <strong>{on ? "Đang bật" : "Đã tắt"}</strong>
+        Cho phép thống kê và cá nhân hóa theo lượt xem <strong>{on ? "Đang bật" : "Đã tắt"}</strong>
       </span>
     </div>
   );

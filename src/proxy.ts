@@ -35,7 +35,9 @@ function sameOrigin(req: NextRequest): boolean {
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname.startsWith("/api/") && !SAFE_METHODS.has(req.method) && !sameOrigin(req)) {
+  // SePay authenticates server-to-server notifications with its API key in the route.
+  const sepayWebhook = pathname === "/api/donations/sepay-webhook" && req.method === "POST";
+  if (pathname.startsWith("/api/") && !SAFE_METHODS.has(req.method) && !sepayWebhook && !sameOrigin(req)) {
     return NextResponse.json({ ok: false, message: "Yêu cầu không hợp lệ (khác nguồn gốc)." }, { status: 403 });
   }
 

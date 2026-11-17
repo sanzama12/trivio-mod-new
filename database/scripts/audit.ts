@@ -24,18 +24,47 @@ async function main() {
       orphanPatches: `SELECT count(*) AS count FROM trovio.app_documents d LEFT JOIN trovio.programs p ON p.id=d.id WHERE d.collection='program-patch' AND p.id IS NULL`,
       patchKeys: `SELECT key, count(*) FROM trovio.app_documents d, LATERAL jsonb_object_keys(d.payload) key WHERE d.collection='program-patch' GROUP BY key ORDER BY key`,
       orphanOwnedDocuments: `SELECT d.collection, count(*) AS count FROM trovio.app_documents d LEFT JOIN trovio.users u ON u.id=d.owner_id WHERE d.owner_id IS NOT NULL AND u.id IS NULL GROUP BY d.collection`,
+      invalidConstraints: `SELECT c.conrelid::regclass::text AS table_name, c.conname AS name FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE n.nspname='trovio' AND NOT c.convalidated ORDER BY 1,2`,
+      invalidIndexes: `SELECT c.oid::regclass::text AS name FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='trovio' AND (NOT i.indisvalid OR NOT i.indisready) ORDER BY 1`,
+      foreignKeysWithoutLeadingIndex: `WITH fk AS (
+        SELECT c.conrelid, c.conname, c.conkey
+        FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace
+        WHERE n.nspname='trovio' AND c.contype='f'
+      )
+      SELECT conrelid::regclass::text AS table_name, conname AS name
+      FROM fk
+      WHERE NOT EXISTS (
+        SELECT 1 FROM pg_index i
+        WHERE i.indrelid=fk.conrelid AND i.indisvalid
+          AND (i.indkey::smallint[])[0:cardinality(fk.conkey)-1]=fk.conkey
+      ) ORDER BY 1,2`,
+      orphanProgramYearActors: `SELECT count(*) AS count FROM trovio.program_year_data y LEFT JOIN trovio.users u ON u.id=y.updated_by WHERE y.updated_by IS NOT NULL AND u.id IS NULL`,
+      orphanAiSourceActors: `SELECT count(*) AS count FROM trovio.ai_sources a LEFT JOIN trovio.users u ON u.id=a.created_by WHERE a.created_by IS NOT NULL AND u.id IS NULL`,
       programExamples: `SELECT id, school_id, major_id, admission_code, name, campus, training_type FROM trovio.programs ORDER BY id LIMIT 15`,
       majorExamples: `SELECT id, code, name FROM trovio.majors WHERE code LIKE '799%' OR code !~ '^[0-9]{7}$' ORDER BY code LIMIT 20`,
     };
     const report: Record<string, unknown> = { checkedAt: new Date().toISOString() };
     for (const [name, sql] of Object.entries(checks)) report[name] = (await client.query(sql)).rows;
-    const output = resolve("database/audit-report.json");
-    writeFileSync(output, JSON.stringify(report, null, 2) + "\n");
-    console.log(JSON.stringify({ checkedAt: report.checkedAt, counts: report.catalogCounts,
+    const outputFlag = process.argv.indexOf("--output");
+    const output = outputFlag >= 0 ? resolve(process.argv[outputFlag + 1] || "database/audit-report.json") : undefined;
+    if (output) writeFileSync(output, JSON.stringify(report, null, 2) + "\n");
+    const summary = { checkedAt: report.checkedAt, counts: report.catalogCounts,
       duplicateSchoolCodes: (report.duplicateSchoolCodes as unknown[]).length,
       duplicateMajorCodes: (report.duplicateMajorCodes as unknown[]).length,
       duplicateProgramCodes: (report.duplicateProgramCodes as unknown[]).length,
-      nonstandardMajorCodes: report.nonstandardMajorCodes, orphanPatches: report.orphanPatches, report: output }, null, 2));
+      nonstandardMajorCodes: Number((report.nonstandardMajorCodes as { count: string }[])[0]?.count ?? 0),
+      orphanPatches: Number((report.orphanPatches as { count: string }[])[0]?.count ?? 0),
+      invalidConstraints: (report.invalidConstraints as unknown[]).length,
+      invalidIndexes: (report.invalidIndexes as unknown[]).length,
+      foreignKeysWithoutLeadingIndex: (report.foreignKeysWithoutLeadingIndex as unknown[]).length,
+      orphanProgramYearActors: Number((report.orphanProgramYearActors as { count: string }[])[0]?.count ?? 0),
+      orphanAiSourceActors: Number((report.orphanAiSourceActors as { count: string }[])[0]?.count ?? 0),
+      ...(output ? { report: output } : {}),
+    };
+    console.log(JSON.stringify(summary, null, 2));
+    if (Object.entries(summary).some(([key, value]) => !["checkedAt", "counts", "report"].includes(key) && Number(value) > 0)) {
+      throw new Error("Database integrity audit failed; review the non-zero checks above.");
+    }
   } finally {
     await client.query("ROLLBACK");
     await client.end();
