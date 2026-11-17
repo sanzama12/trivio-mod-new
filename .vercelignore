@@ -1,0 +1,6 @@
+.git
+scratch/
+database/local/
+database/backups/
+database/audit-report.json
+.agents/
