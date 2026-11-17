@@ -60,53 +60,67 @@ export async function sendWusRouterChat(
   const baseUrl = getWusRouterBaseUrl();
   const endpoint = `${baseUrl}/chat/completions`;
   const model = options.model || getWusRouterModel();
-  const timeoutMs = options.timeoutMs ?? 25000;
+  const timeoutMs = options.timeoutMs ?? 20000;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // Cơ chế thử lại tối đa 2 lần khi gặp lỗi tạm thời từ Cloudflare / mạng
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    const res = await fetchImpl(endpoint, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options.temperature ?? 0.6,
-        max_tokens: options.maxTokens ?? 1500,
-      }),
-    });
+    try {
+      const res = await fetchImpl(endpoint, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "User-Agent": "TriOVO-Portal/1.0",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options.temperature ?? 0.6,
+          max_tokens: options.maxTokens ?? 1200,
+        }),
+      });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.error(`[wusrouter] API error ${res.status}:`, errText);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.error(`[wusrouter] API error ${res.status} (lần ${attempt}):`, errText.slice(0, 300));
+        if (res.status >= 500 && attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          continue;
+        }
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      };
+
+      const answer = data.choices?.[0]?.message?.content?.trim();
+      return answer || null;
+    } catch (err: unknown) {
+      if ((err as Error)?.name === "AbortError") {
+        console.warn(`[wusrouter] Request timeout sau ${timeoutMs}ms (lần ${attempt})`);
+      } else {
+        console.error(`[wusrouter] Lỗi kết nối API (lần ${attempt}):`, err);
+      }
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        continue;
+      }
       return null;
+    } finally {
+      clearTimeout(timer);
     }
-
-    const data = (await res.json()) as {
-      choices?: Array<{
-        message?: {
-          content?: string;
-        };
-      }>;
-    };
-
-    const answer = data.choices?.[0]?.message?.content?.trim();
-    return answer || null;
-  } catch (err: unknown) {
-    if ((err as Error)?.name === "AbortError") {
-      console.warn("[wusrouter] Request timeout sau", timeoutMs, "ms");
-    } else {
-      console.error("[wusrouter] Lỗi kết nối API:", err);
-    }
-    return null;
-  } finally {
-    clearTimeout(timer);
   }
+
+  return null;
 }
 
 /**

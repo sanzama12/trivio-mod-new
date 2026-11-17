@@ -1,5 +1,8 @@
 import { ChatbotController } from "@/controllers";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
 /**
  * POST /api/chat { message, context: { majorId?, schoolId?, riasec? } }
  * Ủy quyền trực tiếp cho ChatbotController (MVC Architecture).
