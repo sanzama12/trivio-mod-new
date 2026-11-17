@@ -20,3 +20,6 @@ scratch
 database/local/
 database/backups/
 database/audit-report.json
+
+.vercel
+.env*

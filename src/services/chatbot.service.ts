@@ -19,6 +19,7 @@ import { normalizeVi } from "../lib/text";
 import { ADMISSION_METHODS, cutoffFor, formatMethodScore } from "./scoring.service";
 import { matchMajor, sanitizeRiasec } from "./riasec.service";
 import { polishWithLlm } from "./chatbot-llm";
+import { answerWithWusRouter, isWusRouterConfigured } from "./wusrouter-llm";
 import { majorRecommendationService } from "./major-recommendation.service";
 import { userDataService } from "./user-data.service";
 import { aiSourceService } from "./ai-source.service";
@@ -701,6 +702,67 @@ export function maskQuestion(q: string): string {
 /** Từ quá chung, không cho làm từ khoá (dễ khớp nhầm). */
 const ALIAS_STOPWORDS = new Set(["nganh", "truong", "hoc", "diem", "co", "khong", "it", "ai", "neu", "gi", "nao", "dai hoc", "cao dang", "hoc phi"]);
 
+function extractLinksFromAiText(text: string, k: Knowledge): ChatSource[] {
+  const sources: ChatSource[] = [];
+  const added = new Set<string>();
+
+  for (const school of k.schools) {
+    if (sources.length >= 4) break;
+    const nameNorm = school.shortName.toLowerCase();
+    const fullNameNorm = school.name.toLowerCase();
+    if (
+      (nameNorm.length >= 3 && text.toLowerCase().includes(nameNorm)) ||
+      (fullNameNorm.length >= 6 && text.toLowerCase().includes(fullNameNorm))
+    ) {
+      if (!added.has(school.slug)) {
+        added.add(school.slug);
+        sources.push({
+          label: `Trường ${school.shortName}`,
+          href: `/truong/${school.slug}`,
+        });
+      }
+    }
+  }
+
+  for (const major of k.majors) {
+    if (sources.length >= 6) break;
+    if (text.toLowerCase().includes(major.name.toLowerCase())) {
+      if (!added.has(major.slug)) {
+        added.add(major.slug);
+        sources.push({
+          label: `Ngành ${major.name}`,
+          href: `/nganh/${major.slug}`,
+        });
+      }
+    }
+  }
+
+  return sources;
+}
+
+function generateFollowUpSuggestions(q: string): string[] {
+  const normQ = norm(q);
+  const res: string[] = [];
+  if (normQ.includes("diem") || normQ.includes("xet tuyen") || normQ.includes("nguyen vong")) {
+    res.push("Chiến lược đặt nguyện vọng 3 tầng (Thử sức - Vừa sức - An toàn)");
+    res.push("Cách tính điểm ưu tiên mới của Bộ GD&ĐT");
+  }
+  if (normQ.includes("nganh") || normQ.includes("hoc gi") || normQ.includes("nghe nghiep")) {
+    res.push("Làm bài trắc nghiệm tính cách nghề nghiệp RIASEC");
+    res.push("So sánh cơ hội việc làm các ngành công nghệ");
+  }
+  if (normQ.includes("truong") || normQ.includes("hoc phi")) {
+    res.push("Top trường đại học đào tạo tốt nhất hiện nay");
+    res.push("Chính sách học bổng và hỗ trợ học phí");
+  }
+  if (res.length < 3) {
+    res.push("Tôi nên chọn trường theo đam mê hay theo điểm chuẩn?");
+    res.push("Cách phân tầng nguyện vọng trúng tuyển an toàn");
+    res.push("Quy chế quy đổi chứng chỉ IELTS sang thang điểm 10");
+  }
+  return res.slice(0, 4);
+}
+
 export const chatbotService = {
   async listAliases() {
     const [aliases, majors, schools] = await Promise.all([repositories.chatAliases.list(), repositories.majors.findAll(), repositories.schools.findAll()]);
@@ -772,7 +834,85 @@ export const chatbotService = {
         };
       }
     }
-    if (answer.kind === "answer") {
+
+    // Nếu câu hỏi mở rộng, câu hỏi sâu xa hoặc chưa tìm thấy dữ liệu cứng, và WusRouter đã được cấu hình
+    if (
+      (answer.kind === "unknown" || answer.kind === "clarify" || (answer.kind === "refusal" && answer.intent === "predict")) &&
+      isWusRouterConfigured()
+    ) {
+      const k = await knowledge();
+      const n = norm(q);
+      const mId = findEntity(n, k.majorIndex, q) ?? answer.context?.majorId;
+      const sId = findEntity(n, k.schoolIndex, q) ?? answer.context?.schoolId;
+      const m = k.majors.find((x) => x.id === mId);
+      const s = k.schools.find((x) => x.id === sId);
+
+      let specificFacts = "";
+      if (m) {
+        specificFacts += `Ngành học: ${m.name} (Nhóm: ${m.groupId})\nMô tả: ${m.summary || "—"}\n`;
+      }
+      if (s) {
+        specificFacts += `Trường đại học: ${s.name} (${s.shortName}, Mã: ${s.code})\nKhu vực: ${s.region}, Loại: ${s.type}, Website: ${s.website}\n`;
+        const relatedPrograms = k.programs.filter((p) => p.schoolId === s.id).slice(0, 5);
+        if (relatedPrograms.length) {
+          specificFacts += `Một số ngành tiêu biểu tại trường:\n` + relatedPrograms.map((p) => `- ${p.name}: điểm chuẩn gần nhất: ${p.cutoffs[p.cutoffs.length - 1]?.score ?? "—"}`).join("\n") + "\n";
+        }
+      }
+
+      let userScores = "";
+      if (history?.userId) {
+        const udata = await userDataService.get(history.userId).catch(() => null);
+        if (udata?.profile) {
+          userScores = `Tổ hợp: ${udata.profile.combo || "—"}; Điểm các môn: ${JSON.stringify(udata.profile.scores || {})}; Khu vực ưu tiên: ${udata.profile.priorityRegion || "KV3"}; Điểm xét tuyển ước tính: ${udata.profile.admission?.total ?? "—"}`;
+        }
+      }
+
+      let conversationHistory: Array<{ role: "user" | "assistant"; text: string }> = [];
+      if (history?.userId && history.conversationId) {
+        const conv = await repositories.chatHistory.findById(history.conversationId, history.userId).catch(() => null);
+        if (conv?.messages) {
+          conversationHistory = conv.messages
+            .filter((msg) => msg.text || msg.answer?.text)
+            .map((msg) => ({
+              role: msg.role,
+              text: msg.text || msg.answer?.text || "",
+            }));
+        }
+      }
+
+      const wusAnswer = await answerWithWusRouter({
+        question: q,
+        specificFacts: specificFacts || undefined,
+        userScores: userScores || undefined,
+        currentPage: typeof ctx.page === "string" ? ctx.page : undefined,
+        history: conversationHistory,
+      }).catch((e) => {
+        console.error("[wusrouter] Lỗi trả lời:", e);
+        return null;
+      });
+
+      if (wusAnswer) {
+        const matchedSources = extractLinksFromAiText(wusAnswer, k);
+        answer = {
+          ...answer,
+          kind: "answer",
+          intent: "ai-deep-advisor",
+          text: wusAnswer,
+          note: "Tư vấn từ Trợ lý AI TriOVO (kết nối WusRouter AI) dựa trên quy chế tuyển sinh chính thức và tri thức dự án.",
+          sources: matchedSources.length > 0 ? matchedSources : [
+            { label: "Tìm trường đại học", href: "/truong" },
+            { label: "Khám phá ngành đào tạo", href: "/nganh" },
+            { label: "Tính điểm & Phân tích nguyện vọng", href: "/diem-cua-toi" },
+            { label: "Trắc nghiệm hướng nghiệp RIASEC", href: "/trac-nghiem" },
+          ],
+          suggestions: generateFollowUpSuggestions(q),
+          context: { majorId: m?.id, schoolId: s?.id },
+          polished: true,
+        };
+      }
+    }
+
+    if (answer.kind === "answer" && answer.intent !== "ai-deep-advisor") {
       const polished = await polishWithLlm(q, answer).catch(() => null);
       if (polished) answer = { ...answer, text: polished, polished: true };
     }

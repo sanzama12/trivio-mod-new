@@ -1,25 +1,25 @@
 /**
- * (TUỲ CHỌN, MẶC ĐỊNH TẮT) Diễn đạt lại câu trả lời của chatbot bằng mô hình ngôn ngữ.
+ * LỚP TÍCH HỢP MÔ HÌNH NGÔN NGỮ (LLM LAYER) CHO CHATBOT TRIOVO
  *
- * Bật bằng biến môi trường:
- *   CHATBOT_LLM=anthropic
- *   ANTHROPIC_API_KEY=...
- *   ANTHROPIC_MODEL=<tên model hiện hành, xem https://docs.claude.com/en/docs/about-claude/models>
- *
- * Kiểm soát: mô hình chỉ nhận DỮ KIỆN đã truy xuất; câu trả lời bị loại (dùng bản gốc) nếu
- * - chứa con số không có trong dữ kiện, - chứa đường link, - quá dài, - lỗi/timeout.
+ * Hỗ trợ 2 nhà cung cấp:
+ * 1. WusRouter (https://wusrouter.com/v1 - OpenAI compatible) - ĐƯỢC ƯU TIÊN
+ * 2. Anthropic (api.anthropic.com/v1 - Claude Messages)
  */
 import type { ChatAnswer } from "../domain/chat";
+import { isWusRouterConfigured, sendWusRouterChat } from "./wusrouter-llm";
 
 const SYSTEM = [
-  "Bạn là trợ lý tuyển sinh của Trovio, trả lời học sinh Việt Nam bằng tiếng Việt thân thiện, ngắn gọn (tối đa 4 câu).",
-  "CHỈ được diễn đạt lại DỮ KIỆN được cung cấp. Không thêm con số, tên trường, ngày tháng, quy định hay khẳng định mới.",
-  "Không dự đoán điểm chuẩn, không hứa hẹn khả năng trúng tuyển. Giữ nguyên mọi con số như trong dữ kiện.",
-  "Không chèn đường link. Nếu dữ kiện có ghi chú (minh hoạ, cần đối chiếu), phải giữ ý đó.",
+  "Bạn là trợ lý tuyển sinh thông minh của TriOVO, trả lời học sinh và phụ huynh bằng tiếng Việt thân thiện, ân cần, súc tích (tối đa 4-5 câu).",
+  "CHỈ được diễn đạt lại DỮ KIỆN được cung cấp. Không bịa đặt con số, tên trường, ngày tháng hay quy định sai lệch.",
+  "Không cam kết chắc chắn trúng tuyển 100%. Giữ nguyên tính chính xác của các con số điểm chuẩn và học phí trong dữ kiện.",
+  "Sử dụng định dạng Markdown rõ ràng, dễ đọc.",
 ].join("\n");
 
 export function llmEnabled(): boolean {
-  return process.env.CHATBOT_LLM === "anthropic" && !!process.env.ANTHROPIC_API_KEY && !!process.env.ANTHROPIC_MODEL;
+  return (
+    isWusRouterConfigured() ||
+    (process.env.CHATBOT_LLM === "anthropic" && !!process.env.ANTHROPIC_API_KEY && !!process.env.ANTHROPIC_MODEL)
+  );
 }
 
 /** Tập số xuất hiện trong văn bản (chuẩn hoá dấu thập phân). */
@@ -34,7 +34,7 @@ export function numbersIn(text: string): Set<string> {
   return out;
 }
 
-/** Kiểm tra câu trả lời của mô hình: mọi con số phải có trong dữ kiện, không có link. */
+/** Kiểm tra câu trả lời của mô hình: mọi con số phải có trong dữ kiện, không có link lạ. */
 export function isFaithful(output: string, facts: string): boolean {
   if (!output.trim() || output.length > 1200) return false;
   if (/https?:\/\/|www\./i.test(output)) return false;
@@ -48,37 +48,73 @@ export function isFaithful(output: string, facts: string): boolean {
 }
 
 export function factsOf(answer: Pick<ChatAnswer, "text" | "items" | "note">): string {
-  return [answer.text, ...answer.items.map((i) => `- ${i.title}${i.meta ? `: ${i.meta}` : ""}`), answer.note ? `Ghi chú: ${answer.note}` : ""].filter(Boolean).join("\n");
+  return [
+    answer.text,
+    ...answer.items.map((i) => `- ${i.title}${i.meta ? `: ${i.meta}` : ""}`),
+    answer.note ? `Ghi chú: ${answer.note}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-export async function polishWithLlm(question: string, answer: ChatAnswer, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+export async function polishWithLlm(
+  question: string,
+  answer: ChatAnswer,
+  fetchImpl: typeof fetch = fetch
+): Promise<string | null> {
   if (!llmEnabled()) return null;
   const facts = factsOf(answer);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
-  try {
-    const res = await fetchImpl("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      signal: ctrl.signal,
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL,
-        max_tokens: 400,
-        system: SYSTEM,
-        messages: [{ role: "user", content: `CÂU HỎI: ${question}\n\nDỮ KIỆN:\n${facts}\n\nViết lại phần mở đầu câu trả lời (không liệt kê lại danh sách).` }],
-      }),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = data.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
-    return isFaithful(text, facts) ? text : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
+
+  // 1. Ưu tiên sử dụng WusRouter nếu đã được cấu hình
+  if (isWusRouterConfigured()) {
+    try {
+      const text = await sendWusRouterChat(
+        [
+          { role: "system", content: SYSTEM },
+          {
+            role: "user",
+            content: `CÂU HỎI CỦA HỌC SINH: ${question}\n\nDỮ KIỆN XÁC THỰC CỦA HỆ THỐNG:\n${facts}\n\nHãy viết lại phần mở đầu câu trả lời sao cho ấm áp, tự nhiên, truyền cảm hứng và súc tích (không liệt kê lại danh sách).`,
+          },
+        ],
+        { maxTokens: 450, temperature: 0.4 },
+        fetchImpl
+      );
+      if (text && isFaithful(text, facts)) return text;
+    } catch (e) {
+      console.warn("[wusrouter] Lỗi khi polish câu trả lời:", e);
+    }
   }
+
+  // 2. Dự phòng Anthropic nếu WusRouter không bật nhưng có Anthropic
+  if (process.env.CHATBOT_LLM === "anthropic" && process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetchImpl("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY!,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: process.env.ANTHROPIC_MODEL,
+          max_tokens: 400,
+          system: SYSTEM,
+          messages: [{ role: "user", content: `CÂU HỎI: ${question}\n\nDỮ KIỆN:\n${facts}\n\nViết lại phần mở đầu câu trả lời (không liệt kê lại danh sách).` }],
+        }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+      const text = data.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
+      return isFaithful(text, facts) ? text : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return null;
 }
