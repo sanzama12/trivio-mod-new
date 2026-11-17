@@ -34,7 +34,7 @@ export function getWusRouterBaseUrl(): string {
 }
 
 export function getWusRouterModel(): string {
-  return process.env.WUSROUTER_MODEL?.trim() || "gpt-4o-mini";
+  return process.env.WUSROUTER_MODEL?.trim() || "deepseek-v4.1-flash";
 }
 
 /**
