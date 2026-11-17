@@ -33,6 +33,29 @@ export interface ChatAnswer {
   polished?: boolean;
 }
 
+/** Keep Vietnamese and ordinary punctuation, removing invisible/control characters and broken Unicode. */
+export function cleanChatText(text: string): string {
+  return text.normalize("NFC")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\ufffd]/g, " ")
+    .replace(/[\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function cleanChatAnswer(answer: ChatAnswer): ChatAnswer {
+  return {
+    ...answer,
+    text: cleanChatText(answer.text),
+    note: answer.note ? cleanChatText(answer.note) : undefined,
+    items: answer.items.map((item) => ({ ...item, title: cleanChatText(item.title), meta: item.meta ? cleanChatText(item.meta) : undefined })),
+    sources: answer.sources.map((source) => ({ ...source, label: cleanChatText(source.label) })),
+    suggestions: answer.suggestions.map(cleanChatText).filter(Boolean),
+  };
+}
+
 export interface ChatHistoryMessage {
   id: string;
   role: "user" | "assistant";
@@ -58,5 +81,10 @@ export type ChatConversationView = Omit<ChatConversation, "userId">;
 export function safeChatHref(href: unknown): string | null {
   if (typeof href !== "string" || href.length > 500) return null;
   if (href.startsWith("/") && !href.startsWith("//")) return href;
-  return /^https:\/\/[a-z0-9.-]+(\/[^\s]*)?$/i.test(href) ? href : null;
+  try {
+    const url = new URL(href);
+    return url.protocol === "https:" && !!url.hostname && !url.username && !url.password && !/\s/.test(href) ? href : null;
+  } catch {
+    return null;
+  }
 }

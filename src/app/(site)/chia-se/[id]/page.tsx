@@ -9,7 +9,7 @@ import { buttonClass } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/misc";
 import { FitBadge } from "@/components/program/fit-badge";
-import { SchoolCode } from "@/components/program/program-card";
+import { SchoolLogo } from "@/components/school/school-logo";
 import { ShareCommentForm } from "@/components/share/comment-form";
 
 // Link chứa mã bí mật: không lập chỉ mục, không gửi referrer sang trang khác.
@@ -106,7 +106,7 @@ export default async function SharedWishlistPage({ params }: Props) {
                 <Card key={v.program.id} className="p-5">
                   <div className="flex gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">NV{i + 1}</span>
-                    <SchoolCode code={v.school.code} />
+                    <SchoolLogo school={v.school} size="md" />
                     <div className="min-w-0 flex-1">
                       <Link href={`/chuong-trinh/${v.program.slug}`} className="font-bold text-slate-900 hover:text-primary-700">
                         {v.program.name}

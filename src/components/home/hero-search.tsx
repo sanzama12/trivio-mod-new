@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { buttonClass } from "@/components/ui/button";
 import { matchesQuery } from "@/lib/text";
 import { SchoolLogo } from "@/components/school/school-logo";
+import { GroupIcon } from "@/components/ui/group-icon";
 
 export interface SearchMajorItem {
   id: string;
@@ -143,7 +144,7 @@ export function HeroSearch({ groups, schools, majors, defaultQuery = "", classNa
           )) : matchedMajors.slice(0, 8).map((major) => (
             <Link key={major.id} href={`/nganh/${major.slug}`} onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-primary-50 focus-visible:bg-primary-50">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><LuGraduationCap className="size-5" aria-hidden /></span>
+              <GroupIcon group={groups.find((group) => group.id === major.groupId) ?? { icon: "book", tone: "slate" }} className="rounded-lg" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-slate-900">{major.name}</p>
                 <p className="mt-1 text-xs text-slate-500">{major.groupName || groups.find((group) => group.id === major.groupId)?.name}{major.code ? ` · Mã ${major.code}` : ""}</p>

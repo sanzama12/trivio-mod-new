@@ -22,7 +22,7 @@ import { ParentComments } from "@/components/wishlist/parent-comments";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FitBadge } from "./fit-badge";
 import { CompareButton } from "./program-actions";
-import { SchoolCode } from "./program-card";
+import { SchoolLogo } from "@/components/school/school-logo";
 import { useProgramViews } from "./use-program-views";
 
 export function SavedView() {
@@ -158,7 +158,7 @@ export function SavedView() {
                 return (
                   <Card key={v.program.id} className="flex flex-col p-5">
                     <div className="flex gap-3">
-                      <SchoolCode code={v.school.code} />
+                      <SchoolLogo school={v.school} size="md" />
                       <div className="min-w-0 flex-1">
                         <Link href={`/chuong-trinh/${v.program.slug}`} className="font-bold text-slate-900 hover:text-primary-700">
                           {v.program.name}

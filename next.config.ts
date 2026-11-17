@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     qualities: [75, 90],
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },
+  outputFileTracingIncludes: {
+    "/api/chat": ["./docs/chatbot-faq.md"],
+  },
 };
 
 export default nextConfig;

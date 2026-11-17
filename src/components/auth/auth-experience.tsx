@@ -4,8 +4,8 @@ import { buttonClass } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
-import { LuArrowLeft, LuArrowRight, LuCheck, LuSparkles } from "react-icons/lu";
-import { Logo } from "@/components/layout/logo";
+import { LuArrowLeft, LuArrowRight, LuSparkles } from "react-icons/lu";
+import { LogoMark } from "@/components/layout/logo";
 import { Input, Label, FieldError, Checkbox } from "@/components/ui/field";
 import { emailError } from "@/lib/email-validation";
 import { checkPassword } from "@/services/password.rules";
@@ -79,23 +79,21 @@ export function AuthExperience({ next, error, demo, initialMode = "login" }: { n
   }
 
   return <div className={styles.page}>
-    <header className={styles.header}><Logo /><Link href="/" className={styles.back}><LuArrowLeft aria-hidden /> Về trang chủ</Link></header>
+    <header className={styles.header}><Link href="/" className={styles.back}><LuArrowLeft aria-hidden /> Về trang chủ</Link></header>
     <div className={styles.card}>
       <section className={styles.story} aria-label="Cùng Trovio định hướng tương lai">
-        <span className={styles.eyebrow}><LuSparkles aria-hidden /> MỖI LỰA CHỌN, MỘT TƯƠNG LAI</span>
-        <h2>Hành trình lớn.<br />Bắt đầu từ <em>bạn.</em></h2>
-        <p>Hiểu mình hơn, chọn đúng ngành.<br />Trovio cùng bạn đi bước đầu tiên.</p>
+        <span className={styles.eyebrow}><LuSparkles aria-hidden /> HÀNH TRÌNH CỦA BẠN</span>
+        <h2>Ý tưởng hôm nay.<br /><em>Lối đi ngày mai.</em></h2>
         <StudentMascot covered={focus === "password" || focus === "confirm"} looking={focus === "email"} progress={form.email.length} />
-        <div className={styles.benefits}><span><LuCheck /> Khám phá bản thân</span><span><LuCheck /> Tìm trường phù hợp</span><span><LuCheck /> Lưu nguyện vọng</span></div>
+        <p className={styles.storyFoot}>Từng lựa chọn rõ ràng hơn, bắt đầu từ bạn.</p>
       </section>
       <section className={styles.formSide} aria-label="Tài khoản Trovio">
+        <div className={styles.formBrand}><LogoMark className="size-9" /><span>Trovio</span></div>
         <div className={styles.switcher} aria-label="Chọn đăng nhập hoặc đăng ký">
           <button type="button" aria-pressed={!register} disabled={loading} onClick={() => switchMode("login")}>Đăng nhập</button>
           <button type="button" aria-pressed={register} disabled={loading} onClick={() => switchMode("register")}>Đăng ký</button>
         </div>
-        <div className={styles.formHeading}><span className={styles.kicker}>{register ? "Một khởi đầu mới" : "Rất vui được gặp lại bạn"}</span><h1>{register ? "Tương lai đang chờ bạn." : "Chào bạn trở lại!"}</h1><p>{register ? "Tạo tài khoản miễn phí, khám phá lối đi của riêng mình." : "Đăng nhập để tiếp tục hành trình của riêng mình."}</p></div>
-        <GoogleButton next={next} />
-        <div className={styles.divider}><span />hoặc sử dụng email<span /></div>
+        <div className={styles.formHeading}><span className={styles.kicker}>{register ? "BẮT ĐẦU CÙNG TRIOVO" : "CHÀO MỪNG TRỞ LẠI"}</span><h1>{register ? "Tạo tài khoản" : "Đăng nhập"}</h1><p>{register ? "Tạo không gian riêng cho kế hoạch học tập của bạn." : "Tiếp tục hành trình chọn ngành, chọn trường của bạn."}</p></div>
         {message && <div className={styles.alert} role="alert">{message}{locked && <p><Link href="/quen-mat-khau">Khôi phục mật khẩu</Link> · <Link href="/tro-giup#lien-he">Liên hệ hỗ trợ</Link></p>}</div>}
         <form noValidate onSubmit={submit} className={styles.form} aria-busy={loading}>
           <fieldset disabled={loading} className={styles.fields}>
@@ -106,6 +104,8 @@ export function AuthExperience({ next, error, demo, initialMode = "login" }: { n
             <button type="submit" className={buttonClass({ full: true })} disabled={loading}>{loading ? "Đang xử lý…" : register ? "Bắt đầu hành trình" : "Đăng nhập"}<LuArrowRight aria-hidden /></button>
           </fieldset>
         </form>
+        <div className={styles.divider}><span />hoặc<span /></div>
+        <div className={styles.social}><GoogleButton next={next} /></div>
         <p className={styles.switchHint}>{register ? "Đã có tài khoản?" : "Bạn mới đến Trovio?"} <button type="button" disabled={loading} onClick={() => switchMode(register ? "login" : "register")}>{register ? "Đăng nhập" : "Đăng ký miễn phí"}</button></p>
         {demo && <details className={styles.demo}><summary>Dùng thử với tài khoản demo</summary><p>Mật khẩu: Trovio@2026<br />Học sinh: an@trovio.vn<br />Quản trị: admin@trovio.vn<br />Bị khóa: binh.locked@trovio.vn</p></details>}
       </section>

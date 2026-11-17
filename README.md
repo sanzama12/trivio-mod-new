@@ -44,10 +44,10 @@ Nhập sai mật khẩu 5 lần sẽ khoá tài khoản; đặt lại mật kh�
 
 | Tính năng | Ở đâu | Cơ chế kiểm soát |
 | --- | --- | --- |
-| Trợ lý hỏi đáp ngành học | Nút “Hỏi trợ lý” góc phải dưới (mọi trang trừ lúc làm bài trắc nghiệm) | Trả lời bằng **truy xuất dữ liệu có cấu trúc** (`services/chatbot.service.ts`), không tự sinh số liệu; mọi con số kèm năm/nguồn và link kiểm tra; **từ chối** dự đoán điểm chuẩn, cam kết đỗ, gian lận; thiếu dữ liệu → nói rõ “chưa có”, không đoán; gắn nhãn MINH HOẠ; hiểu ngữ cảnh hội thoại và trang đang xem; link được lọc (chỉ nội bộ/https); 20 câu/phút, 300 câu/ngày mỗi IP; nhật ký ẩn danh đã che email/SĐT |
+| Trợ lý hỏi đáp ngành học | Nút “Hỏi trợ lý” góc phải dưới (mọi trang trừ lúc làm bài trắc nghiệm) | Câu hỏi điều hướng khớp nguyên câu được trả nhanh từ `docs/chatbot-faq.md`; dữ liệu tuyển sinh vẫn tra cứu từ `services/chatbot.service.ts` và nguồn do quản trị viên nhập. Nếu site chưa có thông tin, tìm tài liệu ngoài có URL thật rồi mới dùng AI tóm tắt; không tìm được nguồn thì nói rõ chưa có dữ liệu. Từ chối dự đoán điểm chuẩn, cam kết đỗ, gian lận; lọc ký tự vô hình/lỗi mã hóa; 20 câu/phút, 300 câu/ngày mỗi IP; nhật ký ẩn danh đã che email/SĐT |
 | Giám sát chatbot | `/quan-tri/chatbot` (admin) | Thống kê trả lời/từ chối/chưa có dữ liệu, đánh giá của người dùng, danh sách câu cần xem lại |
 
-Lớp diễn đạt bằng mô hình ngôn ngữ cho chatbot là **tuỳ chọn, mặc định tắt** (`CHATBOT_LLM=anthropic`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`). Khi bật, mô hình chỉ được viết lại dữ kiện đã truy xuất; câu trả lời chứa con số không có trong dữ kiện, chứa link, quá dài hoặc lỗi/timeout 8 giây → dùng câu trả lời gốc.
+Nhánh AI dùng `WUSROUTER_API_KEY` và `WUSROUTER_MODEL` (mặc định `deepseek-v4.1-flash` để cân bằng chất lượng tiếng Việt và chi phí). Không gọi model cho câu hỏi mà dữ liệu site đã trả lời được. Nguồn ngoài dùng Brave Search khi có `BRAVE_SEARCH_API_KEY`, nếu không sẽ tra Wikipedia tiếng Việt. Câu trả lời AI chứa con số không có trong tài liệu, URL lạ hoặc quá dài sẽ bị loại; nguồn truy xuất được hiển thị để người đọc tự kiểm tra.
 
 > Điểm chuẩn học bạ/ĐGNL trong dữ liệu mẫu được **suy ra từ điểm thi THPT theo công thức cố định** chỉ để demo (xem `database/seeds/programs.ts`).
 

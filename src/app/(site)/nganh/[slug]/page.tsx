@@ -8,7 +8,8 @@ import { formatScore, formatTuition } from "@/lib/format";
 import { buttonClass } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/misc";
 import { SaveButton } from "@/components/program/program-actions";
-import { SchoolCode } from "@/components/program/program-card";
+import { SchoolLogo } from "@/components/school/school-logo";
+import { GroupIcon } from "@/components/ui/group-icon";
 
 const groupImages: Record<string, string> = {
   "cntt": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=2000&q=70",
@@ -54,9 +55,12 @@ export default async function MajorPage({ params }: Props) {
         <div className="container-page relative py-14 sm:py-20">
           <div className="max-w-2xl">
             <Breadcrumb inverse items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá ngành", href: "/nganh" }, { label: group.name, href: `/nganh?group=${group.id}` }, { label: major.name }]} />
-            <p className="mt-6 inline-flex items-center gap-2 bg-accent-500 px-3 py-1 text-sm font-semibold text-slate-900">
-              {group.name}{major.code ? ` · Mã ngành ${major.code}` : ""}
-            </p>
+            <div className="mt-6 flex items-center gap-2.5">
+              <GroupIcon group={group} className="size-10 rounded-lg bg-white/95" />
+              <p className="inline-flex bg-accent-500 px-3 py-1 text-sm font-semibold text-slate-900">
+                {group.name}{major.code ? ` · Mã ngành ${major.code}` : ""}
+              </p>
+            </div>
             <h1 className="mt-5 leading-[1.02] text-white text-3xl md:text-4xl font-bold tracking-tight">
               Ngành {major.name}
             </h1>
@@ -112,7 +116,7 @@ export default async function MajorPage({ params }: Props) {
         <div className="mt-6 space-y-3">
           {programs.map(({ program, school }) => (
             <article key={program.id} className="flex flex-col gap-4 border border-slate-200 shadow-card hover:border-primary-300 bg-white p-4 md:flex-row md:items-center">
-              <SchoolCode code={school.code} />
+              <SchoolLogo school={school} size="md" />
               <div className="min-w-0 flex-1">
                 <Link href={`/truong/${school.slug}`} className="font-bold break-words text-slate-900 hover:text-primary-700 hover:underline">
                   {school.name}

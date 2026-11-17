@@ -16,20 +16,6 @@ import { FitBadge } from "./fit-badge";
 import { SchoolLogo } from "@/components/school/school-logo";
 import { cn } from "@/lib/cn";
 
-export function SchoolCode({ code, size = "md" }: { code: string; size?: "md" | "lg" }) {
-  return (
-    <span
-      className={
-        size === "lg"
-          ? "flex size-16 shrink-0 items-center justify-center rounded-2xl bg-white text-lg font-extrabold text-primary-700 shadow-sm"
-          : "flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-[13px] font-extrabold text-primary-700"
-      }
-    >
-      {code}
-    </span>
-  );
-}
-
 export function ProgramCard({ view }: { view: ProgramView }) {
   const { program, school, latestCutoff, fit, cutoffMethod = "thpt" } = view;
   const methodTag = cutoffMethod !== "thpt" ? ` ${ADMISSION_METHODS[cutoffMethod].short}` : "";

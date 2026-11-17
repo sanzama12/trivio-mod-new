@@ -1,3 +1,7 @@
+"use client";
+
+import Image from "next/image";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 type SchoolIdentity = {
@@ -23,22 +27,29 @@ export function SchoolLogo({
   className?: string;
 }) {
   const fallback = school.code.trim().slice(0, 4).toUpperCase() || "TR";
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const logoUrl = school.logoUrl?.startsWith("https://") ? school.logoUrl : null;
+  const showLogo = !!logoUrl && failedUrl !== logoUrl;
   return (
     <span
       role="img"
-      aria-label={school.logoUrl ? `Logo ${school.name}` : `Mã trường ${fallback}`}
+      aria-label={showLogo ? `Logo ${school.name}` : `Mã trường ${fallback}`}
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden border border-slate-200 font-bold text-primary-700 shadow-sm",
-        school.logoUrl ? "bg-white" : "bg-primary-50",
+        showLogo ? "bg-white" : "bg-primary-50",
         sizes[size],
         className,
       )}
     >
-      {school.logoUrl ? (
-        <span
-          aria-hidden="true"
-          className="absolute inset-0.5 bg-contain bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${JSON.stringify(school.logoUrl)})` }}
+      {showLogo ? (
+        <Image
+          src={logoUrl}
+          alt=""
+          fill
+          unoptimized
+          sizes="96px"
+          className="object-contain p-0.5"
+          onError={() => setFailedUrl(logoUrl)}
         />
       ) : fallback}
     </span>

@@ -3,67 +3,21 @@
 import { buttonClass } from "@/components/ui/button";
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import type { IconType } from "react-icons";
 import {
-  LuBookOpen,
-  LuBoxes,
-  LuBriefcaseMedical,
-  LuBuilding2,
   LuChevronDown,
-  LuCpu,
   LuFilter,
   LuFilterX,
-  LuGlobe,
-  LuGraduationCap,
-  LuLeaf,
-  LuMessageCircle,
-  LuMessageSquare,
-  LuPalette,
-  LuScale,
   LuSearch,
-  LuSettings,
-  LuShield,
   LuSlidersHorizontal,
-  LuSprout,
-  LuTrendingUp,
   LuX,
 } from "react-icons/lu";
 import type { MajorGroupSummary, MajorListItem } from "@/services/catalog.service";
 import { MajorCard } from "./major-card";
 import { cn } from "@/lib/cn";
+import { normalizeVi } from "@/lib/text";
+import { GroupGlyph } from "@/components/ui/group-icon";
 
 const PAGE_SIZE = 15;
-
-/** Chọn icon chính xác cho từng nhóm ngành theo thiết kế chuẩn */
-function getGroupLucideIcon(name: string, slug?: string): IconType {
-  const s = `${name} ${slug ?? ""}`.toLowerCase();
-  if (s.includes("giáo dục") || s.includes("sư phạm")) return LuGraduationCap;
-  if (s.includes("nghệ thuật") || s.includes("thiết kế") || s.includes("kiến trúc")) return LuPalette;
-  if (s.includes("ngôn ngữ") || s.includes("văn học") || s.includes("nhân văn")) return LuBookOpen;
-  if (s.includes("báo chí") || s.includes("truyền thông") || s.includes("xuất bản")) return LuMessageCircle;
-  if (s.includes("khoa học xã hội") || s.includes("tâm lý") || s.includes("hành vi") || s.includes("xã hội")) return LuMessageSquare;
-  if (s.includes("kinh doanh") || s.includes("quản lý") || s.includes("kinh tế")) return LuTrendingUp;
-  if (s.includes("tài chính") || s.includes("kế toán") || s.includes("ngân hàng")) return LuTrendingUp;
-  if (s.includes("luật")) return LuScale;
-  if (s.includes("máy tính") || s.includes("công nghệ thông tin") || s.includes("dữ liệu") || s.includes("cntt")) return LuCpu;
-  if (s.includes("sản xuất") || s.includes("chế biến") || s.includes("vật liệu")) return LuBoxes;
-  if (s.includes("kỹ thuật") || s.includes("công nghệ")) return LuSettings;
-  if (s.includes("xây dựng") || s.includes("quy hoạch") || s.includes("hạ tầng")) return LuBuilding2;
-  if (s.includes("nông") || s.includes("lâm") || s.includes("thủy sản") || s.includes("thú y")) return LuSprout;
-  if (s.includes("môi trường") || s.includes("tài nguyên") || s.includes("khí tượng")) return LuLeaf;
-  if (s.includes("y") || s.includes("dược") || s.includes("sức khỏe") || s.includes("y tế")) return LuBriefcaseMedical;
-  if (s.includes("du lịch") || s.includes("khách sạn") || s.includes("dịch vụ")) return LuGlobe;
-  if (s.includes("an ninh") || s.includes("quốc phòng") || s.includes("ngoại giao") || s.includes("quân sự")) return LuShield;
-  return LuBookOpen;
-}
-
-function normalizeSearch(str: string): string {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d");
-}
 
 interface MajorExplorerProps {
   groups: MajorGroupSummary[];
@@ -95,18 +49,25 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
     return map;
   }, [items]);
 
+  const searchableItems = useMemo(() => items.map((item) => ({
+    item,
+    fields: [
+      normalizeVi(item.major.name),
+      normalizeVi(item.major.code || ""),
+      normalizeVi(item.major.summary || item.major.description || ""),
+    ],
+  })), [items]);
+
   // Lọc danh sách ngành học theo query và nhóm ngành
   const filteredItems = useMemo(() => {
-    const qNorm = normalizeSearch(query.trim());
-    return items.filter((item) => {
-      if (selectedGroup && item.group.id !== selectedGroup) return false;
-      if (!qNorm) return true;
-      const nameNorm = normalizeSearch(item.major.name);
-      const codeNorm = normalizeSearch(item.major.code || "");
-      const summaryNorm = normalizeSearch(item.major.summary || item.major.description || "");
-      return nameNorm.includes(qNorm) || codeNorm.includes(qNorm) || summaryNorm.includes(qNorm);
-    });
-  }, [items, selectedGroup, query]);
+    const qNorm = normalizeVi(query);
+    const result: MajorListItem[] = [];
+    for (const { item, fields } of searchableItems) {
+      if (selectedGroup && item.group.id !== selectedGroup) continue;
+      if (!qNorm || fields.some((field) => field.includes(qNorm))) result.push(item);
+    }
+    return result;
+  }, [searchableItems, selectedGroup, query]);
 
   // Phân trang
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
@@ -282,7 +243,6 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                 const group = item.group;
                 const isSelected = selectedGroup === group.id;
                 const isExpanded = !!expandedGroups[group.id];
-                const IconComponent = getGroupLucideIcon(group.name, group.slug);
                 const groupMajors = majorsByGroup.get(group.id) ?? [];
 
                 return (
@@ -297,7 +257,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                       )}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <IconComponent className="size-4.5 shrink-0 text-primary-700" aria-hidden />
+                        <GroupGlyph group={group} className="size-4.5 shrink-0 text-primary-700" />
                         <span className="truncate text-[14px] leading-tight" title={group.name}>
                           {group.name}
                         </span>
@@ -552,7 +512,6 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                 {groups.map((item) => {
                   const group = item.group;
                   const isSelected = selectedGroup === group.id;
-                  const Icon = getGroupLucideIcon(group.name, group.slug);
                   return (
                     <button
                       key={group.id}
@@ -566,7 +525,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
                       )}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon className="size-4 shrink-0 text-primary-700" />
+                        <GroupGlyph group={group} className="size-4 shrink-0 text-primary-700" />
                         <span className="truncate">{group.name}</span>
                       </div>
                       <span className="text-xs text-slate-400 shrink-0 ml-2">{item.majorCount}</span>

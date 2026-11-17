@@ -7,6 +7,7 @@ import type { MajorRecommendation } from "@/services/major-recommendation.servic
 import { useTrovio } from "@/stores/trovio-store";
 import { useBrowsingHistory } from "@/lib/browsing-history";
 import { buttonClass } from "@/components/ui/button";
+import { GroupIcon } from "@/components/ui/group-icon";
 
 export function PersonalizedSuggestions({ query, limit = 4 }: { query?: string; limit?: number }) {
   const store = useTrovio();
@@ -96,8 +97,7 @@ export function PersonalizedSuggestions({ query, limit = 4 }: { query?: string; 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {items.map((item) => (
               <article key={item.major.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-xs font-semibold text-primary-700">{item.group.name}</p>
-                <h3 className="mt-1 text-lg font-bold text-slate-950"><Link href={`/nganh/${item.major.slug}`} className="hover:text-primary-700">{item.major.name}</Link></h3>
+                <div className="flex items-center gap-3"><GroupIcon group={item.group} className="rounded-lg" /><div><p className="text-xs font-semibold text-primary-700">{item.group.name}</p><h3 className="mt-1 text-lg font-bold text-slate-950"><Link href={`/nganh/${item.major.slug}`} className="hover:text-primary-700">{item.major.name}</Link></h3></div></div>
                 <ul className="mt-3 list-disc space-y-1 pl-4 text-sm leading-relaxed text-slate-600">{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
                 {item.careers.length > 0 && <p className="mt-3 text-sm text-slate-600">Nghề nghiệp tiêu biểu gồm {item.careers.slice(0, 3).join(", ")}.</p>}
                 <div className="mt-auto flex flex-wrap items-center gap-3 pt-5">

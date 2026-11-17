@@ -41,4 +41,4 @@ Không dùng dataset tên file ảnh cục bộ; mọi nguồn logo được lư
 
 Nguồn ưu tiên trong `data/school-logo-overrides.json`; tiếp theo là URL đã có, logo trên website chính thức, và biểu tượng website chính thức. Kết quả kiểm tra mạng được ghi vào `scratch/school-logo-results.json`. Lệnh thu thập trả mã lỗi khi trường nào đó chưa kiểm tra được URL; không coi trạng thái HTTP thành công là bằng chứng đã duyệt đúng nhận diện logo. Cần xem lại nguồn trước khi publish. Bộ URL ban đầu được tổng hợp từ migration logo và overrides sẵn có; chưa được kiểm tra lại qua mạng trong lần cập nhật này.
 
-Sau khi publish, tiến trình web đang chạy tự làm mới cache danh mục trong tối đa hai phút. Component logo hiển thị URL bằng CSS background, không dùng thẻ `<img>` hay file logo PNG cục bộ. Trường chưa có URL hiển thị mã trường; URL hỏng cần được sửa trong dữ liệu nguồn.
+Sau khi publish, tiến trình web đang chạy tự làm mới cache danh mục trong tối đa hai phút. Component logo tải URL HTTPS trực tiếp và hiển thị mã trường nếu ảnh lỗi hoặc chưa có URL. URL hỏng vẫn cần được sửa trong dữ liệu nguồn.

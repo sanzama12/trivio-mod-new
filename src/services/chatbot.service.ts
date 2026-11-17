@@ -6,23 +6,24 @@
  *    chương trình) — không "sáng tác" nội dung.
  * 2. Mọi con số kèm năm và nguồn; câu trả lời có liên kết tới trang gốc để người dùng kiểm tra.
  * 3. Từ chối dự đoán điểm chuẩn, cam kết đỗ, gian lận; câu hỏi ngoài phạm vi → nói rõ "chưa có thông tin".
- * 4. (Tuỳ chọn) lớp LLM chỉ được diễn đạt lại; mọi con số trong câu trả lời LLM phải có trong dữ kiện,
- *    nếu không sẽ dùng câu trả lời gốc (xem chatbot-llm.ts).
+ * 4. Chỉ hỏi LLM khi dữ liệu nội bộ không trả lời được và đã truy xuất được nguồn ngoài.
  */
 import { randomUUID } from "node:crypto";
 import { ADMISSION_STATUS_LABELS, type ChatAlias, type Major, type Program, type PublicUser, type RiasecResult, type School } from "../domain/types";
-import { MAX_QUESTION, type ChatAnswer, type ChatConversationView, type ChatHistoryMessage, type ChatItem, type ChatKind, type ChatSource } from "../domain/chat";
+import { MAX_QUESTION, cleanChatAnswer, cleanChatText, type ChatAnswer, type ChatConversationView, type ChatHistoryMessage, type ChatItem, type ChatKind, type ChatSource } from "../domain/chat";
 import { RIASEC_INFO } from "../domain/riasec";
 import { repositories } from "@database/repositories";
 import { hasTuitionData } from "../lib/format";
 import { normalizeVi } from "../lib/text";
 import { ADMISSION_METHODS, cutoffFor, formatMethodScore } from "./scoring.service";
 import { matchMajor, sanitizeRiasec } from "./riasec.service";
-import { polishWithLlm } from "./chatbot-llm";
+import { isFaithful } from "./chatbot-llm";
 import { answerWithWusRouter, isWusRouterConfigured } from "./wusrouter-llm";
+import { findExternalEvidence } from "./external-evidence.service";
 import { majorRecommendationService } from "./major-recommendation.service";
 import { userDataService } from "./user-data.service";
 import { aiSourceService } from "./ai-source.service";
+import { findMarkdownAnswer } from "./chatbot-markdown";
 
 export { MAX_QUESTION } from "../domain/chat";
 export type { ChatAnswer, ChatItem, ChatKind, ChatSource } from "../domain/chat";
@@ -93,18 +94,50 @@ interface Knowledge {
   schoolIndex: [string, string][];
 }
 
+const ALIAS_CACHE_MS = 30_000;
+let aliasCache: { items: ChatAlias[]; loadedAt: number } | null = null;
+let aliasLoad: Promise<ChatAlias[]> | null = null;
+let aliasEpoch = 0;
+let knowledgeCache: { majors: Major[]; schools: School[]; programs: Program[]; aliases: ChatAlias[]; value: Knowledge } | null = null;
+
+function invalidateAliases(): void {
+  aliasEpoch++;
+  aliasCache = null;
+  aliasLoad = null;
+  knowledgeCache = null;
+}
+
+function loadAliases(): Promise<ChatAlias[]> {
+  if (aliasCache && Date.now() - aliasCache.loadedAt < ALIAS_CACHE_MS) return Promise.resolve(aliasCache.items);
+  if (aliasLoad) return aliasLoad;
+  const epoch = aliasEpoch;
+  const loading = repositories.chatAliases.list().then((items) => {
+    if (epoch === aliasEpoch) aliasCache = { items, loadedAt: Date.now() };
+    return items;
+  }).finally(() => {
+    if (aliasLoad === loading) aliasLoad = null;
+  });
+  aliasLoad = loading;
+  return loading;
+}
+
 function programsOfAll(k: Knowledge, mid?: string | null, sid?: string | null) {
   return k.programs.filter((p) => (!mid || p.majorId === mid) && (!sid || p.schoolId === sid));
 }
 
 async function knowledge(): Promise<Knowledge> {
+  const epoch = aliasEpoch;
   const [majors, schools, programs, custom] = await Promise.all([
     repositories.majors.findAll(),
     repositories.schools.findAll(),
     repositories.programs.findAll(),
     // Từ khoá bổ sung là tuỳ chọn: lỗi đọc không được làm hỏng cả trợ lý.
-    repositories.chatAliases.list().catch(() => []),
+    loadAliases().catch(() => []),
   ]);
+  if (epoch !== aliasEpoch) return knowledge();
+  if (knowledgeCache && knowledgeCache.majors === majors && knowledgeCache.schools === schools && knowledgeCache.programs === programs && knowledgeCache.aliases === custom) {
+    return knowledgeCache.value;
+  }
   const majorIndex: [string, string][] = [];
   for (const m of majors) {
     majorIndex.push([norm(m.name).trim(), m.id]);
@@ -118,7 +151,9 @@ async function knowledge(): Promise<Knowledge> {
   // Từ khoá quản trị viên thêm ở /quan-tri/chatbot.
   for (const a of Array.isArray(custom) ? custom : []) (a.kind === "major" ? majorIndex : schoolIndex).push([a.alias, a.targetId]);
   const byLen = (a: [string, string], b: [string, string]) => b[0].length - a[0].length;
-  return { majors, schools, programs, majorIndex: majorIndex.sort(byLen), schoolIndex: schoolIndex.sort(byLen) };
+  const value = { majors, schools, programs, majorIndex: majorIndex.sort(byLen), schoolIndex: schoolIndex.sort(byLen) };
+  knowledgeCache = { majors, schools, programs, aliases: custom, value };
+  return value;
 }
 
 /**
@@ -214,7 +249,6 @@ function methodAsked(n: string) {
 export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}, userId?: string): Promise<ChatAnswer> {
   const q = question.slice(0, MAX_QUESTION);
   const n = norm(q);
-  const k = await knowledge();
   const words = n.trim().split(" ").filter(Boolean);
 
   // --- 1. An toàn: gian lận, dự đoán, cam kết đỗ ---
@@ -223,6 +257,21 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
       suggestions: ["Điểm ưu tiên khu vực tính thế nào?", "Thứ tự nguyện vọng quan trọng thế nào?"],
     });
   }
+
+  const shortContext = {
+    majorId: typeof ctxIn.majorId === "string" && /^[a-z0-9-]{1,100}$/.test(ctxIn.majorId) ? ctxIn.majorId : undefined,
+    schoolId: typeof ctxIn.schoolId === "string" && /^[a-z0-9-]{1,100}$/.test(ctxIn.schoolId) ? ctxIn.schoolId : undefined,
+  };
+  const markdown = findMarkdownAnswer(q);
+  if (markdown) return base("markdown-faq", "answer", markdown.text, { context: shortContext, sources: markdown.sources });
+  if (/^(cam on|thanks|thank you|tks)( ban| nhe| nha| tro ly)?$/.test(n.trim())) {
+    return base("thanks", "answer", "Rất vui được hỗ trợ bạn! Bạn có thể hỏi tiếp về ngành, trường, điểm chuẩn hoặc học phí.", { context: shortContext, suggestions: defaultSuggestions() });
+  }
+  if (/^(xin chao|chao|hello|hi|alo)( ban| tro ly)?$/.test(n.trim())) {
+    return base("help", "answer", "Chào bạn! Mình là trợ lý Trovio. Bạn có thể hỏi về ngành, trường, điểm chuẩn và học phí. Mình không dự đoán điểm chuẩn.", { context: shortContext, suggestions: defaultSuggestions() });
+  }
+
+  const k = await knowledge();
 
   // Thực thể nêu trong câu hỏi; nếu không có thì dùng ngữ cảnh của câu trước (câu hỏi nối tiếp).
   const explicitMajor = findEntity(n, k.majorIndex, q);
@@ -244,7 +293,6 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
 
   const aboutScore = has(n, I.cutoff);
   const nowYear = new Date().getFullYear();
-  const latestYear = Math.max(0, ...k.programs.flatMap((p) => [...p.cutoffs.map((c) => c.year), ...p.altCutoffs.map((c) => c.year)]));
   const mentionedYears = [...q.matchAll(/\b(20\d{2})\b/g)].map((m) => Number(m[1]));
   const askedYear = mentionedYears[0] ?? (has(n, ["nam nay"]) ? nowYear : null);
   const futureYear = mentionedYears.some((y) => y > nowYear);
@@ -456,6 +504,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
 
   if (has(n, I.cutoff) || (has(n, I.methods) && (major || school))) {
     const subject = subjectOf(major, school);
+    const latestYear = askedYear ? Math.max(0, ...k.programs.flatMap((p) => [...p.cutoffs.map((c) => c.year), ...p.altCutoffs.map((c) => c.year)])) : 0;
     if (askedYear && askedYear > latestYear) {
       // Năm chưa có trong dữ liệu (đã hoặc chưa công bố) → không đoán, chỉ nguồn chính thức.
       return base("cutoff", "unknown", `Trovio chưa cập nhật điểm chuẩn năm ${askedYear}${subject ? ` của ${subject}` : ""} (dữ liệu gần nhất: năm ${latestYear}). Điểm chuẩn chính thức được công bố trên website của trường và cổng thông tin tuyển sinh của Bộ GD&ĐT.`, {
@@ -702,67 +751,6 @@ export function maskQuestion(q: string): string {
 /** Từ quá chung, không cho làm từ khoá (dễ khớp nhầm). */
 const ALIAS_STOPWORDS = new Set(["nganh", "truong", "hoc", "diem", "co", "khong", "it", "ai", "neu", "gi", "nao", "dai hoc", "cao dang", "hoc phi"]);
 
-function extractLinksFromAiText(text: string, k: Knowledge): ChatSource[] {
-  const sources: ChatSource[] = [];
-  const added = new Set<string>();
-
-  for (const school of k.schools) {
-    if (sources.length >= 4) break;
-    const nameNorm = school.shortName.toLowerCase();
-    const fullNameNorm = school.name.toLowerCase();
-    if (
-      (nameNorm.length >= 3 && text.toLowerCase().includes(nameNorm)) ||
-      (fullNameNorm.length >= 6 && text.toLowerCase().includes(fullNameNorm))
-    ) {
-      if (!added.has(school.slug)) {
-        added.add(school.slug);
-        sources.push({
-          label: `Trường ${school.shortName}`,
-          href: `/truong/${school.slug}`,
-        });
-      }
-    }
-  }
-
-  for (const major of k.majors) {
-    if (sources.length >= 6) break;
-    if (text.toLowerCase().includes(major.name.toLowerCase())) {
-      if (!added.has(major.slug)) {
-        added.add(major.slug);
-        sources.push({
-          label: `Ngành ${major.name}`,
-          href: `/nganh/${major.slug}`,
-        });
-      }
-    }
-  }
-
-  return sources;
-}
-
-function generateFollowUpSuggestions(q: string): string[] {
-  const normQ = norm(q);
-  const res: string[] = [];
-  if (normQ.includes("diem") || normQ.includes("xet tuyen") || normQ.includes("nguyen vong")) {
-    res.push("Chiến lược đặt nguyện vọng 3 tầng (Thử sức - Vừa sức - An toàn)");
-    res.push("Cách tính điểm ưu tiên mới của Bộ GD&ĐT");
-  }
-  if (normQ.includes("nganh") || normQ.includes("hoc gi") || normQ.includes("nghe nghiep")) {
-    res.push("Làm bài trắc nghiệm tính cách nghề nghiệp RIASEC");
-    res.push("So sánh cơ hội việc làm các ngành công nghệ");
-  }
-  if (normQ.includes("truong") || normQ.includes("hoc phi")) {
-    res.push("Top trường đại học đào tạo tốt nhất hiện nay");
-    res.push("Chính sách học bổng và hỗ trợ học phí");
-  }
-  if (res.length < 3) {
-    res.push("Tôi nên chọn trường theo đam mê hay theo điểm chuẩn?");
-    res.push("Cách phân tầng nguyện vọng trúng tuyển an toàn");
-    res.push("Quy chế quy đổi chứng chỉ IELTS sang thang điểm 10");
-  }
-  return res.slice(0, 4);
-}
-
 export const chatbotService = {
   async listAliases() {
     const [aliases, majors, schools] = await Promise.all([repositories.chatAliases.list(), repositories.majors.findAll(), repositories.schools.findAll()]);
@@ -785,6 +773,7 @@ export const chatbotService = {
     const clash = index.find(([a, id]) => a === alias && id !== targetId);
     if (clash) return { ok: false, field: "alias", message: "Từ khoá này đang trỏ tới một ngành/trường khác." };
     await repositories.chatAliases.add({ id: randomUUID(), alias, label, kind, targetId, createdAt: new Date().toISOString(), createdBy: admin.id });
+    invalidateAliases();
     await repositories.audit.append({
       id: randomUUID(),
       at: new Date().toISOString(),
@@ -802,6 +791,7 @@ export const chatbotService = {
     const all = await repositories.chatAliases.list();
     const a = all.find((x) => x.id === id);
     if (!a || !(await repositories.chatAliases.delete(id))) return false;
+    invalidateAliases();
     await repositories.audit.append({
       id: randomUUID(),
       at: new Date().toISOString(),
@@ -816,7 +806,7 @@ export const chatbotService = {
   },
 
   async ask(question: unknown, ctx: ChatContextIn = {}, history?: { userId: string; conversationId?: string | null }): Promise<{ ok: true; answer: ChatAnswer; logId: string; conversationId: string | null } | { ok: false; message: string }> {
-    const q = typeof question === "string" ? question.replace(/[\u0000-\u001F\u007F]/g, " ").trim() : "";
+    const q = typeof question === "string" ? cleanChatText(question).replace(/\s+/g, " ") : "";
     if (q.length < 2) return { ok: false, message: "Bạn hãy nhập câu hỏi nhé." };
     if (q.length > MAX_QUESTION) return { ok: false, message: `Câu hỏi tối đa ${MAX_QUESTION} ký tự.` };
     let answer = await answerQuestion(q, ctx, history?.userId);
@@ -835,107 +825,32 @@ export const chatbotService = {
       }
     }
 
-    // Nếu câu hỏi mở rộng, câu hỏi sâu xa hoặc chưa tìm thấy dữ liệu cứng, và WusRouter đã được cấu hình
-    const normText = norm(q);
-    const isDeepInquiry =
-      answer.kind === "unknown" ||
-      answer.kind === "clarify" ||
-      (answer.kind === "refusal" && answer.intent === "predict") ||
-      answer.intent === "evaluate" ||
-      answer.intent === "compare" ||
-      /\b(lam gi|sau nay|ra truong|viec lam|nghe nghiep|xu huong|trien vong|tuong lai|muc luong|thu nhap|co nen|nen hoc|nen chon|loi khuyen|khac nhau|kinh nghiem|to chat|ky nang|dinh huong|du an|triovo)\b/i.test(normText);
-
-    if (isDeepInquiry && isWusRouterConfigured()) {
-      const k = await knowledge();
-      const n = norm(q);
-      const mId = findEntity(n, k.majorIndex, q) ?? answer.context?.majorId;
-      const sId = findEntity(n, k.schoolIndex, q) ?? answer.context?.schoolId;
-      const m = k.majors.find((x) => x.id === mId);
-      const s = k.schools.find((x) => x.id === sId);
-
-      let specificFacts = "";
-      if (m) {
-        specificFacts += `Ngành học: ${m.name} (Nhóm: ${m.groupId})\nMô tả: ${m.summary || "—"}\n`;
-        const relatedPrograms = k.programs.filter((p) => p.majorId === m.id);
-        if (relatedPrograms.length) {
-          const cutoffs = relatedPrograms.flatMap((p) => (p.cutoffs[0]?.score ? [p.cutoffs[0].score] : []));
-          if (cutoffs.length) {
-            specificFacts += `Điểm chuẩn THPT gần nhất trên hệ thống: dao động từ ${Math.min(...cutoffs)} đến ${Math.max(...cutoffs)} điểm tại ${relatedPrograms.length} chương trình đào tạo.\n`;
-          }
-        }
-      }
-      if (s) {
-        specificFacts += `Trường đại học: ${s.name} (${s.shortName}, Mã: ${s.code})\nKhu vực: ${s.region}, Loại: ${s.type}, Website: ${s.website}\n`;
-        const relatedPrograms = k.programs.filter((p) => p.schoolId === s.id).slice(0, 5);
-        if (relatedPrograms.length) {
-          specificFacts += `Một số ngành tiêu biểu tại trường:\n` + relatedPrograms.map((p) => `- ${p.name}: điểm chuẩn gần nhất: ${p.cutoffs[p.cutoffs.length - 1]?.score ?? "—"}`).join("\n") + "\n";
-        }
-      }
-
-      let userScores = "";
-      if (history?.userId) {
-        const udata = await userDataService.get(history.userId).catch(() => null);
-        if (udata?.profile) {
-          userScores = `Tổ hợp: ${udata.profile.combo || "—"}; Điểm các môn: ${JSON.stringify(udata.profile.scores || {})}; Khu vực ưu tiên: ${udata.profile.priorityRegion || "KV3"}; Điểm xét tuyển ước tính: ${udata.profile.admission?.total ?? "—"}`;
-        }
-      }
-
-      let conversationHistory: Array<{ role: "user" | "assistant"; text: string }> = [];
-      if (history?.userId && history.conversationId) {
-        const conv = await repositories.chatHistory.findById(history.conversationId, history.userId).catch(() => null);
-        if (conv?.messages) {
-          conversationHistory = conv.messages
-            .filter((msg) => msg.text || msg.answer?.text)
-            .map((msg) => ({
-              role: msg.role,
-              text: msg.text || msg.answer?.text || "",
-            }));
-        }
-      }
-
-      const wusAnswer = await answerWithWusRouter({
-        question: q,
-        specificFacts: specificFacts || undefined,
-        userScores: userScores || undefined,
-        currentPage: typeof ctx.page === "string" ? ctx.page : undefined,
-        history: conversationHistory,
-      }).catch((e) => {
-        console.error("[wusrouter] Lỗi trả lời:", e);
-        return null;
-      });
-
-      if (wusAnswer) {
-        const matchedSources = extractLinksFromAiText(wusAnswer, k);
+    // Outside evidence is considered only after the site and curated sources.
+    if (answer.kind === "unknown") {
+      const evidence = await findExternalEvidence(q);
+      if (evidence) {
+        const aiText = isWusRouterConfigured() ? await answerWithWusRouter({ question: q, evidence: evidence.text }) : null;
+        const lead = evidence.text.split(/\n\[2\]/)[0].replace(/^\[1\] [^:]+: /, "").split("\n")[0].trim();
+        const excerpt = lead.length > 600 ? `${lead.slice(0, 600).replace(/\s+\S*$/, "")}…` : lead;
         answer = {
           ...answer,
           kind: "answer",
-          intent: "ai-deep-advisor",
-          text: wusAnswer,
-          note: "Tư vấn từ Trợ lý AI TriOVO (kết nối WusRouter AI) dựa trên quy chế tuyển sinh chính thức và tri thức dự án.",
-          sources: matchedSources.length > 0 ? matchedSources : [
-            { label: "Tìm trường đại học", href: "/truong" },
-            { label: "Khám phá ngành đào tạo", href: "/nganh" },
-            { label: "Tính điểm & Phân tích nguyện vọng", href: "/diem-cua-toi" },
-            { label: "Trắc nghiệm hướng nghiệp RIASEC", href: "/trac-nghiem" },
-          ],
-          suggestions: generateFollowUpSuggestions(q),
-          context: { majorId: m?.id, schoolId: s?.id },
-          polished: true,
+          intent: "external-evidence",
+          text: aiText && isFaithful(aiText, evidence.text) ? aiText : `Theo ${evidence.sources[0].label}: ${excerpt}`,
+          note: "Thông tin ngoài TriOVO; kiểm tra tài liệu gốc và thời điểm công bố trước khi sử dụng.",
+          sources: evidence.sources,
+          polished: !!aiText && isFaithful(aiText, evidence.text),
         };
       }
     }
-
-    if (answer.kind === "answer" && answer.intent !== "ai-deep-advisor") {
-      const polished = await polishWithLlm(q, answer).catch(() => null);
-      if (polished) answer = { ...answer, text: polished, polished: true };
-    }
+    answer = cleanChatAnswer(answer);
     const logId = randomUUID();
-    await repositories.chatLogs.add({ id: logId, at: new Date().toISOString(), question: maskQuestion(q), intent: answer.intent, kind: answer.kind, helpful: null });
+    const logWrite = repositories.chatLogs.add({ id: logId, at: new Date().toISOString(), question: maskQuestion(q), intent: answer.intent, kind: answer.kind, helpful: null });
     let conversationId: string | null = null;
     if (history?.userId) {
       const now = new Date().toISOString();
       const requestedId = typeof history.conversationId === "string" && /^[a-f0-9-]{36}$/i.test(history.conversationId) ? history.conversationId : null;
-      const current = requestedId ? await repositories.chatHistory.findById(requestedId, history.userId) : null;
+      const [, current] = await Promise.all([logWrite, requestedId ? repositories.chatHistory.findById(requestedId, history.userId) : Promise.resolve(null)]);
       conversationId = current?.id ?? randomUUID();
       const messages: ChatHistoryMessage[] = [
         ...(current?.messages ?? []),
@@ -950,7 +865,7 @@ export const chatbotService = {
         updatedAt: now,
         messages,
       });
-    }
+    } else await logWrite;
     return { ok: true, answer, logId, conversationId };
   },
 

@@ -15,7 +15,7 @@ import { CompareButton, SaveButton, WishlistButton } from "@/components/program/
 import { CutoffHistory } from "@/components/program/cutoff-history";
 import { YearDataTable } from "@/components/program/year-data-table";
 import { CutoffTrend } from "@/components/program/cutoff-trend";
-import { SchoolCode } from "@/components/program/program-card";
+import { SchoolLogo } from "@/components/school/school-logo";
 import { QaSection } from "@/components/program/qa-section";
 import { FinanceBlock } from "@/components/program/finance-block";
 import { verifiedStatus } from "@/services/verification";
@@ -65,7 +65,7 @@ export default async function ProgramDetailPage({ params }: Props) {
 
       <Card className="mt-4 p-6 md:p-8">
         <div className="flex flex-col gap-5 md:flex-row md:items-start">
-          <SchoolCode code={school.code} />
+          <SchoolLogo school={school} size="md" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -257,7 +257,7 @@ export default async function ProgramDetailPage({ params }: Props) {
                 className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card transition hover:border-primary-200 hover:shadow-elevated"
               >
                 <div className="flex items-start gap-3">
-                  <SchoolCode code={v.school.code} />
+                  <SchoolLogo school={v.school} size="md" />
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900">{v.program.name}</p>
                     <p className="truncate text-sm text-slate-600">{v.school.shortName}</p>

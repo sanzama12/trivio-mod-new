@@ -4,7 +4,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody } from "@/components/admin/ui";
 import type { ChatLog } from "@/domain/types";
 import { chatbotService } from "@/services/chatbot.service";
-import { llmEnabled } from "@/services/chatbot-llm";
+import { isWusRouterConfigured } from "@/services/wusrouter-llm";
 import { catalogService } from "@/services";
 import { AliasManager } from "@/components/admin/alias-manager";
 import { AiSourceManager } from "@/components/admin/ai-source-manager";
@@ -46,6 +46,8 @@ const INTENT_LABELS: Record<string, string> = {
   scholarship: "Học bổng",
   compare: "So sánh",
   "ai-source": "Trả lời từ nguồn bổ sung",
+  "markdown-faq": "Trả lời nhanh từ FAQ Markdown",
+  "external-evidence": "Trả lời từ tài liệu ngoài",
   unknown: "Không nhận diện được",
 };
 
@@ -119,7 +121,7 @@ export default async function AdminChatbotPage() {
               <li>Giới hạn 20 câu/phút và 300 câu/ngày mỗi IP; câu hỏi tối đa 300 ký tự.</li>
             </ul>
             <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs">
-              Lớp diễn đạt bằng mô hình ngôn ngữ: <b>{llmEnabled() ? "ĐANG BẬT" : "đang tắt"}</b>. Khi bật, câu trả lời có con số không nằm trong dữ kiện sẽ bị loại và dùng bản gốc.
+              Tra cứu tài liệu ngoài bằng AI: <b>{isWusRouterConfigured() ? "ĐANG BẬT" : "đang tắt"}</b>. Trợ lý chỉ dùng tài liệu ngoài khi website chưa có câu trả lời và hiển thị liên kết nguồn.
             </p>
           </section>
         </aside>

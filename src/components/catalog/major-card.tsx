@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { LuArrowRight, LuGraduationCap, LuHeart } from "react-icons/lu";
+import { LuArrowRight, LuHeart } from "react-icons/lu";
 import type { MajorListItem } from "@/services/catalog.service";
 import { useTrovio } from "@/stores/trovio-store";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
+import { GroupIcon } from "@/components/ui/group-icon";
 
 export function MajorCard({ item }: { item: MajorListItem }) {
   const { major, group } = item;
@@ -25,9 +26,7 @@ export function MajorCard({ item }: { item: MajorListItem }) {
       {/* Hàng 1: Icon mũ cử nhân + Tên ngành + Nút tim yêu thích */}
       <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-sm ring-1 ring-primary-100 transition-transform group-hover:scale-105">
-            <LuGraduationCap className="size-5 sm:size-6" aria-hidden />
-          </div>
+          <GroupIcon group={group} className="size-11 rounded-lg shadow-sm ring-1 ring-primary-100 transition-transform group-hover:scale-105" />
           <Link
             href={`/nganh/${major.slug}`}
             className="line-clamp-1 text-lg font-bold tracking-tight text-slate-900 transition-colors hover:text-primary-700 hover:underline sm:text-xl"

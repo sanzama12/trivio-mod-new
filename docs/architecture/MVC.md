@@ -13,7 +13,7 @@ View (React) -> Controller (HTTP) -> Model (use-case + repository) -> PostgreSQL
 - `database/repositories`: hợp đồng và adapter PostgreSQL.
 - `database/client.ts`: hạ tầng kết nối PostgreSQL duy nhất.
 
-Model không được import từ `src/controllers`, `src/views`, `src/components` hoặc `src/app`.
+Model không được import từ `src/controllers`, `src/components` hoặc `src/app`.
 
 ## 2. Controller
 
@@ -24,7 +24,7 @@ Controller chỉ được gọi service. Controller không import repository, kh
 
 ## 3. View
 
-- `src/components` và `src/views`: giao diện React.
+- `src/components`: giao diện React.
 - `src/lib/api-client.ts`: client typed duy nhất để Client Component gọi API.
 - Server Component đọc Model trực tiếp theo khuyến nghị Next.js; không gọi vòng qua `/api`.
 

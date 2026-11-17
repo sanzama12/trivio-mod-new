@@ -30,11 +30,15 @@ export function groupBadgeTone(tone: MajorGroup["tone"]): BadgeTone {
   return tone;
 }
 
-export function GroupIcon({ group, className }: { group: Pick<MajorGroup, "icon" | "tone">; className?: string }) {
+export function GroupGlyph({ group, className }: { group: Pick<MajorGroup, "icon">; className?: string }) {
   const Icon = ICONS[group.icon] ?? LuBookOpen;
+  return <Icon className={cn("size-5", className)} aria-hidden />;
+}
+
+export function GroupIcon({ group, className }: { group: Pick<MajorGroup, "icon" | "tone">; className?: string }) {
   return (
     <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", TONE_BG[group.tone], className)}>
-      <Icon className="size-5" aria-hidden />
+      <GroupGlyph group={group} />
     </span>
   );
 }
