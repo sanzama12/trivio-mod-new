@@ -13,6 +13,7 @@ import {
   LuLockKeyhole,
   LuQrCode,
   LuCoins,
+  LuRefreshCw,
 } from "react-icons/lu";
 import { Input, Label } from "@/components/ui/field";
 import type { DonationPayment, DonationPaymentAvailability, DonationPaymentMethod } from "@/domain/donation";
@@ -49,6 +50,8 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
   const [showSuccess, setShowSuccess] = useState(false);
   const [confirmedAt, setConfirmedAt] = useState<string | null>(null);
   const [pollingError, setPollingError] = useState(false);
+  const [checkingNow, setCheckingNow] = useState(false);
+  const checkStatusRef = useRef<() => Promise<void>>(async () => {});
   const [qrFailed, setQrFailed] = useState(false);
   const [copied, setCopied] = useState<"account" | "reference" | null>(null);
   const [paymentDonor, setPaymentDonor] = useState({ donorName: "", message: "" });
@@ -74,6 +77,7 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
     async function checkStatus() {
       if (inFlight) return;
       inFlight = true;
+      setCheckingNow(true);
       try {
         const response = await fetch(`/api/donations/status/${payment!.txnRef}`, {
           signal: controller.signal,
@@ -90,11 +94,13 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
         if (!controller.signal.aborted) setPollingError(true);
       } finally {
         inFlight = false;
+        setCheckingNow(false);
       }
     }
+    checkStatusRef.current = checkStatus;
     void checkStatus();
     const timer = setInterval(() => void checkStatus(), 5000);
-    return () => { controller.abort(); clearInterval(timer); };
+    return () => { controller.abort(); clearInterval(timer); checkStatusRef.current = async () => {}; };
   }, [payment, paymentStatus]);
 
   async function createPayment(nextValue: number, nextMethod: DonationPaymentMethod, donor: { donorName: string; message: string }): Promise<boolean> {
@@ -349,11 +355,26 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
               {error && <p role="alert" className={styles.error}>{error}</p>}
               {payment.paymentUrl && <a className={styles.submit} href={payment.paymentUrl}
                 target="_blank" rel="noopener noreferrer">Mở VNPAY để thanh toán <LuArrowUpRight aria-hidden /></a>}
-              <p className={styles.hint} role="status">
-                {pollingError ? "Kết nối kiểm tra giao dịch gián đoạn. Hệ thống đang thử lại."
-                  : payment.method === "qr" ? "Đang kiểm tra tài khoản nhận mỗi 5 giây."
-                    : "Trạng thái sẽ tự động cập nhật sau khi thanh toán."}
-              </p>
+              <div className={styles.pollingStatus}>
+                <p className={styles.hint} role="status">
+                  {pollingError
+                    ? "Đang chờ đối soát từ ngân hàng (có thể trễ 1–2 phút). Hệ thống vẫn đang tự động kiểm tra."
+                    : payment.method === "qr"
+                      ? "Đang tự động kiểm tra tài khoản mỗi 5 giây..."
+                      : "Trạng thái sẽ tự động cập nhật sau khi thanh toán."}
+                </p>
+                {payment.method === "qr" && (
+                  <button
+                    type="button"
+                    className={styles.checkNow}
+                    disabled={checkingNow}
+                    onClick={() => void checkStatusRef.current()}
+                  >
+                    <LuRefreshCw className={checkingNow ? styles.spinning : undefined} aria-hidden />
+                    {checkingNow ? "Đang kiểm tra..." : "Kiểm tra ngay"}
+                  </button>
+                )}
+              </div>
             </>
           ) : (
             <p className={styles.error} role="status">Giao dịch chưa hoàn tất. Bạn có thể tạo mã thanh toán khác.</p>
