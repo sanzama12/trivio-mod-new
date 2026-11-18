@@ -43,9 +43,10 @@ export function DonationHistory({ initialItems }: { initialItems: HistoryItem[] 
     let checking = false;
     const refs = pendingRefs.split("|");
     const check = async () => {
-      if (checking || document.visibilityState !== "visible") return;
+      if (cancelled || checking || document.visibilityState !== "visible") return;
       checking = true;
       for (const ref of refs) {
+        if (cancelled) break;
         try {
           const response = await fetch(`/api/donations/status/${encodeURIComponent(ref)}`, { cache: "no-store" });
           if (!response.ok) continue;
@@ -61,7 +62,8 @@ export function DonationHistory({ initialItems }: { initialItems: HistoryItem[] 
       }
       checking = false;
     };
-    const timer = window.setInterval(() => void check(), 15_000);
+    void check();
+    const timer = window.setInterval(() => void check(), 4000);
     const onVisible = () => { if (document.visibilityState === "visible") void check(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { cancelled = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };

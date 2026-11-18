@@ -75,7 +75,7 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
     const controller = new AbortController();
     let inFlight = false;
     async function checkStatus() {
-      if (inFlight) return;
+      if (inFlight || controller.signal.aborted) return;
       inFlight = true;
       setCheckingNow(true);
       try {
@@ -99,8 +99,15 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
     }
     checkStatusRef.current = checkStatus;
     void checkStatus();
-    const timer = setInterval(() => void checkStatus(), 5000);
-    return () => { controller.abort(); clearInterval(timer); checkStatusRef.current = async () => {}; };
+    const timer = setInterval(() => void checkStatus(), 4000);
+    const onVisible = () => { if (document.visibilityState === "visible") void checkStatus(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      checkStatusRef.current = async () => {};
+    };
   }, [payment, paymentStatus]);
 
   async function createPayment(nextValue: number, nextMethod: DonationPaymentMethod, donor: { donorName: string; message: string }): Promise<boolean> {
@@ -360,7 +367,7 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
                   {pollingError
                     ? "Đang chờ đối soát từ ngân hàng (có thể trễ 1–2 phút). Hệ thống vẫn đang tự động kiểm tra."
                     : payment.method === "qr"
-                      ? "Đang tự động kiểm tra tài khoản mỗi 5 giây..."
+                      ? "Đang tự động kiểm tra tài khoản mỗi 4 giây..."
                       : "Trạng thái sẽ tự động cập nhật sau khi thanh toán."}
                 </p>
                 {payment.method === "qr" && (
