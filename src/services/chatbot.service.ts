@@ -44,6 +44,11 @@ export interface ChatContextIn {
 export const norm = (s: string) => ` ${normalizeVi(s).replace(/[^a-z0-9]+/g, " ").trim()} `;
 const has = (n: string, phrases: string[]) => phrases.some((p) => n.includes(` ${p} `));
 
+function needsCurrentSource(question: string): boolean {
+  const n = norm(question);
+  return has(n, ["hien tai", "hien nay", "bay gio", "moi nhat", "hieu truong", "pho hieu truong", "lanh dao", "giam doc"]);
+}
+
 const MAJOR_ALIASES: Record<string, string[]> = {
   "cong-nghe-thong-tin": ["cntt", "nganh it"],
   "khoa-hoc-may-tinh": ["khmt", "computer science", "cs"],
@@ -185,7 +190,7 @@ const I = {
   fit: ["hop voi ai", "phu hop voi ai", "tinh cach", "so thich", "riasec", "can nhung gi", "can ky nang"],
   evaluate: [
     "co tot khong", "tot khong", "co nen", "nen hoc khong", "co hop voi", "co phu hop", "trien vong", "tuong lai", "co hot", "hot khong",
-    "co kho khong", "kho khong", "co de khong", "de khong", "hoc co kho", "the nao", "ra sao", "co on khong", "on khong", "danh gia",
+    "co kho khong", "kho khong", "co de khong", "de khong", "hoc co kho", "co on khong", "on khong", "danh gia",
     "co dang hoc", "dang hoc khong", "co nen chon",
   ],
   quota: ["chi tieu", "tuyen bao nhieu", "tuyen sinh bao nhieu", "bao nhieu sinh vien", "lay bao nhieu nguoi"],
@@ -275,7 +280,9 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
 
   // Thực thể nêu trong câu hỏi; nếu không có thì dùng ngữ cảnh của câu trước (câu hỏi nối tiếp).
   const explicitMajor = findEntity(n, k.majorIndex, q);
-  const explicitSchool = findEntity(n, k.schoolIndex, q);
+  // FPT Polytechnic and FPT University are different institutions.
+  const mentionsFptPolytechnic = has(n, ["fpt polytechnic"]);
+  const explicitSchool = mentionsFptPolytechnic ? null : findEntity(n, k.schoolIndex, q);
   let ctxMajor = typeof ctxIn.majorId === "string" && k.majors.some((m) => m.id === ctxIn.majorId) ? ctxIn.majorId : null;
   let ctxSchool = typeof ctxIn.schoolId === "string" && k.schools.some((s) => s.id === ctxIn.schoolId) ? ctxIn.schoolId : null;
   if (!ctxMajor && !ctxSchool) {
@@ -286,7 +293,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   }
   // Hỏi ngành mới → bỏ ngữ cảnh trường cũ (và ngược lại) để không trộn nhầm.
   const majorId = explicitMajor ?? (explicitSchool ? null : ctxMajor);
-  const schoolId = explicitSchool ?? (explicitMajor ? null : ctxSchool);
+  const schoolId = mentionsFptPolytechnic ? null : (explicitSchool ?? (explicitMajor ? null : ctxSchool));
   const major = k.majors.find((m) => m.id === majorId) ?? null;
   const school = k.schools.find((s) => s.id === schoolId) ?? null;
   const ctx = { majorId: major?.id, schoolId: school?.id };
@@ -693,7 +700,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     });
   }
 
-  if (major && (has(n, I.info) || (!explicitSchool && words.length <= 8))) {
+  if (major && (has(n, I.info) || (!explicitSchool && words.length <= 3))) {
     const career = await repositories.majorCareers.get(major.id).catch(() => null);
     const careerItems: ChatItem[] = [
       ...(career?.knowledge ? [{ title: "Kiến thức đào tạo", meta: career.knowledge.slice(0, 300) }] : []),
@@ -708,7 +715,7 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
     });
   }
 
-  if (school && (!explicitMajor || words.length <= 8)) {
+  if (school && !needsCurrentSource(q) && (has(n, ["gioi thieu", "thong tin truong"]) || words.length <= 3)) {
     const list = programsOf(null, school.id);
     return base("school-info", "answer", `${school.name} (${school.city}) — ${school.highlight}. Trovio có ${list.length} chương trình của trường.`, {
       context: ctx,
@@ -851,7 +858,7 @@ export const chatbotService = {
           history: recentHistory,
         });
 
-        if (aiText && aiText.trim().length > 0) {
+        if (aiText && isFaithful(aiText, evidence?.text ?? q)) {
           answer = {
             ...answer,
             kind: "answer",
@@ -860,13 +867,7 @@ export const chatbotService = {
             note: evidence
               ? "Thông tin được tổng hợp từ nguồn tham khảo và Trợ lý AI TriOVO; hãy đối chiếu văn bản chính thức của trường."
               : "Câu trả lời được hỗ trợ bởi Trợ lý AI TriOVO (WusRouter Gateway); hãy đối chiếu thông tin chính thức của trường.",
-            sources: evidence?.sources?.length
-              ? evidence.sources
-              : [
-                  { label: "Tìm trường đại học", href: "/truong" },
-                  { label: "Khám phá ngành đào tạo", href: "/nganh" },
-                  { label: "Trợ giúp & hỏi đáp tuyển sinh", href: "/tro-giup" },
-                ],
+            sources: evidence?.sources ?? [],
             suggestions: defaultSuggestions(),
             polished: true,
           };
