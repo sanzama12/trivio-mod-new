@@ -54,7 +54,6 @@ export async function POST(req: Request) {
     return NextResponse.json(res, { status: res.ok ? 200 : res.status });
   } catch (err: unknown) {
     console.error("[api/admin/import] Error:", err);
-    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi khi xử lý dữ liệu tải lên.";
-    return NextResponse.json({ ok: false, status: 500, message: `Lỗi hệ thống: ${message}` }, { status: 500 });
+    return NextResponse.json({ ok: false, status: 500, message: "Không thể xử lý dữ liệu tải lên. Vui lòng thử lại sau." }, { status: 500 });
   }
 }

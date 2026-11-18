@@ -134,20 +134,18 @@ export const catalogService = {
     limit?: number;
   }) {
     let schools = await repositories.schools.findAll();
-    let programs: Program[] | null = null;
+    const programRows = input.majorId || input.majorQuery || input.q
+      ? await repositories.catalog.findSchoolSearchRows(input.majorId && !input.majorQuery && !input.q ? input.majorId : undefined)
+      : [];
 
     if (input.majorId || input.majorQuery) {
-      programs = await repositories.programs.findAll();
-      const majors = await repositories.majors.findAll();
-      const majorMap = new Map(majors.map((m) => [m.id, m]));
       const matchedSchoolIds = new Set<string>();
 
-      for (const p of programs) {
+      for (const p of programRows) {
         if (input.majorId && p.majorId === input.majorId) {
           matchedSchoolIds.add(p.schoolId);
         } else if (input.majorQuery) {
-          const m = majorMap.get(p.majorId);
-          if (matchesQuery(input.majorQuery, p.name, m?.name, m?.code)) {
+          if (matchesQuery(input.majorQuery, p.programName, p.majorName, p.majorCode)) {
             matchedSchoolIds.add(p.schoolId);
           }
         }
@@ -156,10 +154,9 @@ export const catalogService = {
     }
 
     if (input.q) {
-      if (!programs) programs = await repositories.programs.findAll();
       const schoolProgramMap = new Set<string>();
-      for (const p of programs) {
-        if (matchesQuery(input.q, p.name)) {
+      for (const p of programRows) {
+        if (matchesQuery(input.q, p.programName)) {
           schoolProgramMap.add(p.schoolId);
         }
       }
@@ -193,18 +190,21 @@ export const catalogService = {
     const safeIds = schoolIds.slice(0, 4);
     if (safeIds.length === 0) return [];
 
-    const allSchools = await repositories.schools.findAll();
+    const [allSchools, allMajors] = await Promise.all([
+      repositories.schools.findAll(),
+      repositories.majors.findAll(),
+    ]);
     const schoolMap = new Map(allSchools.map((s) => [s.id, s]));
-    const allMajors = await repositories.majors.findAll();
     const majorMap = new Map(allMajors.map((m) => [m.id, m]));
+    const selected = safeIds
+      .map((id) => schoolMap.get(id) ?? allSchools.find((school) => school.slug === id))
+      .filter((school): school is School => !!school);
+    const programsBySchool = await Promise.all(selected.map((school) => repositories.programs.findBySchool(school.id)));
 
     const result: SchoolCompareItem[] = [];
 
-    for (const id of safeIds) {
-      const school = schoolMap.get(id) ?? allSchools.find((s) => s.slug === id);
-      if (!school) continue;
-
-      const rawPrograms = await repositories.programs.findBySchool(school.id);
+    for (const [index, school] of selected.entries()) {
+      const rawPrograms = programsBySchool[index];
 
       const tuitionMins = rawPrograms.map((p) => p.tuitionMin).filter((t) => t > 0);
       const tuitionMaxs = rawPrograms.map((p) => p.tuitionMax).filter((t) => t > 0);

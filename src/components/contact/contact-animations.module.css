@@ -13,7 +13,7 @@
 
 .fieldLabel {
   position: absolute;
-  left: 0;
+  left: 0.85rem;
   bottom: 0.7rem;
   font-size: 0.95rem;
   color: #94a3b8;
@@ -25,10 +25,10 @@
 
 .fieldInput {
   width: 100%;
-  padding: 1.6rem 0 0.6rem;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 1.6rem 0.85rem 0.65rem;
+  background: #fff;
+  border: 1px solid #d4dfe4;
+  border-radius: 6px;
   color: #0f172a;
   font-size: 0.95rem;
   transition: border-color 0.3s ease;
@@ -39,8 +39,9 @@
 }
 
 .fieldInput:focus {
-  outline: none;
-  border-color: #0b5b5c;
+  outline: 2px solid #087f72;
+  outline-offset: 1px;
+  border-color: #087f72;
 }
 
 .fieldTextarea {
@@ -48,6 +49,8 @@
   min-height: 8rem;
   resize: vertical;
 }
+
+.fieldTextarea + .fieldLabel { top: 1rem; bottom: auto; }
 
 /* label trượt lên khi focus hoặc đã có nội dung — đúng như gốc */
 .fieldInput:focus + .fieldLabel,
@@ -57,6 +60,9 @@
   transform: translateY(-1.35rem) scale(0.78);
   color: #0b5b5c;
 }
+
+.fieldTextarea:focus + .fieldLabel,
+.fieldTextarea:not(:placeholder-shown) + .fieldLabel { transform: translateY(-0.8rem) scale(0.78); }
 
 .fieldInput:focus + .fieldLabel::after,
 .fieldInput:not(:placeholder-shown) + .fieldLabel::after {

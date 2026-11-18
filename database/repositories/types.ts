@@ -55,6 +55,13 @@ export interface ProgramRepository {
 }
 
 export interface CatalogRepository {
+  findSchoolSearchRows(majorId?: string): Promise<Array<{
+    schoolId: string;
+    programName: string;
+    majorId: string;
+    majorName: string;
+    majorCode: string;
+  }>>;
   findSubjects(): Promise<Subject[]>;
   findCombos(): Promise<Combo[]>;
   findFaq(): Promise<FaqGroup[]>;

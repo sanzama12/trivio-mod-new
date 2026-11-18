@@ -23,6 +23,7 @@
 | GET | `/api/v1/majors/{id}` | Chi tiết ngành | Không |
 | GET | `/api/v1/programs` | Tìm kiếm chương trình | Không |
 | GET | `/api/v1/programs/{id}` | Chi tiết chương trình | Không |
+| POST | `/api/v1/quiz/major-suggestions` | Ngành nên tìm hiểu từ kết quả RIASEC | Không |
 
 Các endpoint cũ `/api/*` được giữ tạm thời trong giai đoạn chuyển đổi và phải ủy quyền vào cùng controller/use-case.
 
@@ -39,11 +40,19 @@ Response `200` khi PostgreSQL sẵn sàng:
 
 Response `503`: database thiếu cấu hình hoặc không truy vấn được.
 
+## GET `/api/v1/schools`
+
+Query hỗ trợ `q`, `region`, `type`, `city`, `majorId`, `majorQuery` (hoặc `major`), `page`, `limit`. `majorId` lọc theo mã ngành nội bộ; `majorQuery` tìm tên hoặc mã ngành không phân biệt dấu. Response `200` chứa danh sách trường trong `data` và phân trang trong `meta`. Khi có `filtered=1`, endpoint dùng bộ lọc chương trình tuyển sinh.
+
 ## GET `/api/v1/programs`
 
 Query hỗ trợ: `q`, `method`, `score`, `combos`, `tuition`, `regions`, `types`, `groups`, `majors`, `sort`, `page`, `limit`.
 
 Response `200` chứa `data` là danh sách chương trình và `meta` gồm `page`, `limit`, `total`, `totalPages`, `requestId`.
+
+## POST `/api/v1/quiz/major-suggestions`
+
+Body `{ "result": RiasecResult }` là kết quả 60 câu đã chấm. Response `200` chứa `data` gồm tối đa 6 ngành đang có chương trình đào tạo và `meta.requestId`. `basis` là `major` nếu ngành có nhãn RIASEC riêng, `group` nếu chỉ có nhãn nhóm; `interestIndex` không phải xác suất trúng tuyển. Hồ sơ sáu nhóm gần ngang nhau trả danh sách rỗng. Kết quả sai định dạng trả `400` với mã `VALIDATION_ERROR`.
 
 ## Mã lỗi chuẩn
 

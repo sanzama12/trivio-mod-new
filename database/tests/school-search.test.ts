@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { repositories } from "../repositories";
 import { programService } from "../../src/services/program.service";
+import { catalogService } from "../../src/services/catalog.service";
 import type { Major, Program, School } from "../../src/domain/types";
 import { parseProgramFilters, serializeProgramFilters } from "../../src/services/program.filters";
 
@@ -77,4 +78,39 @@ test("school filters use one matching program and paginate distinct schools", as
   const byMajor = await programService.searchSchools({majors:[major.id]});
   assert.equal(byMajor.total,3);
   assert.equal(new Set(byMajor.items.map(item=>item.id)).size,byMajor.total);
+});
+
+test("catalog school search uses lightweight rows and keeps major and name matching", async (t) => {
+  t.mock.method(repositories.schools, "findAll", async () => [school("a"), school("b"), school("c")]);
+  const rows = [
+    { schoolId: "a", programName: "Cong nghe thong tin", majorId: "it", majorName: "Cong nghe thong tin", majorCode: "7480201" },
+    { schoolId: "b", programName: "Ke toan", majorId: "accounting", majorName: "Ke toan", majorCode: "7340301" },
+  ];
+  const search = t.mock.method(repositories.catalog, "findSchoolSearchRows", async (majorId?: string) =>
+    majorId ? rows.filter((row) => row.majorId === majorId) : rows);
+
+  assert.deepEqual((await catalogService.searchSchools({ majorId: "it" })).items.map((item) => item.id), ["a"]);
+  assert.equal(search.mock.calls[0].arguments[0], "it");
+  assert.deepEqual((await catalogService.searchSchools({ q: "ke toan" })).items.map((item) => item.id), ["b"]);
+  assert.deepEqual((await catalogService.searchSchools({ majorQuery: "7480201" })).items.map((item) => item.id), ["a"]);
+  assert.deepEqual((await catalogService.searchSchools({})).items.map((item) => item.id), ["a", "b", "c"]);
+  assert.equal(search.mock.callCount(), 3);
+});
+
+test("school comparison loads programs concurrently and preserves selected order", async (t) => {
+  t.mock.method(repositories.schools, "findAll", async () => [school("a"), school("b")]);
+  t.mock.method(repositories.majors, "findAll", async () => [major]);
+  let active = 0;
+  let maxActive = 0;
+  t.mock.method(repositories.programs, "findBySchool", async (schoolId: string) => {
+    active++;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((resolve) => setTimeout(resolve, schoolId === "a" ? 10 : 1));
+    active--;
+    return [program(`${schoolId}-program`, schoolId)];
+  });
+
+  const result = await catalogService.compareSchools(["b", "missing", "a"]);
+  assert.equal(maxActive, 2);
+  assert.deepEqual(result.map((item) => item.school.id), ["b", "a"]);
 });

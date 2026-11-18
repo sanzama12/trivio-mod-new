@@ -26,19 +26,13 @@ export function isDonationPaymentMethod(value: unknown): value is DonationPaymen
   return value === "qr" || value === "vnpay" || value === "sepay";
 }
 
-/** Keep the unique reference intact within VietQR's 23-character transfer note. */
-export function transferMemo(donorName: string, txnRef: string): string {
-  const name = donorName === "Người ủng hộ ẩn danh" ? "ANON" : donorName
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/gi, "d").toUpperCase()
-    .replace(/[^A-Z0-9 ]/g, " ").trim().split(/\s+/).at(-1) || "ANON";
-  return `${name.slice(0, Math.max(1, 23 - txnRef.length - 1))} ${txnRef}`;
-}
+/** Keep the entire reference when banks shorten the transfer note. */
+export const transferMemo = (txnRef: string): string => txnRef;
 
-export function buildTransferQr(method: "qr" | "sepay", amount: number, txnRef: string, donorName = "Người ủng hộ ẩn danh") {
+export function buildTransferQr(method: "qr" | "sepay", amount: number, txnRef: string) {
   const bank = getTransferConfig(method);
   if (!bank) throw new Error("Chưa cấu hình tài khoản nhận tiền.");
-  const memo = transferMemo(donorName, txnRef);
+  const memo = transferMemo(txnRef);
   const params = new URLSearchParams({
     acc: bank.accountNumber,
     bank: bank.bankCode,

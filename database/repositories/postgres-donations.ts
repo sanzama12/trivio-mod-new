@@ -82,7 +82,7 @@ export const postgresDonationsRepository = {
     return { ...summaryRows[0], daily: dailyRows };
   },
 
-  async confirmBankTransfer(txnRef: string, amount: number, transactionNo: string, bankCode: string): Promise<DonationRecord | null> {
+  async confirmBankTransfer(txnRef: string, amount: number, transactionNo: string, bankCode: string, truncatedReference?: string): Promise<DonationRecord | null> {
     return withTransaction(async (client) => {
       // Serialize retries of the same provider transaction before checking for reuse.
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [transactionNo]);
@@ -91,7 +91,12 @@ export const postgresDonationsRepository = {
             vnp_response_code = '00', paid_at = now()
         WHERE vnp_txn_ref = $1 AND amount = $2 AND status = 'pending'
           AND NOT EXISTS (SELECT 1 FROM trovio.donations WHERE vnp_transaction_no = $3)
-        RETURNING ${cols}`, [txnRef, amount, transactionNo, bankCode]);
+          AND ($5::text IS NULL OR NOT EXISTS (
+            SELECT 1 FROM trovio.donations other_donation
+            WHERE other_donation.vnp_txn_ref LIKE $5 || '%'
+              AND other_donation.vnp_txn_ref <> $1
+          ))
+        RETURNING ${cols}`, [txnRef, amount, transactionNo, bankCode, truncatedReference ?? null]);
       return result.rows[0] ?? null;
     });
   },

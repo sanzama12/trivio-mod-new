@@ -2,7 +2,11 @@ import { execFileSync } from "node:child_process";
 
 const files = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
 const forbiddenFiles = files.filter((file) => /(^|\/)\.env(?:\..+)?$/i.test(file) && file !== ".env.example");
-const findings = [...forbiddenFiles.map((file) => `${file}: environment file must not be tracked`)];
+const databaseDumps = files.filter((file) => /(^|\/)database\/(?:dump[^/]*\.sql|backups\/)/i.test(file));
+const findings = [
+  ...forbiddenFiles.map((file) => `${file}: environment file must not be tracked`),
+  ...databaseDumps.map((file) => `${file}: database export must not be tracked`),
+];
 const assignment = "(BANK_HISTORY_API_TOKEN|SEPAY_WEBHOOK_API_KEY|VNPAY_HASH_SECRET|WUSROUTER_API_KEY)[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{24,}";
 for (const [mode, pattern, input] of [
   ["-E", assignment, undefined],

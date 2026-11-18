@@ -2,5 +2,6 @@
 scratch/
 database/local/
 database/backups/
+database/dump*.sql
 database/audit-report.json
 .agents/

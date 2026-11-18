@@ -183,6 +183,7 @@ export const admissionPolicyService = {
       semesterCount: number;
       mathOrLiteratureWeight: number; // Ví dụ 1/3
       thptScore?: number;
+      convertedCertificateScore?: number;
     },
     season: number = 2026
   ): { valid: boolean; reasons: string[] } {
@@ -195,9 +196,16 @@ export const admissionPolicyService = {
       );
     }
 
-    if (new Set(input.subjects.map(normalizeSubject)).size < policy.transcriptMinimumSubjectCount) {
+    const certificateScore = input.convertedCertificateScore;
+    const hasCertificate = certificateScore !== undefined;
+    const validCertificate = hasCertificate && Number.isFinite(certificateScore) && certificateScore >= 0 && certificateScore <= 10;
+    if (hasCertificate && !validCertificate) {
+      reasons.push("Điểm chứng chỉ ngoại ngữ quy đổi phải nằm trong thang 0–10.");
+    }
+    const minimumSubjects = validCertificate ? 2 : policy.transcriptMinimumSubjectCount;
+    if (new Set(input.subjects.map(normalizeSubject)).size < minimumSubjects) {
       reasons.push(
-        `Tổ hợp xét học bạ phải có ít nhất ${policy.transcriptMinimumSubjectCount} môn học.`
+        `Tổ hợp xét học bạ phải có ít nhất ${minimumSubjects} môn học${validCertificate ? " kèm điểm chứng chỉ ngoại ngữ quy đổi" : ""}.`
       );
     }
 
@@ -325,21 +333,27 @@ export function validateTranscriptRule(
     subjects: string[];
     subjectWeights?: Record<string, number>;
     thptScore?: number;
+    convertedCertificateScore?: number;
+    certificateWeight?: number;
   },
   season: number = 2026
 ): { valid: boolean; message?: string } {
   const subjects = input.subjects || [];
+  const hasCertificate = input.convertedCertificateScore !== undefined;
+  if (hasCertificate && input.certificateWeight !== undefined && (!Number.isFinite(input.certificateWeight) || input.certificateWeight <= 0)) {
+    return { valid: false, message: "Trọng số chứng chỉ ngoại ngữ phải là số dương hợp lệ." };
+  }
   let mathOrLitWeight = 0;
   if (input.subjectWeights) {
     const weights = subjects.map(subject => input.subjectWeights![subject]);
     if (weights.some(weight => !Number.isFinite(weight) || weight <= 0)) {
       return { valid: false, message: "Trọng số từng môn phải là số dương hợp lệ." };
     }
-    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    const totalWeight = weights.reduce((a, b) => a + b, 0) + (hasCertificate ? input.certificateWeight ?? 1 : 0);
     // Một môn Toán HOẶC Văn phải đạt 1/3, không cộng trọng số hai môn để lách ngưỡng.
     mathOrLitWeight = Math.max(0, ...subjects.filter(isMathOrLiterature).map(subject => input.subjectWeights![subject] / totalWeight));
   } else {
-    mathOrLitWeight = subjects.some(isMathOrLiterature) ? 1 / new Set(subjects).size : 0;
+    mathOrLitWeight = subjects.some(isMathOrLiterature) ? 1 / (new Set(subjects).size + (hasCertificate ? 1 : 0)) : 0;
   }
 
   const res = admissionPolicyService.validateTranscriptMethod(
@@ -348,6 +362,7 @@ export function validateTranscriptRule(
       semesterCount: input.semesterCount,
       mathOrLiteratureWeight: mathOrLitWeight,
       thptScore: input.thptScore,
+      convertedCertificateScore: input.convertedCertificateScore,
     },
     season
   );

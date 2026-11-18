@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { RIASEC_ORDER } from "../../src/domain/riasec";
-import { rankRiasecStudyGroups } from "../../src/domain/riasec-guidance";
+import { rankRiasecStudyGroups, suggestRiasecMajors } from "../../src/domain/riasec-guidance";
 import { RIASEC_QUESTIONS } from "../../src/domain/riasec-questions";
 import { matchMajor, sanitizeRiasec, sanitizeRiasecResult, scoreAnswers } from "../../src/services/riasec.service";
 import { contentViewWeight, recordContentView, sanitizeContentViews, VIEW_RETENTION_MS } from "../../src/domain/browsing";
@@ -106,6 +106,23 @@ const program = (id: string, majorId: string): Program => ({
   id, majorId, schoolId: "school", slug: id, name: id, admissionCode: id, trainingType: "Chính quy",
   campus: "", combos: [], cutoffs: [], altCutoffs: [], tuitionMin: 0, tuitionMax: 0, durationYears: 4,
   quota: 0, competition: "Trung bình", methods: [], overview: "", updatedAt: "", source: "",
+});
+
+test("quiz suggests real majors from supported interest groups without inventing exact fit", () => {
+  const result = scoreAnswers(answersFor("I"))!;
+  const groups = [
+    { id: "technology", name: "Công nghệ", riasec: ["I", "R", "C"] as [RiasecType, RiasecType, RiasecType] },
+    { id: "engineering", name: "Kỹ thuật", riasec: ["R", "I", "C"] as [RiasecType, RiasecType, RiasecType] },
+    { id: "social", name: "Xã hội", riasec: ["S", "A", "E"] as [RiasecType, RiasecType, RiasecType] },
+  ];
+  const majors = [major("curated", "I"), { ...major("group-only", "I"), riasec: [] }, major("unavailable", "I"), major("engineering", "R", "engineering"), major("social", "S", "social")];
+  const items = suggestRiasecMajors(result, groups, majors, {
+    programCountByMajor: { curated: 2, "group-only": 3, unavailable: 0, engineering: 5, social: 4 },
+  });
+  assert.deepEqual(items.map((item) => item.major.id), ["curated", "group-only"]);
+  assert.deepEqual(items.map((item) => item.basis), ["major", "group"]);
+  assert.equal(items[0].interestIndex, 100);
+  assert.deepEqual(suggestRiasecMajors({ ...result, isFlatProfile: true }, groups, majors, { programCountByMajor: { curated: 2 } }), []);
 });
 
 test("school views distribute bounded interest across their majors and program views map to the actual major", () => {

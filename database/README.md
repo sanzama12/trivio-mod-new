@@ -27,6 +27,8 @@ Chạy các lệnh từ thư mục chứa `package.json`. Cấu hình kết nố
 
 Mỗi lần xuất sẽ ghi đè file SQL tương ứng. Thay đổi cấu trúc được thêm vào `migrations/all.sql` với mã migration mới. Hai file dump được tạo bằng các lệnh xuất.
 
+Hai file dump chỉ dùng cục bộ hoặc lưu trong nơi sao lưu có kiểm soát truy cập. Chúng chứa dữ liệu người dùng và hash mật khẩu, nên không commit vào Git hoặc đưa vào gói triển khai. `npm run secrets:check` sẽ chặn dump được theo dõi. Nếu từng đẩy dump lên remote, việc xóa ở commit mới không xóa dữ liệu trong lịch sử Git; cần xử lý lịch sử và đánh giá thông báo sự cố trước khi công khai repository.
+
 Logo trường được lưu dưới dạng URL HTTPS trong `data/school-logos.json` và cột `schools.logo_url`. Bộ thu thập không tải hoặc ghi file ảnh vào `public/images/schools`.
 Kiểm tra kích thước ảnh gốc bằng `node database/scripts/check-school-logo-quality.mjs [MÃ_TRƯỜNG ...]`. Công cụ đọc ảnh vào bộ nhớ để đo kích thước, không lưu file ảnh. Các URL được đề xuất cần kiểm tra đúng nhận diện trường trước khi đưa vào overrides; ảnh SVG hoặc ảnh gốc lớn được ưu tiên hơn favicon 32–60px.
 Không dùng dataset tên file ảnh cục bộ; mọi nguồn logo được lưu dưới dạng URL HTTPS hoàn chỉnh.

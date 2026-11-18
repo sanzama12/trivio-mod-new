@@ -31,7 +31,7 @@ test("each method requires its own recipient or merchant configuration", () => {
   } finally { process.env.SEPAY_WEBHOOK_API_KEY = "test-webhook-key"; }
 });
 
-test("bank QR contains exact recipient, amount and unique reference with optional identity", async (t) => {
+test("bank QR contains exact recipient, amount and an untruncated reference", async (t) => {
   const create = t.mock.method(repositories.donations, "create", async () => record);
   const result = await donationService.createDonation({ method: "qr", amount: 75000, donorName: "Nguyễn Bùi Xuân Việt" });
   const qr = new URL(result.qrImageUrl);
@@ -39,7 +39,7 @@ test("bank QR contains exact recipient, amount and unique reference with optiona
   assert.equal(qr.searchParams.get("acc"), "123456789");
   assert.equal(qr.searchParams.get("amount"), "75000");
   assert.equal(qr.searchParams.get("des"), result.transferContent);
-  assert.equal(result.transferContent, `VIET ${result.txnRef}`);
+  assert.equal(result.transferContent, result.txnRef);
   assert.match(result.txnRef, /^TQ[A-F0-9]{16}$/);
   const saved = create.mock.calls[0].arguments[0];
   assert.ok(saved);
@@ -50,14 +50,14 @@ test("bank QR contains exact recipient, amount and unique reference with optiona
 
 test("changing a bank QR denomination changes only the encoded amount", () => {
   const ref = "TQ123456789ABCDEF0";
-  const first = new URL(buildTransferQr("qr", 20000, ref, "Việt").qrImageUrl);
-  const second = new URL(buildTransferQr("qr", 100000, ref, "Việt").qrImageUrl);
+  const first = new URL(buildTransferQr("qr", 20000, ref).qrImageUrl);
+  const second = new URL(buildTransferQr("qr", 100000, ref).qrImageUrl);
   assert.equal(first.searchParams.get("amount"), "20000");
   assert.equal(second.searchParams.get("amount"), "100000");
   assert.equal(first.searchParams.get("acc"), second.searchParams.get("acc"));
   assert.equal(first.searchParams.get("des"), second.searchParams.get("des"));
-  assert.equal(transferMemo("Nguyễn Bùi Xuân Việt", ref), `VIET ${ref}`);
-  assert.ok(transferMemo("Nguyễn Bùi Xuân Việt", ref).length <= 23);
+  assert.equal(transferMemo(ref), ref);
+  assert.ok(transferMemo(ref).length <= 18);
 });
 
 test("a duplicate bank transfer reference is regenerated before returning a QR", async (t) => {

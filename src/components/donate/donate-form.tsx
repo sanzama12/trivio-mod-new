@@ -323,7 +323,7 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
               <p className={styles.qrHelp}>
                 {payment.method === "vnpay"
                   ? "Quét mã để mở VNPAY, hoặc tiếp tục trên thiết bị này."
-                  : "Quét mã bằng ứng dụng ngân hàng và kiểm tra số tiền, tài khoản nhận và nội dung trước khi chuyển. Tên người ủng hộ trong nội dung được rút gọn để giữ đủ mã giao dịch."}
+                  : "Quét mã bằng ứng dụng ngân hàng và kiểm tra số tiền, tài khoản nhận và mã giao dịch trong nội dung trước khi chuyển."}
               </p>
               {!loading && payment.accountNumber && (
                 <dl className={styles.bankDetails}>

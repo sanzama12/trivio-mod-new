@@ -83,6 +83,7 @@ export function DonationSuccess({ payment, confirmedAt, onClose, onAgain }: {
 
           <div className={styles.actions}>
             <Link href="/" className={styles.primary}>Về trang chủ <LuArrowRight aria-hidden /></Link>
+            <Link href="/ung-ho/lich-su" className={styles.secondary}>Lịch sử ủng hộ</Link>
             <button type="button" className={styles.secondary} onClick={onAgain}><LuRotateCcw aria-hidden /> Ủng hộ thêm</button>
           </div>
         </div>

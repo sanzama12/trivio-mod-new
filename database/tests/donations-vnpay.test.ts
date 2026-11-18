@@ -54,6 +54,26 @@ test("a repeated confirmed callback leaves its stored result intact", async (t) 
   assert.equal(update.mock.callCount(), 0);
 });
 
+test("IPN reports the stored outcome when a concurrent callback wins", async (t) => {
+  let current = record;
+  t.mock.method(repositories.donations, "getByTxnRef", async () => current);
+  t.mock.method(repositories.donations, "updatePaymentResult", async () => {
+    current = { ...record, status: "success" };
+    return null;
+  });
+  assert.deepEqual(await donationService.processIpn(signedCallback()), {
+    RspCode: "02", Message: "Order already confirmed",
+  });
+});
+
+test("IPN never acknowledges an update that left the donation pending", async (t) => {
+  t.mock.method(repositories.donations, "getByTxnRef", async () => record);
+  t.mock.method(repositories.donations, "updatePaymentResult", async () => null);
+  assert.deepEqual(await donationService.processIpn(signedCallback()), {
+    RspCode: "99", Message: "Confirmation not saved",
+  });
+});
+
 test("donations validate amounts and email before creating a payment", async () => {
   for (const amount of [NaN, 0, 9999, 100000001]) {
     await assert.rejects(() => donationService.createDonation({ amount }), DonationValidationError);

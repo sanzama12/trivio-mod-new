@@ -42,7 +42,7 @@ export interface EvaluatedWishItem {
   riskBand: FitLevel | "unknown";
   /** Đủ điều kiện xét tuyển hay không */
   eligibility: {
-    isEligible: boolean;
+    isEligible: boolean | null;
     reason?: "combo" | "method" | "quota" | "tuition" | "teacher-training-rank" | "score-threshold";
     message?: string;
   };
@@ -158,7 +158,9 @@ export function analyzeWishlist(
       label: it.label,
       preferenceRank: idx + 1,
       riskBand: "unknown",
-      eligibility: { isEligible: true },
+      eligibility: invalidTeacherRanks.includes(idx)
+        ? { isEligible: false, reason: "teacher-training-rank", message: "Nguyện vọng đào tạo giáo viên nằm ngoài thứ tự được phép." }
+        : { isEligible: null, message: "Chưa đủ dữ liệu để xác định điều kiện xét tuyển." },
       confidence: "low",
       strategyWarnings: [],
     }));
@@ -207,7 +209,7 @@ export function analyzeWishlist(
       id: "no-safe",
       level: "danger",
       title: "Chưa có nguyện vọng An toàn (Thiếu phương án dự phòng)",
-      detail: "Nếu không đỗ các nguyện vọng Thử sức và Vừa sức, bạn có thể đối mặt rủi ro không trúng tuyển trường nào. Khuyến nghị nên có ít nhất 1–2 nguyện vọng có biên độ điểm an toàn chắc chắn.",
+      detail: "Nếu không đỗ các nguyện vọng Thử sức và Vừa sức, bạn có thể đối mặt rủi ro không trúng tuyển trường nào. Nên cân nhắc thêm 1–2 nguyện vọng có điểm chuẩn lịch sử thấp hơn điểm dự kiến; kết quả năm nay vẫn có thể thay đổi.",
     });
   }
 
@@ -300,7 +302,7 @@ export function analyzeWishlist(
       id: "too-risky",
       level: "warning",
       title: "Phần lớn nguyện vọng thuộc nhóm Thử sức",
-      detail: "Danh sách có độ rủi ro cao. Khuyến nghị bổ sung thêm các nguyện vọng Vừa sức và An toàn để đảm bảo cơ hội trúng tuyển.",
+      detail: "Danh sách có độ rủi ro cao. Nên cân nhắc thêm các nguyện vọng Vừa sức và An toàn để giảm rủi ro, rồi kiểm tra điều kiện xét tuyển của từng trường.",
     });
   }
 

@@ -12,21 +12,22 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 function sameOrigin(req: NextRequest): boolean {
   const origin = req.headers.get("origin");
   if (origin) {
-    let host: string;
+    let source: URL;
     try {
-      host = new URL(origin).host;
+      source = new URL(origin);
     } catch {
       return false;
     }
-    const allowed = new Set([req.headers.get("x-forwarded-host"), req.headers.get("host"), req.nextUrl.host].filter(Boolean));
+    if (!['http:', 'https:'].includes(source.protocol) || source.origin !== origin) return false;
     if (process.env.APP_URL) {
       try {
-        allowed.add(new URL(process.env.APP_URL).host);
+        return source.origin === new URL(process.env.APP_URL).origin;
       } catch {
-        /* APP_URL sai định dạng: bỏ qua */
+        return false;
       }
     }
-    return allowed.has(host);
+    if (process.env.NODE_ENV === "production") return false;
+    return source.origin === req.nextUrl.origin;
   }
   // Không có Origin (công cụ dòng lệnh, test): chặn nếu trình duyệt báo là request chéo site.
   return req.headers.get("sec-fetch-site") !== "cross-site";
@@ -54,6 +55,9 @@ export function proxy(req: NextRequest) {
     res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   }
   if (pathname.startsWith("/quan-tri") || pathname.startsWith("/api/admin")) res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (/^\/(?:api\/(?:account|admin|auth|chat|notifications)(?:\/|$)|quan-tri(?:\/|$)|ho-so(?:\/|$))/.test(pathname)) {
+    res.headers.set("Cache-Control", "private, no-store");
+  }
   return res;
 }
 

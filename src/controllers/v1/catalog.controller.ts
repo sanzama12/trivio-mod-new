@@ -16,9 +16,10 @@ export class V1CatalogController {
   static health(): Promise<Response> {
     return withApiErrors(async () => {
       const db = await systemService.checkDatabase();
+      if (!db.ok) return apiError(503, "DATABASE_UNAVAILABLE", "Cơ sở dữ liệu tạm thời chưa sẵn sàng.");
       return apiOk({
         status: "ready",
-        database: db.ok ? "ready" : "degraded",
+        database: "ready",
         latencyMs: db.latencyMs,
         pool: db.pool,
       });
@@ -37,6 +38,8 @@ export class V1CatalogController {
         region: (params.get("region") || undefined) as Region | undefined,
         type: (params.get("type") || undefined) as SchoolType | undefined,
         city: params.get("city")?.trim().toLowerCase() || undefined,
+        majorId: params.get("majorId")?.trim() || undefined,
+        majorQuery: params.get("majorQuery")?.trim() || params.get("major")?.trim() || undefined,
         page,
         limit,
       });

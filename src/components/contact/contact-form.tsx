@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LuSend } from "react-icons/lu";
+import { LuCheck, LuSend } from "react-icons/lu";
 import styles from "./contact-animations.module.css";
 import { cn } from "@/lib/cn";
 import { siteContact } from "@/lib/site-contact";
@@ -29,6 +29,7 @@ const ENTERPRISE_TYPES = [
 const STUDENT_TYPES = [
   { value: "TuVanChonNganh", label: "Tư vấn chọn ngành & trắc nghiệm RIASEC" },
   { value: "DiemChuan", label: "Thắc mắc điểm chuẩn & cách tính điểm" },
+  { value: "UngHo", label: "Ủng hộ & chuyển khoản" },
   { value: "NgonNgu", label: "Góp ý nội dung, dữ liệu chương trình" },
   { value: "HoTroKyThuat", label: "Hỗ trợ kỹ thuật & tài khoản" },
   { value: "Khac", label: "Câu hỏi khác" },
@@ -40,6 +41,7 @@ const EMPTY = {
   organization: "",
   workEmail: "",
   requestType: "TuVanChonNganh",
+  reference: "",
   message: "",
 };
 
@@ -55,7 +57,7 @@ export function EnterpriseContactForm() {
     e.preventDefault();
     const type = types.find((item) => item.value === formData.requestType)?.label ?? "Liên hệ";
     const subject = encodeURIComponent(`[Trovio] ${type}`);
-    const body = encodeURIComponent(`Họ tên: ${formData.fullName}\nEmail: ${formData.workEmail}\nTrường/đơn vị: ${formData.organization || "Không cung cấp"}\n\n${formData.message}`);
+    const body = encodeURIComponent(`Họ tên: ${formData.fullName}\nEmail: ${formData.workEmail}\nTrường/đơn vị: ${formData.organization || "Không cung cấp"}${formData.requestType === "UngHo" ? `\nMã tham chiếu: ${formData.reference || "Chưa cung cấp"}` : ""}\n\n${formData.message}`);
     window.location.href = `mailto:${siteContact.email}?subject=${subject}&body=${body}`;
     setSubmitted(true);
   };
@@ -68,9 +70,7 @@ export function EnterpriseContactForm() {
   if (submitted) {
     return (
       <div className="rounded-3xl bg-paper-50 p-8 text-center sm:p-10">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-md">
-          <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </div>
+        <div className="mx-auto flex size-14 items-center justify-center rounded-md bg-white text-primary-700 shadow-md"><LuCheck className="size-7" aria-hidden /></div>
         <span className="mt-4 inline-flex items-center rounded-full bg-primary-100 px-3.5 py-1 text-xs font-bold text-primary-900">Kiểm tra ứng dụng email</span>
         <h3 className="mt-3 text-xl font-extrabold text-slate-900 sm:text-2xl">Gửi thư để hoàn tất</h3>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
@@ -155,6 +155,11 @@ export function EnterpriseContactForm() {
             ))}
           </select>
         </div>
+
+        {formData.requestType === "UngHo" && <div className={cn("mt-6", styles.field)}>
+          <input id="donationReference" type="text" placeholder=" " value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} className={styles.fieldInput} />
+          <label htmlFor="donationReference" className={styles.fieldLabel}>Mã tham chiếu giao dịch</label>
+        </div>}
 
         <div className={cn("mt-6", styles.field)}>
           <textarea id="message" required rows={4} placeholder=" " value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className={styles.fieldTextarea} />

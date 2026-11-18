@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { repositories, type DonationRecord } from "../repositories";
-import { parseBankHistory, matchesBankTransfer } from "../../src/services/bank-history.service";
+import { parseBankHistory, matchesBankTransfer, matchingBankReference } from "../../src/services/bank-history.service";
 import { donationService } from "../../src/services/donation.service";
 import { GET } from "../../src/app/api/donations/status/[txnRef]/route";
 
@@ -32,6 +32,33 @@ test("bank transfer must match account, amount, and a whole reference", () => {
   assert.equal(matchesBankTransfer(transfer, { accountNumber: "other", amount: 50000, txnRef: ref }), false);
   assert.equal(matchesBankTransfer(transfer, { accountNumber: account, amount: 20000, txnRef: ref }), false);
   assert.equal(matchesBankTransfer({ ...transfer, description: `VIET ${ref}EXTRA` }, { accountNumber: account, amount: 50000, txnRef: ref }), false);
+  const shortened = { ...transfer, description: `VIET ${ref.slice(0, -1)}` };
+  assert.equal(matchingBankReference(shortened, { accountNumber: account, amount: 50000, txnRef: ref }), ref.slice(0, -1));
+  assert.equal(matchesBankTransfer({ ...shortened, description: `${shortened.description}A` }, { accountNumber: account, amount: 50000, txnRef: ref }), false);
+});
+
+test("a one-character-truncated bank note is reconciled with its prefix", async (t) => {
+  const oldEnv = {
+    token: process.env.BANK_HISTORY_API_TOKEN, code: process.env.DONATION_BANK_CODE,
+    account: process.env.DONATION_ACCOUNT_NUMBER, name: process.env.DONATION_ACCOUNT_NAME,
+  };
+  process.env.BANK_HISTORY_API_TOKEN = "a".repeat(32);
+  process.env.DONATION_BANK_CODE = "970422";
+  process.env.DONATION_ACCOUNT_NUMBER = account;
+  process.env.DONATION_ACCOUNT_NAME = "TEST ACCOUNT";
+  try {
+    const confirm = t.mock.method(repositories.donations, "confirmBankTransfer", async () => ({ ...pending, status: "success" as const }));
+    const fetchMock = (async () => Response.json({ status: "success", TranList: [
+      bankRow({ description: `VIET ${ref.slice(0, -1)}` }),
+    ] })) as typeof fetch;
+    const checked = await donationService.refreshQrPayment(pending, fetchMock);
+    assert.equal(checked.donation.status, "success");
+    assert.deepEqual(confirm.mock.calls[0].arguments, [ref, 50000, "DVC_BANK123456789012", "970422", ref.slice(0, -1)]);
+  } finally {
+    for (const [key, value] of Object.entries({ BANK_HISTORY_API_TOKEN: oldEnv.token, DONATION_BANK_CODE: oldEnv.code, DONATION_ACCOUNT_NUMBER: oldEnv.account, DONATION_ACCOUNT_NAME: oldEnv.name })) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
 });
 
 test("pending QR confirms from matching API history and reports upstream failure separately", async (t) => {

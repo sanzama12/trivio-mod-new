@@ -31,13 +31,22 @@ export function parseBankHistory(value: unknown): BankTransfer[] | null {
   });
 }
 
-export function matchesBankTransfer(transfer: BankTransfer, expected: { accountNumber: string; amount: number; txnRef: string }): boolean {
+export function matchingBankReference(transfer: BankTransfer, expected: { accountNumber: string; amount: number; txnRef: string }): string | null {
   const account = expected.accountNumber.replace(/\s/g, "");
   const ref = expected.txnRef.toUpperCase();
-  if (!/^(?:TQ[A-F0-9]{12}(?:[A-F0-9]{4})?|TROVIOQR[A-F0-9]{32})$/.test(ref)) return false;
-  return transfer.accountNumber === account && transfer.amount === expected.amount &&
-    new RegExp(`(^|[^A-Z0-9])${ref}(?=$|[^A-Z0-9])`).test(transfer.description);
+  if (!/^(?:TQ[A-F0-9]{12}(?:[A-F0-9]{4})?|TROVIOQR[A-F0-9]{32})$/.test(ref) ||
+      transfer.accountNumber !== account || transfer.amount !== expected.amount) return null;
+  if (new RegExp(`(^|[^A-Z0-9])${ref}(?=$|[^A-Z0-9])`).test(transfer.description)) return ref;
+  // Older QR notes included a name and some banks cut the final reference character.
+  if (/^TQ[A-F0-9]{16}$/.test(ref)) {
+    const prefix = ref.slice(0, -1);
+    if (new RegExp(`(^|[^A-Z0-9])${prefix}(?=$|[^A-Z0-9])`).test(transfer.description)) return prefix;
+  }
+  return null;
 }
+
+export const matchesBankTransfer = (transfer: BankTransfer, expected: { accountNumber: string; amount: number; txnRef: string }): boolean =>
+  matchingBankReference(transfer, expected) !== null;
 
 let cachedRequest: Promise<BankTransfer[] | null> | null = null;
 let requestedAt = 0;

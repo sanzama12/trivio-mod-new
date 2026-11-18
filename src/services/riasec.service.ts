@@ -1,5 +1,6 @@
 import type { RiasecResult, RiasecType } from "../domain/types";
 import { RIASEC_ORDER } from "../domain/riasec";
+export { matchMajor } from "../domain/riasec";
 import { RIASEC_ASSESSMENT_VERSION, RIASEC_QUESTIONS, RIASEC_SCORING_VERSION } from "../domain/riasec-questions";
 
 export const RIASEC_TYPES = RIASEC_ORDER;
@@ -9,21 +10,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const rank = (percents: Record<RiasecType, number>) =>
   [...RIASEC_ORDER].sort((a, b) => percents[b] - percents[a]);
-
-/** Relative interest index, weighted by the major's ordered RIASEC tags. */
-export function matchMajor(result: InterestProfile | null | undefined, major: { riasec: RiasecType[] }): number {
-  if (!result || !major.riasec.length) return 50;
-  const types = [...new Set(major.riasec)].filter((type) => RIASEC_ORDER.includes(type)).slice(0, 3);
-  if (!types.length) return 50;
-  let total = 0;
-  let weights = 0;
-  types.forEach((type, index) => {
-    const weight = 3 - index;
-    total += result.percents[type] * weight;
-    weights += weight;
-  });
-  return Math.round(total / weights);
-}
 
 export function sanitizeRiasec(value: unknown): InterestProfile | null {
   if (!isRecord(value) || !isRecord(value.percents)) return null;

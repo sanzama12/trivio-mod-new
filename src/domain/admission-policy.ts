@@ -50,7 +50,7 @@ export interface AdmissionPolicy {
 
   // Phương thức học bạ
   transcriptSemesterCount: number; // 6 học kỳ (lớp 10, 11, 12)
-  transcriptMinimumSubjectCount: number; // 3 môn
+  transcriptMinimumSubjectCount: number; // 3 môn, hoặc 2 môn học kèm chứng chỉ ngoại ngữ đã quy đổi
   mandatorySubjectsForTranscript: string[]; // ["Toán", "Ngữ văn"] - Phải có ít nhất 1 trong các môn này
   mandatorySubjectMinWeightRatio: number; // 1/3 tổng trọng số thang 30
   transcriptMinimumThptScore?: number; // Ngưỡng điểm thi THPT 16 điểm nếu có

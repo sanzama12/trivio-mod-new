@@ -5,7 +5,7 @@ import { emailError } from "@/lib/email-validation";
 import QRCode from "qrcode";
 import { ANONYMOUS_DONOR_NAME, publicDonorName, type DonationPayment, type DonationPaymentMethod } from "@/domain/donation";
 import { buildTransferQr, getDonationPaymentAvailability, getTransferConfig, isDonationPaymentMethod } from "./donation-payment.service";
-import { fetchBankHistory, matchesBankTransfer } from "./bank-history.service";
+import { fetchBankHistory, matchingBankReference } from "./bank-history.service";
 
 export interface CreateDonationInput {
   amount: number;
@@ -56,11 +56,17 @@ export const donationService = {
     if (!bank) return { donation, verificationUnavailable: true };
     const transfers = await fetchBankHistory(fetchImpl);
     if (!transfers) return { donation, verificationUnavailable: true };
-    const matched = transfers.find((transfer) => matchesBankTransfer(transfer, {
-      accountNumber: bank.accountNumber, amount: donation.amount, txnRef: donation.vnpTxnRef,
-    }));
+    const matched = transfers.map((transfer) => ({
+      transfer,
+      reference: matchingBankReference(transfer, {
+        accountNumber: bank.accountNumber, amount: donation.amount, txnRef: donation.vnpTxnRef,
+      }),
+    })).find((item) => item.reference);
     if (!matched) return { donation, verificationUnavailable: false };
-    const confirmed = await repositories.donations.confirmBankTransfer(donation.vnpTxnRef, donation.amount, matched.transactionId, bank.bankCode);
+    const truncatedReference = matched.reference === donation.vnpTxnRef ? undefined : matched.reference;
+    const confirmed = truncatedReference
+      ? await repositories.donations.confirmBankTransfer(donation.vnpTxnRef, donation.amount, matched.transfer.transactionId, bank.bankCode, truncatedReference)
+      : await repositories.donations.confirmBankTransfer(donation.vnpTxnRef, donation.amount, matched.transfer.transactionId, bank.bankCode);
     if (confirmed) {
       invalidateDonationCache();
       return { donation: confirmed, verificationUnavailable: false };
@@ -120,7 +126,7 @@ export const donationService = {
       }) : "";
       const payment = method === "vnpay"
         ? { qrImageUrl: await QRCode.toDataURL(paymentUrl, { width: 320, margin: 4, errorCorrectionLevel: "M" }) }
-        : buildTransferQr(method, amount, txnRef, donorName);
+        : buildTransferQr(method, amount, txnRef);
 
       try {
         const donation = await repositories.donations.create({
@@ -255,7 +261,7 @@ export const donationService = {
       return { RspCode: "02", Message: "Order already confirmed" };
     }
 
-    await repositories.donations.updatePaymentResult(verified.txnRef, {
+    const updated = await repositories.donations.updatePaymentResult(verified.txnRef, {
       status: verified.isSuccess ? "success" : "failed",
       transactionNo: verified.transactionNo,
       bankCode: verified.bankCode,
@@ -263,6 +269,14 @@ export const donationService = {
       payDate: verified.payDate,
       responseCode: verified.responseCode,
     });
+
+    if (!updated) {
+      const latest = await repositories.donations.getByTxnRef(verified.txnRef);
+      if (!latest) return { RspCode: "01", Message: "Order Not Found" };
+      return latest.status === "pending"
+        ? { RspCode: "99", Message: "Confirmation not saved" }
+        : { RspCode: "02", Message: "Order already confirmed" };
+    }
 
     // Cập nhật doanh thu ngay tức thì
     invalidateDonationCache();

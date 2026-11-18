@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import type { RiasecStudyGroup } from "@/domain/riasec-guidance";
 import type { RiasecResult, RiasecType } from "@/domain/types";
 import { RiasecStudyGuidance } from "./riasec-study-guidance";
+import { RiasecMajorSuggestions } from "./riasec-major-suggestions";
 
 const PAGE_SIZE = 6;
 const PAGE_COUNT = RIASEC_QUESTIONS.length / PAGE_SIZE;
@@ -37,12 +38,14 @@ function InterestSummary({ result }: { result: RiasecResult }) {
   const score = (type: RiasecType) => result.percents[type].toLocaleString("vi-VN");
   const tiedTypes = result.tiedDimensions ?? [];
   const tied = tiedTypes.length > 1;
+  const hasSecond = result.percents[second] > 0;
+  const hasThird = result.percents[third] > 0;
 
   return <div className="mt-5 border-l-4 border-primary-600 bg-primary-50/60 px-4 py-3 text-sm leading-6 text-slate-800">
-    <h3 className="font-bold text-slate-950">{tied ? `Nghiêng về ${tiedTypes.map((type) => RIASEC_INFO[type].label).join(" và ")}` : `Nghiêng về ${RIASEC_INFO[first].label}, tiếp đến ${RIASEC_INFO[second].label}`}</h3>
-    <p className="mt-1">Điểm cao nhất: {RIASEC_INFO[first].label} {score(first)}/100; tiếp đến {RIASEC_INFO[second].label} {score(second)}/100 và {RIASEC_INFO[third].label} {score(third)}/100.{tied && " Hai nhóm đứng đầu có điểm gần nhau."}</p>
-    <p className="mt-1">Bạn thể hiện hứng thú với hoạt động {INTEREST_ACTIVITY[first]} và {INTEREST_ACTIVITY[second]}. Đây là sở thích tự đánh giá, không đo năng lực hay kết luận ngành nào chắc chắn hợp với bạn.</p>
-    <a href="#study-groups-title" className="mt-2 inline-flex items-center gap-1 font-semibold text-primary-700 hover:underline">Xem nhóm ngành nên tìm hiểu <LuArrowRight className="size-4" aria-hidden /></a>
+    <h3 className="font-bold text-slate-950">{tied ? `Nghiêng về ${tiedTypes.map((type) => RIASEC_INFO[type].label).join(" và ")}` : hasSecond ? `Nghiêng về ${RIASEC_INFO[first].label}, tiếp đến ${RIASEC_INFO[second].label}` : `Nghiêng về ${RIASEC_INFO[first].label}`}</h3>
+    <p className="mt-1">Điểm cao nhất: {RIASEC_INFO[first].label} {score(first)}/100{hasSecond && `; tiếp đến ${RIASEC_INFO[second].label} ${score(second)}/100`}{hasThird && ` và ${RIASEC_INFO[third].label} ${score(third)}/100`}.{tied && " Hai nhóm đứng đầu có điểm gần nhau."}</p>
+    <p className="mt-1">Bạn thể hiện hứng thú với hoạt động {INTEREST_ACTIVITY[first]}{hasSecond && ` và ${INTEREST_ACTIVITY[second]}`}. Đây là sở thích tự đánh giá, không đo năng lực hay kết luận ngành nào chắc chắn hợp với bạn.</p>
+    <a href="#quiz-major-title" className="mt-2 inline-flex items-center gap-1 font-semibold text-primary-700 hover:underline">Xem ngành học nên tìm hiểu <LuArrowRight className="size-4" aria-hidden /></a>
   </div>;
 }
 
@@ -212,6 +215,7 @@ export function RiasecQuiz({ groups }: { groups: RiasecStudyGroup[] }) {
               </div>
               <p className="mt-6 text-sm leading-relaxed text-slate-600">Mỗi nhóm có 10 câu, mỗi câu 0–4 điểm. Tổng điểm nhóm được đổi sang thang 100. Các chỉ số phản ánh mức độ hứng thú với hoạt động nghề nghiệp.</p>
             </div>
+            <RiasecMajorSuggestions key={result.completedAt} result={result} />
             <RiasecStudyGuidance result={result} groups={groups} />
           </>
         ) : (

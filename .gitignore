@@ -19,6 +19,7 @@ scratch
 # Local database data and generated audit output
 database/local/
 database/backups/
+database/dump*.sql
 database/audit-report.json
 
 .vercel

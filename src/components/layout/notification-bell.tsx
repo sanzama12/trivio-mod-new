@@ -27,9 +27,12 @@ export function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const loading = useRef(false);
   const panelId = useId();
 
   const load = useCallback(async () => {
+    if (loading.current || document.visibilityState !== "visible") return;
+    loading.current = true;
     try {
       const res = await fetch("/api/notifications", { cache: "no-store" });
       if (!res.ok) return;
@@ -38,13 +41,22 @@ export function NotificationBell() {
       setUnread(d.unread);
     } catch {
       /* mạng lỗi: thử lại lần sau */
+    } finally {
+      loading.current = false;
     }
   }, []);
 
   useEffect(() => {
     void load();
-    const t = setInterval(() => document.visibilityState === "visible" && void load(), 60_000);
-    return () => clearInterval(t);
+    const refresh = () => { if (document.visibilityState === "visible") void load(); };
+    const t = setInterval(refresh, 15_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [load]);
 
   useEffect(() => {

@@ -330,6 +330,22 @@ async function findDiscoveryCatalog(): Promise<DiscoveryCatalog> {
 }
 
 export const postgresReferenceCatalogRepository: CatalogRepository = {
+  findSchoolSearchRows(majorId?: string) {
+    return query<{
+      schoolId: string;
+      programName: string;
+      majorId: string;
+      majorName: string;
+      majorCode: string;
+    }>(`
+      SELECT p.school_id AS "schoolId", p.name AS "programName",
+        p.major_id AS "majorId", m.name AS "majorName", COALESCE(m.code, '') AS "majorCode"
+      FROM trovio.public_programs p
+      JOIN trovio.majors m ON m.id = p.major_id
+      WHERE NOT p.hidden ${majorId ? "AND p.major_id = $1" : ""}
+    `, majorId ? [majorId] : []);
+  },
+
   async findSubjects(): Promise<Subject[]> {
     const rows = await query<{ id: string; name: string; short: string }>(
       `SELECT id, name, short_name AS short FROM trovio.subjects ORDER BY name`,
