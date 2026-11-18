@@ -8,3 +8,13 @@ export function isDemoMode(): boolean {
   if (process.env.TROVIO_DEMO === "true") return true;
   return false;
 }
+
+export function isLocalDemoLoginEnabled(): boolean {
+  try {
+    const host = new URL(process.env.APP_URL ?? "").hostname;
+    return (host === "localhost" || host === "127.0.0.1") &&
+      (process.env.NODE_ENV !== "production" || isDemoMode());
+  } catch {
+    return false;
+  }
+}

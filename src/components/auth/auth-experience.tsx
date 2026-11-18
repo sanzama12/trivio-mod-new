@@ -16,7 +16,7 @@ import { StudentMascot } from "./student-mascot";
 import styles from "./auth-experience.module.css";
 
 type Field = "name" | "email" | "password" | "confirm" | "terms";
-export function AuthExperience({ next, error, demo, initialMode = "login", registered = false }: { next: string; error?: string; demo: boolean; initialMode?: "login" | "register"; registered?: boolean }) {
+export function AuthExperience({ next, error, demoAccount, initialMode = "login", registered = false }: { next: string; error?: string; demoAccount?: { email: string; password: string } | null; initialMode?: "login" | "register"; registered?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState(initialMode);
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", terms: false });
@@ -133,7 +133,14 @@ export function AuthExperience({ next, error, demo, initialMode = "login", regis
         <div className={styles.divider}><span />hoặc<span /></div>
         <div className={styles.social}><GoogleButton next={next} onError={setMessage} disabled={loading} /></div>
         <p className={styles.switchHint}>{register ? "Đã có tài khoản?" : "Bạn mới đến Trovio?"} <button type="button" disabled={loading} onClick={() => switchMode(register ? "login" : "register")}>{register ? "Đăng nhập" : "Đăng ký miễn phí"}</button></p>
-        {demo && <details className={styles.demo}><summary>Dùng thử với tài khoản demo</summary><p>Mật khẩu: Trovio@2026<br />Học sinh: an@trovio.vn<br />Quản trị: admin@trovio.vn<br />Bị khóa: binh.locked@trovio.vn</p></details>}
+        {demoAccount && !register && <div className={styles.demo}>
+          <strong>Tài khoản học sinh dùng thử</strong>
+          <dl>
+            <div><dt>Email</dt><dd>{demoAccount.email}</dd></div>
+            <div><dt>Mật khẩu</dt><dd>{demoAccount.password}</dd></div>
+          </dl>
+          <button type="button" onClick={() => { setForm((current) => ({ ...current, email: demoAccount.email, password: demoAccount.password })); setErrors({}); setMessage(""); }}>Điền tài khoản demo</button>
+        </div>}
       </section>
     </div>
     <footer className={styles.footer}><span>© {new Date().getFullYear()} Trovio</span><Link href="/tro-giup">Cần trợ giúp?</Link></footer>

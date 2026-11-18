@@ -25,6 +25,8 @@ Tài liệu: `docs/Giai-trinh-chuc-nang-Trovio.docx` (giải trình toàn bộ c
 
 Tạo `.env.local` từ `.env.example` và bắt buộc đặt `DATABASE_URL`, `APP_URL`, `SESSION_SECRET`. Nếu dùng Google OAuth, thêm `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Sửa cấu hình xong cần khởi động lại ứng dụng.
 
+Để thử đăng nhập trên localhost: chạy `npm run demo:account` một lần sau khi cấu hình database, rồi mở `/dang-nhap`. Trang local hiển thị tài khoản học sinh dùng thử và nút điền nhanh. Script không ghi đè tài khoản đã tồn tại; tài khoản này bị từ chối đăng nhập và sử dụng phiên trên domain production. Không dùng tài khoản quản trị làm tài khoản demo công khai.
+
 Không có tài khoản mặc định. Quản trị viên và dữ liệu nghiệp vụ phải được tạo/publish qua quy trình có kiểm soát vào PostgreSQL.
 
 Nhập sai mật khẩu 3 lần sẽ khóa tài khoản 30 phút; lần sai thứ 4 khóa tiếp 30 phút, lần thứ 5 khóa cho đến khi quản trị viên mở tại `/quan-tri/nguoi-dung`. Bộ đếm không tự xóa khi đăng nhập đúng sau hạn khóa; admin mở khóa sẽ đặt lại bộ đếm. Đăng nhập Google và đặt lại mật khẩu không vượt qua thời gian khóa; đặt lại mật khẩu không mở được khóa vĩnh viễn. Mật khẩu được băm bằng **scrypt** trước khi ghi xuống đĩa.

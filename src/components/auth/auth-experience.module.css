@@ -166,9 +166,14 @@
 .success { margin-bottom: 16px; padding: 11px 12px; border: 1px solid #a7d9bd; border-radius: 6px; background: #eefaf2; color: #14613a; font-size: 13px; line-height: 1.5; }
 .success strong { display: block; font-size: 14px; }
 .alert a { font-weight: 700; text-decoration: underline; }
-.demo { margin-top: 15px; color: #6f6470; font-size: 12px; }
-.demo summary { cursor: pointer; }
-.demo p { margin-top: 8px; line-height: 1.6; }
+.demo { margin-top: 18px; padding: 15px; border: 1px solid #d8cbd4; border-radius: 6px; background: #faf6f9; font-size: 12px; }
+.demo > strong { display: block; color: var(--auth-ink); font-size: 13px; }
+.demo dl { display: grid; gap: 7px; margin-top: 10px; }
+.demo dl div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; }
+.demo dt { color: #6f6470; }
+.demo dd { color: var(--auth-ink); font-weight: 700; overflow-wrap: anywhere; }
+.demo button { min-height: 36px; margin-top: 12px; padding: 0 12px; border: 1px solid #a77c99; border-radius: 5px; color: var(--auth-plum); font-size: 12px; font-weight: 800; cursor: pointer; }
+.demo button:hover { background: #f0e3ec; }
 .page button:disabled { opacity: .6; cursor: wait; }
 .page button:focus-visible, .page a:focus-visible { outline: 3px solid var(--auth-plum); outline-offset: 3px; }
 .footer { min-height: 28px; justify-content: space-between; gap: 12px; color: rgb(255 255 255 / .9); font-size: 12px; }

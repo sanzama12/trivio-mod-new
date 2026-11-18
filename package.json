@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "verify:donation-success": "node scripts/verify-donation-success.mjs",
     "secrets:check": "node scripts/check-secrets.mjs",
+    "demo:account": "node --conditions=react-server --import tsx scripts/ensure-demo-account.ts",
     "db:migrate": "tsx database/scripts/migrate-pg.ts",
     "db:status": "tsx database/scripts/migrate-pg.ts --status",
     "admissions:export": "tsx database/scripts/export-tong-hop.ts",

@@ -13,6 +13,8 @@ import { signToken, verifyToken } from "./session.service";
 import { isMailerConfigured, sendMail } from "./mailer";
 import { emailError } from "../lib/email-validation";
 import { accountRole } from "../domain/access";
+import { DEMO_STUDENT_EMAIL } from "../domain/demo-account";
+import { isLocalDemoLoginEnabled } from "../lib/env";
 
 export { checkPassword, passwordStrength } from "./password.rules";
 
@@ -138,6 +140,10 @@ export const authService = {
     return { ok: true, token: signToken({ uid: user.id, typ: "reset", pv: passwordFingerprint(user) }, 10 * 60) };
   },
   async login(email: string, password: string): Promise<LoginResult> {
+    if (email === DEMO_STUDENT_EMAIL && !isLocalDemoLoginEnabled()) {
+      await verifyPassword(password, DUMMY_HASH);
+      return { ok: false, reason: "invalid", attemptsLeft: TEMP_LOCK_THRESHOLD - 1 };
+    }
     const user = await repositories.users.findByEmail(email);
     // Chống timing attack & chống dò quét tài khoản (GIAI ĐOẠN 8):
     if (!user) {
@@ -256,6 +262,7 @@ export const authService = {
    */
   async loginWithGoogle(profile: GoogleProfile, opts: { linkToUserId?: string } = {}): Promise<GoogleLoginResult> {
     if (!profile.emailVerified) return { ok: false, reason: "email_unverified" };
+    if (profile.email.toLowerCase() === DEMO_STUDENT_EMAIL && !isLocalDemoLoginEnabled()) return { ok: false, reason: "disabled" };
     const byGoogle = await repositories.users.findByGoogleId(profile.sub);
     if (byGoogle && accountLock(byGoogle)) return { ok: false, reason: accountLock(byGoogle) === "temporary" ? "locked" : "disabled" };
 
@@ -310,7 +317,8 @@ export const authService = {
   /** Người dùng của một phiên — null nếu phiên đã bị thu hồi (đổi mật khẩu, đăng xuất mọi thiết bị). */
   async getUserForSession(id: string, sessionVersion: number): Promise<PublicUser | null> {
     const user = await repositories.users.findById(id);
-    if (!user || accountLock(user) || (user.sessionVersion ?? 0) !== sessionVersion) return null;
+    if (!user || accountLock(user) || (user.sessionVersion ?? 0) !== sessionVersion ||
+        (user.email === DEMO_STUDENT_EMAIL && !isLocalDemoLoginEnabled())) return null;
     return toPublicUser(user);
   },
 
