@@ -17,17 +17,10 @@ export function getTriovoKnowledge(): string {
   if (cachedKnowledge) return cachedKnowledge;
 
   try {
-    const candidatePaths = [
-      path.join(process.cwd(), "docs", "TRIOVO_AI_KNOWLEDGE.md"),
-      path.join(process.cwd(), "docs", "triovo-ai-knowledge.md"),
-      path.resolve(__dirname, "../../docs/TRIOVO_AI_KNOWLEDGE.md"),
-    ];
-
-    for (const filePath of candidatePaths) {
-      if (fs.existsSync(filePath)) {
-        cachedKnowledge = fs.readFileSync(filePath, "utf-8");
-        return cachedKnowledge;
-      }
+    const filePath = path.join(process.cwd(), "docs", "TRIOVO_AI_KNOWLEDGE.md");
+    if (fs.existsSync(filePath)) {
+      cachedKnowledge = fs.readFileSync(filePath, "utf-8");
+      return cachedKnowledge;
     }
   } catch (err) {
     console.warn("[ai-knowledge-base] Không thể nạp docs/TRIOVO_AI_KNOWLEDGE.md từ ổ đĩa, dùng nội dung dự phòng:", err);
