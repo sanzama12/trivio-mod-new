@@ -25,10 +25,10 @@ export function getPool(): Pool {
     global.__pgPool = new Pool({
       connectionString: dbUrl,
       // Kích thước Pool chuẩn cho Node.js + Serverless
-      max: Number(process.env.PG_POOL_MAX) || 16,
+      max: Number(process.env.PG_POOL_MAX) || 5,
       min: Number(process.env.PG_POOL_MIN) || 2, // Duy trì kết nối ấm tránh cold-start 150ms
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: Number(process.env.PG_CONNECT_TIMEOUT_MS) || 10000,
+      connectionTimeoutMillis: Number(process.env.PG_CONNECT_TIMEOUT_MS) || 15000,
 
       // Ngắt truy vấn/khóa treo để pool không bị giữ cạn tài nguyên.
       statement_timeout: 10000,

@@ -19,8 +19,40 @@ const guidanceProgramsCache = new Map<string, { loadedAt: number; items: Guidanc
 const guidanceProgramsLoads = new Map<string, Promise<GuidanceProgram[]>>();
 const DISCOVERY_STATS_TTL_MS = 2 * 60 * 1000;
 
+type ReferenceData = { subjects: Subject[]; combos: Combo[] };
+let referenceCache: ReferenceData | null = null;
+let referenceLoadedAt = 0;
+let referenceLoad: Promise<ReferenceData> | null = null;
+
+async function findReferenceData(): Promise<ReferenceData> {
+  if (referenceCache && Date.now() - referenceLoadedAt < DISCOVERY_STATS_TTL_MS) return referenceCache;
+  const epoch = discoveryEpoch;
+  referenceLoad ??= query<ReferenceData>(`
+    SELECT
+      COALESCE((SELECT json_agg(s ORDER BY s.name) FROM (
+        SELECT id, name, short_name AS short FROM trovio.subjects
+      ) s), '[]'::json) AS subjects,
+      COALESCE((SELECT json_agg(c ORDER BY c.code) FROM (
+        SELECT c.code, array_agg(cs.subject_id ORDER BY cs.position) AS subjects
+        FROM trovio.combos c JOIN trovio.combo_subjects cs ON cs.combo_code = c.code
+        GROUP BY c.code HAVING COUNT(*) = 3
+      ) c), '[]'::json) AS combos
+  `).then((rows) => {
+    const value = rows[0] ?? { subjects: [], combos: [] };
+    if (epoch === discoveryEpoch) {
+      referenceCache = value;
+      referenceLoadedAt = Date.now();
+    }
+    return value;
+  }).finally(() => { if (epoch === discoveryEpoch) referenceLoad = null; });
+  return referenceLoad;
+}
+
 export function invalidateDiscoveryStats(): void {
   discoveryEpoch++;
+  referenceCache = null;
+  referenceLoadedAt = 0;
+  referenceLoad = null;
   discoveryStatsCache = null;
   discoveryStatsLoadedAt = 0;
   discoveryStatsLoad = null;
@@ -128,12 +160,16 @@ async function findDiscoveryStats(): Promise<DiscoveryStats> {
     return discoveryStatsCache;
   }
   discoveryStatsLoad ??= query<DiscoveryStats>(`
+    WITH visible_programs AS MATERIALIZED (
+      SELECT p.major_id, p.school_id, p.hidden
+      FROM trovio.public_programs p WHERE NOT p.hidden
+    )
     SELECT
       (
         SELECT COALESCE(jsonb_object_agg(counts.major_id, counts.program_count), '{}'::jsonb)
         FROM (
           SELECT p.major_id, COUNT(*)::int AS program_count
-          FROM trovio.public_programs p
+          FROM visible_programs p
           WHERE NOT p.hidden
           GROUP BY p.major_id
         ) counts
@@ -142,7 +178,7 @@ async function findDiscoveryStats(): Promise<DiscoveryStats> {
         SELECT COALESCE(jsonb_object_agg(counts.major_id, counts.school_count), '{}'::jsonb)
         FROM (
           SELECT p.major_id, COUNT(DISTINCT p.school_id)::int AS school_count
-          FROM trovio.public_programs p
+          FROM visible_programs p
           WHERE NOT p.hidden
           GROUP BY p.major_id
         ) counts
@@ -151,7 +187,7 @@ async function findDiscoveryStats(): Promise<DiscoveryStats> {
         SELECT COALESCE(jsonb_object_agg(counts.group_id, counts.program_count), '{}'::jsonb)
         FROM (
           SELECT m.group_id, COUNT(*)::int AS program_count
-          FROM trovio.public_programs p
+          FROM visible_programs p
           JOIN trovio.majors m ON m.id = p.major_id AND NOT m.hidden
           WHERE NOT p.hidden
           GROUP BY m.group_id
@@ -161,13 +197,13 @@ async function findDiscoveryStats(): Promise<DiscoveryStats> {
         SELECT COALESCE(jsonb_object_agg(counts.group_id, counts.school_count), '{}'::jsonb)
         FROM (
           SELECT m.group_id, COUNT(DISTINCT p.school_id)::int AS school_count
-          FROM trovio.public_programs p
+          FROM visible_programs p
           JOIN trovio.majors m ON m.id = p.major_id AND NOT m.hidden
           WHERE NOT p.hidden
           GROUP BY m.group_id
         ) counts
       ) AS "schoolCountByGroup",
-      (SELECT COUNT(*)::int FROM trovio.public_programs p WHERE NOT p.hidden) AS "totalPrograms",
+      (SELECT COUNT(*)::int FROM visible_programs p WHERE NOT p.hidden) AS "totalPrograms",
       (SELECT COUNT(*)::int FROM trovio.schools s WHERE NOT s.hidden) AS "totalSchools"
   `).then((rows) => {
     const value = rows[0] ?? {
@@ -193,132 +229,13 @@ async function findDiscoveryCatalog(): Promise<DiscoveryCatalog> {
   if (discoveryCatalogCache && Date.now() - discoveryCatalogLoadedAt < DISCOVERY_STATS_TTL_MS) {
     return discoveryCatalogCache;
   }
-  discoveryCatalogLoad ??= query<{
-    groups: MajorGroup[];
-    majors: Major[];
-    schools: School[];
-    programCountByMajor: Record<string, number>;
-    schoolCountByMajor: Record<string, number>;
-    programCountByGroup: Record<string, number>;
-    schoolCountByGroup: Record<string, number>;
-    totalPrograms: number;
-    totalSchools: number;
-  }>(`
-    SELECT
-      (
-        SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'id', g.id,
-          'slug', g.slug,
-          'name', g.name,
-          'icon', g.icon,
-          'tone', g.tone,
-          'description', COALESCE(to_jsonb(g)->>'description', ''),
-          'position', COALESCE((to_jsonb(g)->>'position')::smallint, 0),
-          'featured', COALESCE((to_jsonb(g)->>'featured')::boolean, true)
-        ) ORDER BY COALESCE((to_jsonb(g)->>'position')::smallint, 0), g.name), '[]'::jsonb)
-        FROM trovio.major_groups g
-        WHERE NOT COALESCE((to_jsonb(g)->>'hidden')::boolean, false)
-      ) AS groups,
-      (
-        SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'id', m.id,
-          'slug', m.slug,
-          'code', COALESCE(m.code, ''),
-          'name', m.name,
-          'groupId', m.group_id,
-          'summary', m.summary,
-          'description', m.description,
-          'hidden', m.hidden,
-          'custom', m.is_custom,
-          'riasec', '[]'::jsonb
-        ) ORDER BY m.name), '[]'::jsonb)
-        FROM trovio.majors m
-        WHERE NOT m.hidden
-      ) AS majors,
-      (
-        SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'id', s.id,
-          'slug', s.slug,
-          'code', s.code,
-          'name', s.name,
-          'shortName', s.short_name,
-          'type', s.type,
-          'region', s.region_code,
-          'city', s.city,
-          'campuses', COALESCE((
-            SELECT jsonb_agg(c.name ORDER BY c.position)
-            FROM trovio.school_campuses c
-            WHERE c.school_id = s.id
-          ), '[]'::jsonb),
-          'founded', COALESCE(s.founded, 0),
-          'students', COALESCE(s.students, 0),
-          'highlight', s.highlight,
-          'website', s.website,
-          'logoUrl', NULLIF(to_jsonb(s)->>'logo_url', ''),
-          'coverUrl', NULLIF(to_jsonb(s)->>'cover_url', ''),
-          'description', s.description,
-          'scholarships', s.scholarships,
-          'hidden', s.hidden,
-          'custom', s.is_custom
-        ) ORDER BY s.name), '[]'::jsonb)
-        FROM trovio.schools s
-        WHERE NOT s.hidden
-      ) AS schools,
-      (
-        SELECT COALESCE(jsonb_object_agg(counts.major_id, counts.program_count), '{}'::jsonb)
-        FROM (
-          SELECT p.major_id, COUNT(*)::int AS program_count
-          FROM trovio.public_programs p
-          WHERE NOT p.hidden
-          GROUP BY p.major_id
-        ) counts
-      ) AS "programCountByMajor",
-      (
-        SELECT COALESCE(jsonb_object_agg(counts.major_id, counts.school_count), '{}'::jsonb)
-        FROM (
-          SELECT p.major_id, COUNT(DISTINCT p.school_id)::int AS school_count
-          FROM trovio.public_programs p
-          WHERE NOT p.hidden
-          GROUP BY p.major_id
-        ) counts
-      ) AS "schoolCountByMajor",
-      (
-        SELECT COALESCE(jsonb_object_agg(counts.group_id, counts.program_count), '{}'::jsonb)
-        FROM (
-          SELECT m.group_id, COUNT(*)::int AS program_count
-          FROM trovio.public_programs p
-          JOIN trovio.majors m ON m.id = p.major_id AND NOT m.hidden
-          WHERE NOT p.hidden
-          GROUP BY m.group_id
-        ) counts
-      ) AS "programCountByGroup",
-      (
-        SELECT COALESCE(jsonb_object_agg(counts.group_id, counts.school_count), '{}'::jsonb)
-        FROM (
-          SELECT m.group_id, COUNT(DISTINCT p.school_id)::int AS school_count
-          FROM trovio.public_programs p
-          JOIN trovio.majors m ON m.id = p.major_id AND NOT m.hidden
-          WHERE NOT p.hidden
-          GROUP BY m.group_id
-        ) counts
-      ) AS "schoolCountByGroup",
-      (SELECT COUNT(*)::int FROM trovio.public_programs p WHERE NOT p.hidden) AS "totalPrograms",
-      (SELECT COUNT(*)::int FROM trovio.schools s WHERE NOT s.hidden) AS "totalSchools"
-  `).then((rows) => {
-    const row = rows[0];
-    const value: DiscoveryCatalog = {
-      groups: row?.groups ?? [],
-      majors: row?.majors ?? [],
-      schools: row?.schools ?? [],
-      stats: {
-        programCountByMajor: row?.programCountByMajor ?? {},
-        schoolCountByMajor: row?.schoolCountByMajor ?? {},
-        programCountByGroup: row?.programCountByGroup ?? {},
-        schoolCountByGroup: row?.schoolCountByGroup ?? {},
-        totalPrograms: row?.totalPrograms ?? 0,
-        totalSchools: row?.totalSchools ?? 0,
-      },
-    };
+  discoveryCatalogLoad ??= Promise.all([
+    postgresMajorRepository.findGroups(),
+    postgresMajorRepository.findAll(),
+    postgresSchoolRepository.findAll(),
+    findDiscoveryStats(),
+  ]).then(([groups, majors, schools, stats]) => {
+    const value: DiscoveryCatalog = { groups, majors, schools, stats };
     if (epoch !== discoveryEpoch) return value;
     discoveryCatalogCache = value;
     discoveryCatalogLoadedAt = Date.now();
@@ -347,23 +264,11 @@ export const postgresReferenceCatalogRepository: CatalogRepository = {
   },
 
   async findSubjects(): Promise<Subject[]> {
-    const rows = await query<{ id: string; name: string; short: string }>(
-      `SELECT id, name, short_name AS short FROM trovio.subjects ORDER BY name`,
-    );
-    return rows;
+    return (await findReferenceData()).subjects;
   },
 
   async findCombos(): Promise<Combo[]> {
-    const rows = await query<{ code: string; subjects: string[] }>(
-      `SELECT c.code,
-              array_agg(cs.subject_id ORDER BY cs.position) AS subjects
-       FROM trovio.combos c
-       JOIN trovio.combo_subjects cs ON cs.combo_code = c.code
-       GROUP BY c.code ORDER BY c.code`,
-    );
-    return rows
-      .filter((row) => row.subjects.length === 3)
-      .map((row) => ({ code: row.code, subjects: row.subjects as [string, string, string] }));
+    return (await findReferenceData()).combos;
   },
 
   async findFaq(): Promise<FaqGroup[]> {

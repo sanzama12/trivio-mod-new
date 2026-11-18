@@ -49,7 +49,7 @@ export const matchesBankTransfer = (transfer: BankTransfer, expected: { accountN
   matchingBankReference(transfer, expected) !== null;
 
 let cachedRequest: Promise<BankTransfer[] | null> | null = null;
-let lastKnownTransfers: BankTransfer[] | null = null;
+let cachedToken: string | null = null;
 let requestedAt = 0;
 
 function bankHistoryToken(): string | null {
@@ -64,6 +64,11 @@ export function isBankHistoryConfigured(): boolean {
 export async function fetchBankHistory(fetchImpl: typeof fetch = fetch): Promise<BankTransfer[] | null> {
   const token = bankHistoryToken();
   if (!token) return null;
+  if (fetchImpl === fetch && cachedToken !== token) {
+    cachedToken = token;
+    cachedRequest = null;
+    requestedAt = 0;
+  }
   if (fetchImpl === fetch && cachedRequest && Date.now() - requestedAt < 10_000) return cachedRequest;
   const request = (async () => {
     try {
@@ -72,42 +77,32 @@ export async function fetchBankHistory(fetchImpl: typeof fetch = fetch): Promise
         cache: "no-store",
         signal: AbortSignal.timeout(3500),
       });
-      if (!response.ok) return fetchImpl === fetch ? lastKnownTransfers : null;
+      if (!response.ok) return null;
       const text = await response.text();
       if (!text || !text.trim()) {
         console.warn("[bank-history] dichvucheap trả về nội dung rỗng (cần kiểm tra MB Bank session trên dichvucheap.com).");
-        return fetchImpl === fetch ? lastKnownTransfers : null;
+        return null;
       }
       let raw: unknown;
       try {
         raw = JSON.parse(text);
       } catch {
-        console.warn("[bank-history] dichvucheap trả về dữ liệu không phải JSON:", text.slice(0, 100));
-        return fetchImpl === fetch ? lastKnownTransfers : null;
+        console.warn("[bank-history] dichvucheap trả về dữ liệu không phải JSON.");
+        return null;
       }
       // dichvucheap rate-limit (10s cooldown): {"status": 99, "msg": "Vui lòng chờ 10 giây để tiếp tục!"}
       if (raw && typeof raw === "object" && (raw as Record<string, unknown>).status === 99) {
-        return fetchImpl === fetch ? lastKnownTransfers : null;
+        return null;
       }
-      const parsed = parseBankHistory(raw);
-      if (parsed && fetchImpl === fetch) {
-        lastKnownTransfers = parsed;
-      }
-      return parsed;
+      return parseBankHistory(raw);
     } catch {
       console.warn("[bank-history] Lịch sử giao dịch tạm thời không khả dụng.");
-      return fetchImpl === fetch ? lastKnownTransfers : null;
+      return null;
     }
   })();
   if (fetchImpl === fetch) {
     cachedRequest = request;
     requestedAt = Date.now();
-    void request.then((result) => {
-      // Nếu không có dữ liệu mới, giảm thời gian cache xuống 3s để sớm thử lại
-      if (!result && cachedRequest === request) {
-        requestedAt = Date.now() - 7_000;
-      }
-    });
   }
   return request;
 }

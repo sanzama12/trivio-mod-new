@@ -15,11 +15,17 @@ Yêu cầu Node.js ≥ 20.9.
 npm install
 npm run dev          # http://localhost:3000
 npm run build && npm start   # bản production
-npm test             # cần DATABASE_URL trỏ tới database kiểm thử riêng
+npm test             # kiểm thử logic, dùng mock database
+npm run check        # TypeScript ứng dụng + database, tests, kiểm tra secret
+npm run verify:runtime # kiểm tra 12 route trên ứng dụng đang chạy
 npm run typecheck
 npm run db:migrate   # tạo schema + migration, không nạp seed/sample
 npm run admissions:publish # publish dữ liệu tuyển sinh đã kiểm định
 ```
+
+`verify:runtime` mặc định dùng `http://localhost:3000`; đặt `VERIFY_BASE_URL` để kiểm tra một server khác. Lệnh này chỉ đọc dữ liệu, kiểm tra health database, trang công khai và chuyển hướng đăng nhập. Nó không thay thế kiểm thử đăng nhập thật, thao tác quản trị hoặc thanh toán thật.
+
+Pool PostgreSQL mặc định tối đa 5 kết nối, chờ kết nối tối đa 15 giây. Có thể điều chỉnh bằng `PG_POOL_MAX` và `PG_CONNECT_TIMEOUT_MS`. Danh mục môn/tổ hợp dùng chung một truy vấn và cache 2 phút, được xóa sau thay đổi quản trị. API ngân hàng dùng cooldown 10 giây; giao diện donate kiểm tra trạng thái mỗi 4 giây và hiển thị chờ đối soát khi upstream lỗi.
 
 Tài liệu: `docs/Giai-trinh-chuc-nang-Trovio.docx` (giải trình toàn bộ chức năng) · `docs/Kich-ban-kiem-thu-Trovio.docx` (159 ca kiểm thử cho tester, bản mới nhất) · `docs/Kich-ban-test-nguoi-dung.docx` (test người dùng thật + SUS) · `docs/Bao-cao-kiem-thu-Trovio.docx` (báo cáo đợt trước).
 

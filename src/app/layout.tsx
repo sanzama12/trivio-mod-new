@@ -8,6 +8,10 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { FooterFrame } from "@/components/layout/footer-frame";
 import "./globals.css";
 
+// All pages use the current session and live PostgreSQL data.
+// Do not query the database while attempting static generation during builds.
+export const dynamic = "force-dynamic";
+
 const font = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800"],

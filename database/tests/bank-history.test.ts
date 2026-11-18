@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { repositories, type DonationRecord } from "../repositories";
-import { parseBankHistory, matchesBankTransfer, matchingBankReference } from "../../src/services/bank-history.service";
+import { fetchBankHistory, parseBankHistory, matchesBankTransfer, matchingBankReference } from "../../src/services/bank-history.service";
 import { donationService } from "../../src/services/donation.service";
 import { GET } from "../../src/app/api/donations/status/[txnRef]/route";
 
@@ -11,6 +11,31 @@ const pending = { id: "test", vnpTxnRef: ref, amount: 50000, status: "pending" }
 const bankRow = (patch: Record<string, unknown> = {}) => ({
   accountNo: account, creditAmount: "50000", debitAmount: "0", description: `VIET ${ref}`,
   addDescription: "", currency: "VND", tranId: "BANK123456789012", ...patch,
+});
+
+test("bank history shares the cooldown and exposes failures instead of stale success", async (t) => {
+  const previous = process.env.BANK_HISTORY_API_TOKEN;
+  process.env.BANK_HISTORY_API_TOKEN = "cache_regression_token_123456789";
+  let now = 100_000;
+  t.mock.method(Date, "now", () => now);
+  const upstream = t.mock.method(globalThis, "fetch", async () => Response.json({ status: "success", TranList: [bankRow()] }));
+  try {
+    assert.equal((await fetchBankHistory())?.length, 1);
+    await fetchBankHistory();
+    assert.equal(upstream.mock.callCount(), 1);
+    now += 10_001;
+    upstream.mock.mockImplementation(async () => new Response("", { status: 503 }));
+    assert.equal(await fetchBankHistory(), null);
+    now += 4_000;
+    assert.equal(await fetchBankHistory(), null);
+    assert.equal(upstream.mock.callCount(), 2);
+    process.env.BANK_HISTORY_API_TOKEN = "different_token_123456789";
+    await fetchBankHistory();
+    assert.equal(upstream.mock.callCount(), 3);
+  } finally {
+    if (previous === undefined) delete process.env.BANK_HISTORY_API_TOKEN;
+    else process.env.BANK_HISTORY_API_TOKEN = previous;
+  }
 });
 
 test("bank history accepts incoming transactions only with a stable ID and account", () => {

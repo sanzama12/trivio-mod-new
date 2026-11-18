@@ -32,7 +32,10 @@
     "ship": "tsx scripts/ship.ts",
     "db:dump": "tsx database/scripts/export-full-sql.ts",
     "db:dump:mysql": "tsx database/scripts/export-mysql-sql.ts",
-    "db:setup": "tsx database/scripts/setup-db.ts"
+    "db:setup": "tsx database/scripts/setup-db.ts",
+    "test": "npm run db:test",
+    "check": "npm run typecheck && npm run db:typecheck && npm test && npm run secrets:check",
+    "verify:runtime": "node scripts/verify-runtime.mjs"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",
