@@ -16,7 +16,19 @@ import { StudentMascot } from "./student-mascot";
 import styles from "./auth-experience.module.css";
 
 type Field = "name" | "email" | "password" | "confirm" | "terms";
-export function AuthExperience({ next, error, demo, initialMode = "login" }: { next: string; error?: string; demo: boolean; initialMode?: "login" | "register" }) {
+export function AuthExperience({
+  next,
+  error,
+  notice,
+  demo,
+  initialMode = "login",
+}: {
+  next: string;
+  error?: string;
+  notice?: string;
+  demo: boolean;
+  initialMode?: "login" | "register";
+}) {
   const router = useRouter();
   const [mode, setMode] = useState(initialMode);
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", terms: false });
@@ -94,6 +106,9 @@ export function AuthExperience({ next, error, demo, initialMode = "login" }: { n
           <button type="button" aria-pressed={register} disabled={loading} onClick={() => switchMode("register")}>Đăng ký</button>
         </div>
         <div className={styles.formHeading}><span className={styles.kicker}>{register ? "BẮT ĐẦU CÙNG TRIOVO" : "CHÀO MỪNG TRỞ LẠI"}</span><h1>{register ? "Tạo tài khoản" : "Đăng nhập"}</h1><p>{register ? "Tạo không gian riêng cho kế hoạch học tập của bạn." : "Tiếp tục hành trình chọn ngành, chọn trường của bạn."}</p></div>
+        <GoogleButton next={next} onError={setMessage} />
+        <div className={styles.divider}><span />hoặc sử dụng email<span /></div>
+        {notice && !message && <div className={styles.successAlert} role="status">{notice}</div>}
         {message && <div className={styles.alert} role="alert">{message}{locked && <p><Link href="/quen-mat-khau">Khôi phục mật khẩu</Link> · <Link href="/tro-giup#lien-he">Liên hệ hỗ trợ</Link></p>}</div>}
         <form noValidate onSubmit={submit} className={styles.form} aria-busy={loading}>
           <fieldset disabled={loading} className={styles.fields}>
