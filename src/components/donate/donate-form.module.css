@@ -256,6 +256,42 @@
   outline-offset: 3px;
 }
 
+.demoNotice {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid #b38742;
+  background: #fff9eb;
+  color: #775c2d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.demoPanel {
+  display: grid;
+  gap: 15px;
+  padding-top: 23px;
+  scroll-margin-top: 96px;
+}
+
+.demoBadge {
+  width: fit-content;
+  border: 1px solid #e5c992;
+  border-radius: 4px;
+  padding: 5px 8px;
+  background: #fff8e8;
+  color: #775624;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.demoPanel h3 { color: #173c3d; font-size: 19px; font-weight: 700; }
+.demoPanel > p { color: #5e757b; font-size: 13px; line-height: 1.55; }
+.demoPanel dl { border-top: 1px solid #e4ebea; }
+.demoPanel dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #e4ebea; font-size: 13px; }
+.demoPanel dt { color: #657b80; }
+.demoPanel dd { color: #173c3d; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.demoPanel .submit { margin-top: 5px; }
+
 .nameHeading {
   display: flex;
   flex-wrap: wrap;
@@ -491,6 +527,73 @@
   background: #fff;
 }
 
+.paymentAmounts {
+  border-top: 1px solid #e4ebea;
+  padding-top: 16px;
+}
+
+.paymentAmounts > p {
+  margin-bottom: 10px;
+  color: #315058;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.paymentAmounts > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.paymentAmounts button {
+  min-height: 40px;
+  border: 1px solid #dce7e4;
+  border-radius: 6px;
+  background: #fff;
+  color: #315058;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.paymentAmounts button[aria-pressed="true"] {
+  border-color: #20816f;
+  background: #eff8f5;
+  color: #176d60;
+}
+
+.paymentAmounts button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.paymentCustom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.paymentCustom label {
+  color: #607880;
+  font-size: 12px;
+}
+
+.paymentCustom input {
+  width: 140px;
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid #dce7e4;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.paymentCustom button {
+  padding: 0 12px;
+}
+
 .qrFrame img {
   display: block;
   width: 280px;
@@ -589,6 +692,7 @@
 
 .success {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 11px;
   padding: 17px;
@@ -604,6 +708,18 @@
   width: 22px;
   height: 22px;
   flex-shrink: 0;
+}
+
+.success button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #176943;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 .form button:focus-visible,
@@ -630,5 +746,9 @@
   .amounts button,
   .submit {
     transition: none;
+  }
+
+  .paymentAmounts > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

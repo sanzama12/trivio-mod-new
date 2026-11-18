@@ -6,25 +6,25 @@ const voices = [
   {
     icon: LuBookOpen,
     name: "Góc nhìn học sinh",
-    caption: "Từ những lựa chọn đầu tiên",
+    caption: "Đang tìm hiểu ngành học",
     question: "Điều gì giúp bạn rõ hướng hơn?",
-    description: "Kể về trải nghiệm khám phá ngành học, lưu điểm hoặc tìm chương trình phù hợp. Điều bạn thấy hữu ích và điều còn băn khoăn đều đáng được lắng nghe.",
+    description: "Chia sẻ điều hữu ích hoặc điểm còn khó hiểu khi bạn tìm ngành, trường và chương trình.",
     action: "Chia sẻ trải nghiệm học sinh",
   },
   {
     icon: LuGraduationCap,
     name: "Góc nhìn sinh viên",
-    caption: "Từ trải nghiệm đã đi qua",
+    caption: "Đã trải qua mùa tuyển sinh",
     question: "Bạn muốn nhắn gì với người đi sau?",
-    description: "Chia sẻ cách bạn tìm hiểu ngành, cân nhắc trường học và chuẩn bị nguyện vọng. Trải nghiệm thực tế của bạn có thể mở thêm góc nhìn cho các bạn đang lựa chọn.",
+    description: "Kể cách bạn tìm hiểu ngành, trường và sắp xếp nguyện vọng.",
     action: "Chia sẻ trải nghiệm sinh viên",
   },
   {
     icon: LuHeartHandshake,
     name: "Góc nhìn phụ huynh",
-    caption: "Từ sự đồng hành và thấu hiểu",
+    caption: "Cùng con cân nhắc lựa chọn",
     question: "Bạn đã cùng con lựa chọn thế nào?",
-    description: "Chia sẻ trải nghiệm trao đổi cùng con về ngành học, học phí và kế hoạch tương lai. Trovio mong được lắng nghe để hỗ trợ gia đình tốt hơn.",
+    description: "Chia sẻ cách gia đình trao đổi về ngành học, học phí và nguyện vọng.",
     action: "Chia sẻ trải nghiệm phụ huynh",
   },
 ];
@@ -34,9 +34,9 @@ export function CommunityTestimonials() {
     <section className={styles.section} aria-labelledby="community-testimonials-title">
       <div className="container-page">
         <header className={styles.header}>
-          <span>LẮNG NGHE ĐỂ ĐỒNG HÀNH TỐT HƠN</span>
-          <h2 id="community-testimonials-title">Đánh giá từ người dùng</h2>
-          <p>Mỗi trải nghiệm là một góc nhìn đáng quý.<br />Cùng góp ý để hành trình chọn trường, chọn ngành trở nên rõ ràng hơn.</p>
+          <span>GÓP Ý CHO TROVIO</span>
+          <h2 id="community-testimonials-title">Chia sẻ trải nghiệm</h2>
+          <p>Ý kiến của học sinh, sinh viên và phụ huynh giúp cải thiện thông tin trên Trovio.</p>
         </header>
         <div className={styles.grid}>
           {voices.map(({ icon: Icon, name, caption, question, description, action }) => (

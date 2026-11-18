@@ -28,6 +28,11 @@ export function vnDay(d = new Date()): string {
   return new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
 }
 
+export function dateRange(days: number, to = vnDay()) {
+  const end = Date.parse(`${to}T00:00:00+07:00`);
+  return { from: vnDay(new Date(end - (days - 1) * 86400_000)), to };
+}
+
 export const analyticsService = {
   /** Danh sách gốc cho xuất CSV ở route quản trị đã kiểm tra quyền. */
   async listSurveyResponses(): Promise<SusResponse[]> {
@@ -52,9 +57,8 @@ export const analyticsService = {
   },
 
   /** Trường, ngành được quan tâm nhiều nhất và tổng lượt tìm kiếm trong khoảng ngày. */
-  async usageReport(days = 30) {
-    const to = vnDay();
-    const from = vnDay(new Date(Date.now() - (days - 1) * 86400_000));
+  async usageReport(days = 30, to = vnDay()) {
+    const { from } = dateRange(days, to);
     const [totals, schoolTop, majorTop, programTop, schools, majors, programs] = await Promise.all([
       repositories.usage.totals(from, to),
       repositories.usage.top(["school_view", "school_save"], from, to, 30),
@@ -79,9 +83,8 @@ export const analyticsService = {
     };
   },
 
-  async report(days = 30) {
-    const to = vnDay();
-    const from = vnDay(new Date(Date.now() - (days - 1) * 86400_000));
+  async report(days = 30, to = vnDay()) {
+    const { from } = dateRange(days, to);
     const [summary, daily] = await Promise.all([repositories.analytics.summary(from, to), repositories.analytics.daily(from, to)]);
     const base = summary.visit || 0;
     const steps = FUNNEL_STEPS.map((e, i) => {

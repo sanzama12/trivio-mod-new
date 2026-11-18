@@ -31,7 +31,6 @@ test("score filters exclude higher and unknown cutoffs and match all conditions 
   assert.equal(result.summaries.a.programCount, 1);
   assert.equal(result.summaries.a.cutoffMin, 24);
   assert.equal(result.summaries.a.cutoffMax, 24);
-  assert.equal(result.summaries.a.featuredProgram?.slug, "a-exact");
   assert.equal((await programService.searchSchools({ score: 19 })).total, 0);
 
   const hocba = await programService.searchSchools({ score: 24, method: "hocba", sort: "ten" });

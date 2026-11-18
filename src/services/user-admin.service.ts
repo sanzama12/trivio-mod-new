@@ -22,9 +22,10 @@ export interface AdminUserRow {
   createdAt: string;
   lastLoginAt: string | null;
   hasGoogle: boolean;
+  lockNote: string | null;
 }
 
-const statusOf = (u: PublicUser): AdminUserStatus => (u.disabled || u.locked ? "locked" : !u.verified ? "unverified" : "active");
+const statusOf = (u: PublicUser): AdminUserStatus => (u.disabled || (u.locked && (!u.lockUntil || Date.parse(u.lockUntil) > Date.now())) ? "locked" : !u.verified ? "unverified" : "active");
 
 async function audit(actor: PublicUser, id: string, action: "update" | "delete" | "create" | "approve" | "reject", field: string, before: string, after: string) {
   await repositories.audit.append({ id: randomUUID(), at: now(), actorId: actor.id, actorEmail: actor.email, programId: id, targetType: "user", action, changes: [{ field, before, after }] });
@@ -46,6 +47,8 @@ export const userAdminService = {
           createdAt: u.createdAt,
           lastLoginAt: u.lastLoginAt ?? null,
           hasGoogle: u.hasGoogle,
+          lockNote: u.disabled ? "Do quản trị viên khóa" : raw.locked && raw.failedAttempts >= 5 ? "Cần quản trị viên mở" : raw.locked && raw.lockUntil && Date.parse(raw.lockUntil) > Date.now()
+            ? `Đến ${new Date(raw.lockUntil).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" })}` : null,
         } satisfies AdminUserRow;
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -89,7 +92,7 @@ export const userAdminService = {
       if (self) return { ok: false, status: 400, message: "Không thể tự khoá tài khoản của mình." };
       if (action === "lock" && target.admin) return { ok: false, status: 400, message: "Không khoá được tài khoản quản trị viên." };
       const lock = action === "lock";
-      await repositories.users.update(id, lock ? { disabled: true, sessionVersion: (user.sessionVersion ?? 0) + 1 } : { disabled: false, locked: false, failedAttempts: 0 });
+      await repositories.users.update(id, lock ? { disabled: true, sessionVersion: (user.sessionVersion ?? 0) + 1 } : { disabled: false, locked: false, lockUntil: null, failedAttempts: 0 });
       await audit(actor, id, "update", `Tài khoản ${user.email}`, lock ? "Hoạt động" : "Đã khoá", lock ? "Đã khoá" : "Hoạt động");
       return { ok: true };
     }

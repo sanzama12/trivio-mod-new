@@ -33,6 +33,14 @@ export interface DonationStats {
   maxAmount: number;
 }
 
+export interface DonationRangeReport {
+  amount: number;
+  successful: number;
+  pending: number;
+  average: number;
+  daily: { day: string; amount: number; count: number }[];
+}
+
 const cols = `
   id,
   donor_name AS "donorName",
@@ -55,6 +63,25 @@ const cols = `
 `;
 
 export const postgresDonationsRepository = {
+  async rangeReport(from: string, to: string): Promise<DonationRangeReport> {
+    const [summaryRows, dailyRows] = await Promise.all([
+      query<{ amount: number; successful: number; pending: number; average: number }>(`
+        SELECT
+          COALESCE(SUM(amount) FILTER (WHERE status = 'success' AND (paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $1::date AND $2::date), 0)::float8 AS amount,
+          COUNT(*) FILTER (WHERE status = 'success' AND (paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $1::date AND $2::date)::int AS successful,
+          COUNT(*) FILTER (WHERE status = 'pending' AND (created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $1::date AND $2::date)::int AS pending,
+          COALESCE(AVG(amount) FILTER (WHERE status = 'success' AND (paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $1::date AND $2::date), 0)::float8 AS average
+        FROM trovio.donations`, [from, to]),
+      query<{ day: string; amount: number; count: number }>(`
+        SELECT (paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date::text AS day,
+               SUM(amount)::float8 AS amount, COUNT(*)::int AS count
+        FROM trovio.donations
+        WHERE status = 'success' AND (paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $1::date AND $2::date
+        GROUP BY day ORDER BY day`, [from, to]),
+    ]);
+    return { ...summaryRows[0], daily: dailyRows };
+  },
+
   async confirmBankTransfer(txnRef: string, amount: number, transactionNo: string, bankCode: string): Promise<DonationRecord | null> {
     return withTransaction(async (client) => {
       // Serialize retries of the same provider transaction before checking for reuse.

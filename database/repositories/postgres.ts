@@ -628,6 +628,32 @@ export const postgresUserRepository: UserRepository = {
     return this.findById(id);
   },
 
+  async recordFailedLogin(id) {
+    const [row] = await query<{ failedAttempts: number; locked: boolean; lockUntil: Date | null }>(`
+      UPDATE trovio.users SET
+        failed_attempts = LEAST(failed_attempts + 1, 5),
+        locked = failed_attempts + 1 >= 3,
+        lock_until = CASE
+          WHEN failed_attempts + 1 >= 5 THEN NULL
+          WHEN failed_attempts + 1 >= 3 THEN now() + interval '30 minutes'
+          ELSE NULL END,
+        session_version = session_version + CASE WHEN failed_attempts + 1 >= 3 THEN 1 ELSE 0 END
+      WHERE id = $1 AND NOT disabled
+        AND (NOT locked OR lock_until <= now())
+        AND failed_attempts < 5
+      RETURNING failed_attempts AS "failedAttempts", locked, lock_until AS "lockUntil"`, [id]);
+    return row ? { failedAttempts: row.failedAttempts, locked: row.locked, lockUntil: row.lockUntil ? new Date(row.lockUntil).toISOString() : null } : null;
+  },
+
+  async clearFailedLogin(id) {
+    const [row] = await query<{ id: string }>(`
+      UPDATE trovio.users SET locked=false, lock_until=NULL
+      WHERE id=$1 AND NOT disabled AND failed_attempts < 5
+        AND (NOT locked OR lock_until <= now())
+      RETURNING id`, [id]);
+    return row ? this.findById(id) : null;
+  },
+
   async delete(id: string): Promise<boolean> {
     return withTransaction(async (client) => {
       await client.query(

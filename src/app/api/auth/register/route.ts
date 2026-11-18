@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { authService } from "@/services";
 import { clientIp, jsonBody, tooMany } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
-import { attachSession } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const { body, error } = await jsonBody(req, 8 * 1024);
@@ -18,5 +17,5 @@ export async function POST(req: Request) {
     terms: b.terms === true,
   });
   if (!result.ok) return NextResponse.json(result, { status: 400 });
-  return attachSession(NextResponse.json(result, { status: 201 }), result.user.id);
+  return NextResponse.json(result, { status: 201 });
 }

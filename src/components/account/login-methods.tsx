@@ -96,7 +96,7 @@ export function LoginMethods({ user, googleConfigured, error }: { user: PublicUs
             </Button>
           ) : googleConfigured ? (
             <div className="w-full sm:w-auto">
-              <GoogleButton next="/ho-so" mode="link" label="Liên kết Google" />
+              <GoogleButton next="/ho-so" mode="link" label="Liên kết Google" onError={(message) => setPwError(message ? { message } : null)} disabled={busy} />
             </div>
           ) : (
             <span className="text-xs text-slate-600">Chưa cấu hình trên máy chủ</span>

@@ -144,7 +144,6 @@ export const programService = {
       const matches = matchesBySchool.get(school.id) ?? [];
       const tuitions = matches.map(({ program }) => program).filter((p) => hasTuitionData(p.tuitionMin, p.tuitionMax));
       const cutoffs = matches.map((view) => view.latestCutoff).filter((score): score is number => score != null);
-      const featured = matches[0]?.program;
       summaries[school.id] = {
         programCount: matches.length,
         tuitionMin: tuitions.length ? Math.min(...tuitions.map((p) => p.tuitionMin)) : null,
@@ -152,7 +151,6 @@ export const programService = {
         cutoffMin: cutoffs.length ? Math.min(...cutoffs) : null,
         cutoffMax: cutoffs.length ? Math.max(...cutoffs) : null,
         method: filters.method ?? "thpt",
-        featuredProgram: featured ? { name: featured.name, slug: featured.slug } : null,
       };
     }
     return { items: pageItems, summaries, total: items.length, page, pageCount, pageSize };

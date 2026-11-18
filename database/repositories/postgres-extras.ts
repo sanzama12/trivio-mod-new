@@ -155,8 +155,8 @@ export const postgresUsageRepository = {
        ON CONFLICT (day, kind, entity_id, anon_id) DO UPDATE SET hits = LEAST(trovio.usage_events.hits + 1, 1000)`,
       [day, kind, entityId, anonId],
     );
-    // Dữ liệu ẩn danh tự xoá sau 180 ngày, dọn thỉnh thoảng để không tốn thêm tác vụ định kỳ.
-    if (Math.random() < 0.01) await query("DELETE FROM trovio.usage_events WHERE day < (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 180");
+    // Giữ tối đa 365 ngày lịch cho báo cáo năm.
+    if (Math.random() < 0.01) await query("DELETE FROM trovio.usage_events WHERE day < (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 364");
   },
   /** Xếp hạng theo số trình duyệt khác nhau có ít nhất một sự kiện thuộc các loại được chọn (xem hoặc lưu). */
   async top(kinds: UsageKind[], from: string, to: string, limit: number): Promise<{ entityId: string; people: number; hits: number }[]> {

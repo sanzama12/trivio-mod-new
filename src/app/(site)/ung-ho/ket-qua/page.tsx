@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LuCircleCheck, LuCircleHelp, LuArrowRight } from "react-icons/lu";
 import { repositories } from "@database/repositories";
+import { DonationResultCelebration } from "@/components/donate/donation-result-celebration";
 
 export const metadata: Metadata = { title: "Kết quả ủng hộ", robots: { index: false, follow: false } };
 
@@ -17,6 +18,10 @@ export default async function DonationResultPage({ searchParams }: { searchParam
         <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900">{success ? "Cảm ơn bạn đã đồng hành!" : "Giao dịch chưa hoàn tất"}</h1>
         <p className="mt-4 text-sm leading-7 text-slate-600">{success ? "Khoản đóng góp của bạn đã được xác nhận trên hệ thống Trovio." : "Bạn có thể kiểm tra trạng thái tại ngân hàng hoặc liên hệ đội ngũ Trovio để được hỗ trợ."}</p>
         {donation && <dl className="mt-6 space-y-3 rounded-xl bg-slate-50 p-4 text-left text-sm"><div><dt className="text-slate-500">Mã tham chiếu</dt><dd className="mt-1 break-all font-mono text-xs text-slate-800">{donation.vnpTxnRef}</dd></div><div><dt className="text-slate-500">Số tiền</dt><dd className="mt-1 font-bold text-teal-800">{donation.amount.toLocaleString("vi-VN")} ₫</dd></div></dl>}
+        {success && donation && <DonationResultCelebration
+          payment={{ txnRef: donation.vnpTxnRef, amount: donation.amount, method: donation.vnpTxnRef.startsWith("TROVIO_") ? "vnpay" : donation.vnpTxnRef.startsWith("TS") || donation.vnpTxnRef.startsWith("TROVIOSEPAY") ? "sepay" : "qr" }}
+          confirmedAt={donation.paidAt ?? donation.updatedAt}
+        />}
         <Link href="/ung-ho" className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal-900 px-6 text-sm font-bold text-white">Về trang Ủng hộ<LuArrowRight className="size-4" aria-hidden /></Link>
         <Link href="/lien-he" className="mt-4 block text-sm font-semibold text-teal-800 underline underline-offset-4">Liên hệ hỗ trợ</Link>
       </div>

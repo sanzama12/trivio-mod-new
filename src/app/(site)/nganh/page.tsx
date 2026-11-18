@@ -50,7 +50,7 @@ export default async function MajorsPage({ searchParams }: Props) {
                 <span className="text-slate-400">khi chọn trường.</span>
               </h1>
               <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600 sm:text-[15px]">
-                {totals.majors.toLocaleString("vi-VN")} ngành đào tạo trong {groups.length} nhóm ngành. Tìm theo tên hoặc mã ngành, chọn ngành để xem giới thiệu và các trường đào tạo.
+                Tìm theo tên, mã hoặc nhóm ngành; xem nội dung ngành và các trường đào tạo.
               </p>
             </div>
 
@@ -78,9 +78,6 @@ export default async function MajorsPage({ searchParams }: Props) {
               <h2 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
                 Tất cả ngành đào tạo ({totals.majors})
               </h2>
-              <p className="text-sm text-slate-600">
-                Tra cứu theo nhóm ngành hoặc tên gọi. Chọn “Xem ngành” để tìm hiểu chi tiết.
-              </p>
             </div>
             <MajorExplorer
               groups={groups}

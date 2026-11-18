@@ -41,7 +41,7 @@ export function SiteFooter() {
         <div>
           <Logo tone="white" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed">
-            Hệ thống thông tin tuyển sinh và định hướng nghề nghiệp thông minh, minh bạch và hoàn toàn miễn phí cho học sinh Việt Nam.
+            Tra cứu tuyển sinh, khám phá sở thích nghề nghiệp và lập kế hoạch nguyện vọng.
           </p>
         </div>
         {cols.map((c) => (
@@ -63,7 +63,7 @@ export function SiteFooter() {
           <ul className="space-y-3 text-sm">
             <li className="flex items-center gap-2">
               <LuMail className="size-4 shrink-0 text-slate-600" />
-              <a href={`mailto:${siteContact.email}`}>{siteContact.email}</a>{siteContact.demo && <span className="block text-xs">(email demo của đồ án)</span>}
+              {siteContact.demo ? <span>Chưa có email hỗ trợ</span> : <a href={`mailto:${siteContact.email}`}>{siteContact.email}</a>}
             </li>
 {siteContact.phone && <li className="flex items-center gap-2"><LuPhone className="size-4" /><a href={`tel:${siteContact.phone}`}>{siteContact.phone}</a></li>}
 

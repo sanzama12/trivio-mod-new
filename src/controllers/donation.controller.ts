@@ -5,7 +5,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { donationService, DonationUnavailableError, DonationValidationError } from "@/services/donation.service";
 import { getCurrentUser, requireAdmin } from "@/lib/auth";
-import { clientIp } from "@/lib/http";
+import { clientIp, jsonBody, tooMany } from "@/lib/http";
+import { rateLimit } from "@/lib/rate-limit";
 import { isDonationPaymentMethod } from "@/services/donation-payment.service";
 
 export class DonationController {
@@ -15,14 +16,17 @@ export class DonationController {
    */
   static async createDonation(req: NextRequest): Promise<Response> {
     try {
-      const body = await req.json().catch(() => ({}));
+      const ip = clientIp(req);
+      const wait = rateLimit(`donation:create:${ip}`, 12, 60);
+      if (wait) return tooMany(wait);
+      const { body, error } = await jsonBody<Record<string, unknown>>(req, 8 * 1024);
+      if (error) return error;
       if (!body || typeof body !== "object" || Array.isArray(body)) {
         return NextResponse.json({ ok: false, message: "Thông tin đóng góp không hợp lệ." }, { status: 400 });
       }
       if (body?.method !== undefined && !isDonationPaymentMethod(body.method)) {
         return NextResponse.json({ ok: false, message: "Phương thức thanh toán không hợp lệ." }, { status: 400 });
       }
-      const ip = clientIp(req);
       const user = await getCurrentUser().catch(() => null);
 
       const result = await donationService.createDonation(
@@ -49,7 +53,7 @@ export class DonationController {
       if (err instanceof DonationValidationError) {
         return NextResponse.json({ ok: false, message: err.message }, { status: 400 });
       }
-      console.error("[DonationController.createDonation] Error:", err);
+      console.error("[DonationController.createDonation] Failed:", err instanceof Error ? err.name : "unknown");
       return NextResponse.json(
         { ok: false, message: "Không thể tạo liên kết thanh toán. Vui lòng thử lại sau." },
         { status: 500 }

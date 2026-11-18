@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { isGoogleConfigured, catalogService } from "@/services";
+import { isFirebaseServerConfigured } from "@/services/firebase-auth.service";
 import { Breadcrumb } from "@/components/ui/misc";
 import { ProfileClient } from "@/components/profile/profile-client";
 
@@ -27,7 +28,7 @@ export default async function ProfilePage({ searchParams }: Props) {
       <div className="mt-4 sm:mt-6">
         <ProfileClient
           user={user}
-          googleConfigured={isGoogleConfigured()}
+          googleConfigured={isGoogleConfigured() || isFirebaseServerConfigured()}
           notice={{ linked, error }}
           combos={combos}
           subjects={subjects}

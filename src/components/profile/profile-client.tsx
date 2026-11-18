@@ -265,7 +265,7 @@ export function ProfileClient({
               <div className="h-full rounded-full bg-accent-500" style={{ width: `${profileCompletion}%` }} />
             </div>
             <p className="mt-3 text-xs leading-relaxed text-slate-600 max-w-prose">
-              {missing.length ? `Bổ sung ${missing.slice(0, 2).join(", ")}${missing.length > 2 ? ` và ${missing.length - 2} mục khác` : ""} để gợi ý sát hơn.` : "Hồ sơ của bạn đã đầy đủ 100%!"}
+              {missing.length ? `Bổ sung ${missing.slice(0, 2).join(", ")}${missing.length > 2 ? ` và ${missing.length - 2} mục khác` : ""} để gợi ý sát hơn.` : "Đã có đủ thông tin cơ bản để xem gợi ý."}
             </p>
           </div>
 

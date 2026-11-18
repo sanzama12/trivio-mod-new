@@ -38,10 +38,10 @@ export default async function ComparePage({ searchParams }: Props) {
               CÔNG CỤ ĐỐI CHIẾU
             </p>
             <h1 className="mt-4 max-w-3xl text-3xl leading-tight font-black tracking-tight text-white md:text-5xl">
-              So sánh & Đối chiếu tuyển sinh
+              So sánh chương trình
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 md:text-base">
-              Đặt các lựa chọn cạnh nhau để đối chiếu trực quan học phí, địa điểm, phương thức xét tuyển và xu hướng điểm chuẩn qua các năm.
+              Đối chiếu học phí, địa điểm, phương thức xét tuyển và điểm chuẩn.
             </p>
           </div>
         </section>

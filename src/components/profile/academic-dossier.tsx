@@ -686,7 +686,7 @@ export function AcademicDossier({ combos, subjects, groups, majors, userProvince
                 <LuCompass className="mx-auto size-10 text-primary-600" aria-hidden />
                 <h3 className="mt-3 font-bold text-slate-900">Chưa khai báo hồ sơ học tập & nguyện vọng</h3>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-600">
-                  Khai báo môn học thế mạnh, sở thích nhóm ngành, học lực hoặc điểm dự kiến và ngân sách học phí để Trovio tự động lọc và gợi ý các ngành, trường phù hợp nhất cho bạn.
+                  Thêm điểm, tổ hợp, sở thích và mức học phí mong muốn để lọc chương trình theo hồ sơ của bạn.
                 </p>
                 <Button size="sm" className="mt-4" onClick={() => setEditing(true)}>
                   <LuSparkles className="size-4" aria-hidden /> Bắt đầu khai báo ngay

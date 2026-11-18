@@ -9,7 +9,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Chính sách riêng tư"
-      updated="16/11/2026"
+      updated="18/11/2026"
       sections={[
         { id: "gioi-thieu", title: "Giới thiệu chung", body: <p>Trovio cam kết bảo vệ quyền riêng tư của học sinh và phụ huynh. Chính sách này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân khi bạn dùng nền tảng.</p> },
         {
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
               <li><strong>Chia sẻ với phụ huynh (khi bạn chủ động tạo link):</strong> người có link xem được tên (không có email) và danh sách nguyện vọng; điểm và ghi chú chỉ hiện nếu bạn cho phép. Link có hạn 7 hoặc 30 ngày và thu hồi được bất cứ lúc nào. Góp ý người xem gửi (tên tự điền, nội dung) chỉ bạn đọc được.</li>
               <li><strong>Trợ lý hỏi đáp:</strong> nhật ký cải thiện chất lượng được lưu ẩn danh và tự che email, số điện thoại. Lịch sử để bạn xem lại được lưu cục bộ khi chưa đăng nhập hoặc lưu riêng theo tài khoản khi đã đăng nhập; bạn có thể xoá từng cuộc trò chuyện. Đừng nhập thông tin cá nhân vào khung chat.</li>
               <li><strong>Thông báo trong tài khoản:</strong> câu trả lời hỏi đáp, xét tuyển bổ sung và bản sửa dữ liệu từ trường được lưu theo tài khoản.</li>
-              <li><strong>Thống kê sử dụng ẩn danh:</strong> khi bạn làm xong một bước (vào trang, làm trắc nghiệm, làm mini-test phong cách, nhập mã MBTI, nhập điểm, lưu chương trình, lập nguyện vọng, tạo link chia sẻ, hỏi trợ lý), trình duyệt gửi tên bước kèm một mã ngẫu nhiên do chính trình duyệt tạo. Không gửi tài khoản, địa chỉ IP, nội dung hay đường dẫn; dữ liệu tự xoá sau 180 ngày và chỉ dùng để biết người dùng hay dừng lại ở bước nào.</li>
+              <li><strong>Thống kê sử dụng ẩn danh:</strong> khi bạn làm xong một bước (vào trang, làm trắc nghiệm, làm mini-test phong cách, nhập mã MBTI, nhập điểm, lưu chương trình, lập nguyện vọng, tạo link chia sẻ, hỏi trợ lý), trình duyệt gửi tên bước kèm một mã ngẫu nhiên do chính trình duyệt tạo. Không gửi tài khoản, địa chỉ IP, nội dung hay đường dẫn; dữ liệu tự xoá sau 365 ngày và chỉ dùng để biết người dùng hay dừng lại ở bước nào.</li>
               <li><strong>Phiếu khảo sát trải nghiệm (nếu bạn tham gia):</strong> điểm 10 câu hỏi, vai trò và góp ý tuỳ chọn; ẩn danh, không gắn tài khoản.</li>
             </ul>
           ),

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { UsageBeacon } from "@/components/layout/usage-beacon";
 import { LuSearch, LuSearchX } from "react-icons/lu";
-import { catalogService, parseProgramFilters, programService, serializeProgramFilters, SORT_LABELS, type ProgramSort } from "@/services";
+import { catalogService, hasActiveFilters, parseProgramFilters, programService, serializeProgramFilters, SORT_LABELS, type ProgramSort } from "@/services";
 import { cn } from "@/lib/cn";
 import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
 import { buttonClass } from "@/components/ui/button";
@@ -26,6 +26,7 @@ export default async function SearchPage({ searchParams }: Props) {
   ]);
   const href = (patch: Partial<typeof filters>) => `/chuong-trinh${serializeProgramFilters({ ...filters, ...patch })}`;
   const sort = filters.sort ?? "phu-hop";
+  const filtered = hasActiveFilters(filters);
 
   return (
     <div className="bg-paper-50">
@@ -43,13 +44,13 @@ export default async function SearchPage({ searchParams }: Props) {
         <span aria-hidden className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/65 to-primary-900/30" />
         <div className="relative px-5 py-8 sm:px-8 sm:py-10">
           <p className="inline-flex bg-accent-500 px-3 py-1 text-xs font-black tracking-wide text-slate-950 uppercase">Sổ tuyển sinh</p>
-          <h1 className="mt-4 max-w-3xl text-3xl leading-tight font-black tracking-tight text-white md:text-5xl">Tìm chương trình đào tạo phù hợp với bạn</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 md:text-base">Lọc theo điểm, tổ hợp, học phí và khu vực để đi từ danh mục rộng đến lựa chọn có căn cứ.</p>
+          <h1 className="mt-4 max-w-3xl text-3xl leading-tight font-black tracking-tight text-white md:text-5xl">Tìm chương trình đào tạo</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-200 md:text-base">Lọc theo điểm, tổ hợp, học phí và khu vực. Kết quả theo hồ sơ chỉ mang tính tham khảo.</p>
         </div>
       </section>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm break-words text-slate-600">
-          Tìm thấy <strong className="text-slate-900">{result.total}</strong> chương trình phù hợp
+          Tìm thấy <strong className="text-slate-900">{result.total}</strong> {filtered ? "chương trình khớp bộ lọc" : "chương trình đào tạo"}
           {filters.score == null && (
             <>
               {" "}·{" "}
@@ -94,7 +95,7 @@ export default async function SearchPage({ searchParams }: Props) {
                   sort === k ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-100",
                 )}
               >
-                {SORT_LABELS[k]}
+                {k === "phu-hop" && filters.score == null ? "Điểm chuẩn cao" : SORT_LABELS[k]}
               </Link>
             ))}
           </div>
@@ -103,8 +104,8 @@ export default async function SearchPage({ searchParams }: Props) {
             <div className="rounded-2xl border-2 border-slate-900 bg-white">
               <EmptyState
                 icon={<LuSearchX />}
-                title="Không tìm thấy chương trình phù hợp"
-                description="Thử nới bớt một điều kiện bên dưới, hoặc nhập lại điểm và tổ hợp của bạn."
+                title="Không có chương trình khớp bộ lọc"
+                description="Thử bỏ bớt điều kiện hoặc kiểm tra lại điểm và tổ hợp."
               >
                 {result.suggestions.map((s) => (
                   <Link key={s.label} href={href({ ...s.patch, page: undefined })} className={buttonClass({ variant: "secondary", size: "sm" })}>

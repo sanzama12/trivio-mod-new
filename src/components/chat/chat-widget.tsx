@@ -18,6 +18,7 @@ import {
   LuChevronRight,
   LuExternalLink,
   LuHistory,
+  LuImagePlus,
   LuInfo,
   LuLoaderCircle,
   LuRotateCcw,
@@ -29,6 +30,8 @@ import {
   LuX,
 } from "react-icons/lu";
 import { MAX_QUESTION, safeChatHref, type ChatAnswer, type ChatConversationView, type ChatHistoryMessage } from "@/domain/chat";
+import { isChatImageMime, MAX_CHAT_IMAGE_BYTES, MAX_CHAT_SOURCE_IMAGE_BYTES } from "@/domain/chat-image";
+import type { ChatQuotaView } from "@/domain/chat-quota";
 import { cn } from "@/lib/cn";
 import { useTrovio } from "@/stores/trovio-store";
 import { SaveButton, useCompareBarVisible } from "@/components/program/program-actions";
@@ -37,7 +40,7 @@ import { track } from "@/lib/track";
 import { useToast } from "@/components/ui/toast";
 
 type Msg =
-  | { id: string; role: "user"; text: string }
+  | { id: string; role: "user"; text: string; imagePreview?: string }
   | { id: string; role: "bot"; answer: ChatAnswer; logId: string | null; feedback?: boolean }
   | { id: string; role: "error"; text: string };
 
@@ -50,6 +53,40 @@ export const OPEN_CHAT_EVENT = "trovio:open-chat";
 
 let seq = 0;
 const nextId = () => `m${++seq}`;
+
+type PreparedImage = { file: File; preview: string };
+
+async function prepareImage(file: File): Promise<PreparedImage> {
+  if (!isChatImageMime(file.type)) throw new Error("Chỉ nhận ảnh JPG, PNG hoặc WebP.");
+  if (file.size === 0) throw new Error("Ảnh trống. Hãy chọn ảnh khác.");
+  if (file.size > MAX_CHAT_SOURCE_IMAGE_BYTES) throw new Error("Ảnh gốc phải dưới 12 MB.");
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error("Không đọc được ảnh này. Hãy chọn ảnh khác.");
+  }
+  try {
+    if (bitmap.width * bitmap.height > 40_000_000) throw new Error("Ảnh có độ phân giải quá lớn.");
+    const ratio = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
+    canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Trình duyệt không xử lý được ảnh này.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
+    if (!blob || !isChatImageMime(blob.type) || blob.size > MAX_CHAT_IMAGE_BYTES) throw new Error("Chưa nén được ảnh dưới 3 MB. Hãy chọn ảnh khác.");
+    const preview = document.createElement("canvas");
+    const previewRatio = Math.min(1, 240 / Math.max(canvas.width, canvas.height));
+    preview.width = Math.max(1, Math.round(canvas.width * previewRatio));
+    preview.height = Math.max(1, Math.round(canvas.height * previewRatio));
+    preview.getContext("2d")?.drawImage(canvas, 0, 0, preview.width, preview.height);
+    return { file: new File([blob], "chat-image.webp", { type: blob.type }), preview: preview.toDataURL("image/webp", 0.7) };
+  } finally {
+    bitmap.close();
+  }
+}
 
 function readGuestHistory(): ChatConversationView[] {
   try {
@@ -77,13 +114,19 @@ export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const [pendingImage, setPendingImage] = useState<PreparedImage | null>(null);
+  const [uploadError, setUploadError] = useState("");
+  const [preparingImage, setPreparingImage] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ctx, setCtx] = useState<ChatAnswer["context"]>({});
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<ChatConversationView[]>([]);
+  const [quota, setQuota] = useState<ChatQuotaView | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -110,6 +153,49 @@ export function ChatWidget() {
 
   const push = (...m: Msg[]) => setMessages((prev) => [...prev, ...m].slice(-MAX_MESSAGES));
 
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setQuotaLoading(true);
+    setQuota(null);
+    fetch("/api/chat/quota", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => { if (active && data?.ok && data.quota) setQuota(data.quota); })
+      .catch(() => undefined)
+      .finally(() => { if (active) setQuotaLoading(false); });
+    return () => { active = false; };
+  }, [open, user?.id]);
+
+  useEffect(() => {
+    if (!open || !quota) return;
+    const resets = [quota.text, quota.image]
+      .filter((entry) => entry.remaining === 0 && entry.resetsAt)
+      .map((entry) => Date.parse(entry.resetsAt!));
+    if (!resets.length) return;
+    const timer = window.setTimeout(() => {
+      fetch("/api/chat/quota", { cache: "no-store" })
+        .then((response) => response.json())
+        .then((data) => { if (data?.ok && data.quota) setQuota(data.quota); })
+        .catch(() => undefined);
+    }, Math.max(1000, Math.min(...resets) - Date.now() + 250));
+    return () => window.clearTimeout(timer);
+  }, [open, quota]);
+
+  const chooseImage = async (file?: File) => {
+    if (!file) return;
+    setUploadError("");
+    setPreparingImage(true);
+    try {
+      setPendingImage(await prepareImage(file));
+    } catch (error) {
+      setPendingImage(null);
+      setUploadError(error instanceof Error ? error.message : "Không đọc được ảnh này.");
+    } finally {
+      setPreparingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     if (!user) {
@@ -125,25 +211,39 @@ export function ChatWidget() {
 
   const send = useCallback(
     async (raw: string) => {
-      const question = raw.replace(/\s+/g, " ").trim();
-      if (question.length < 2 || busy) return;
+      const selectedImage = pendingImage;
+      const question = raw.replace(/\s+/g, " ").trim() || (selectedImage ? "Giải thích nội dung trong ảnh này" : "");
+      if (question.length < 2 || busy || preparingImage || quotaLoading) return;
+      if (quota && quota[selectedImage ? "image" : "text"].remaining === 0) return;
       if (question.length > MAX_QUESTION) {
         push({ id: nextId(), role: "error", text: `Câu hỏi tối đa ${MAX_QUESTION} ký tự.` });
         return;
       }
-      const userMessage: Msg = { id: nextId(), role: "user", text: question };
+      const displayedQuestion = selectedImage ? `[Ảnh đính kèm] ${question}` : question;
+      const userMessage: Msg = { id: nextId(), role: "user", text: displayedQuestion, imagePreview: selectedImage?.preview };
       const requestedConversationId = conversationId ?? (user ? null : crypto.randomUUID());
       if (requestedConversationId) setConversationId(requestedConversationId);
       push(userMessage);
       setInput("");
+      setPendingImage(null);
+      setUploadError("");
       setBusy(true);
       try {
+        const context = { ...ctx, page: pathname };
+        const body = selectedImage ? new FormData() : JSON.stringify({ message: question, context, conversationId: requestedConversationId });
+        if (body instanceof FormData) {
+          body.set("message", question);
+          body.set("context", JSON.stringify(context));
+          if (requestedConversationId) body.set("conversationId", requestedConversationId);
+          body.set("image", selectedImage!.file);
+        }
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ message: question, context: { ...ctx, page: pathname }, conversationId: requestedConversationId }),
+          headers: selectedImage ? undefined : { "content-type": "application/json" },
+          body,
         });
-        const data = (await res.json().catch(() => null)) as { ok?: boolean; answer?: ChatAnswer; logId?: string; conversationId?: string | null; message?: string } | null;
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; answer?: ChatAnswer; logId?: string; conversationId?: string | null; message?: string; quota?: ChatQuotaView } | null;
+        if (data?.quota) setQuota(data.quota);
         if (res.ok && data?.ok && data.answer) {
           const botMessage: Msg = { id: nextId(), role: "bot", answer: data.answer, logId: data.logId ?? null };
           push(botMessage);
@@ -160,7 +260,7 @@ export function ChatWidget() {
             ).slice(-MAX_MESSAGES);
             const existing = readGuestHistory();
             const previous = existing.find((item) => item.id === resolvedId);
-            writeGuestHistory([{ id: resolvedId, title: previous?.title ?? question.slice(0, 80), createdAt: previous?.createdAt ?? now, updatedAt: now, messages: historyMessages }, ...existing.filter((item) => item.id !== resolvedId)]);
+            writeGuestHistory([{ id: resolvedId, title: previous?.title ?? displayedQuestion.slice(0, 80), createdAt: previous?.createdAt ?? now, updatedAt: now, messages: historyMessages }, ...existing.filter((item) => item.id !== resolvedId)]);
           }
           track("chat_asked");
           setCtx(data.answer.context ?? {});
@@ -173,7 +273,7 @@ export function ChatWidget() {
         setBusy(false);
       }
     },
-    [busy, conversationId, ctx, messages, pathname, user],
+    [busy, conversationId, ctx, messages, pathname, pendingImage, preparingImage, quota, quotaLoading, user],
   );
 
   // Cho phép nơi khác mở khung chat (kèm câu hỏi gợi ý).
@@ -196,6 +296,8 @@ export function ChatWidget() {
     setMessages([]);
     setCtx({});
     setInput("");
+    setPendingImage(null);
+    setUploadError("");
     setConversationId(null);
     setHistoryOpen(false);
     inputRef.current?.focus();
@@ -320,7 +422,7 @@ export function ChatWidget() {
                 <h3 className="mt-4 text-lg font-bold text-slate-950">Bạn muốn tìm hiểu điều gì?</h3>
                 <div className="mt-4 grid gap-2">
                   {STARTERS.map((s) => (
-                    <SuggestionChip key={s} text={s} onPick={send} disabled={busy} />
+                    <SuggestionChip key={s} text={s} onPick={send} disabled={busy || quotaLoading || quota?.text.remaining === 0} />
                   ))}
                 </div>
                 <p className="mt-5 flex items-start gap-2 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-600">
@@ -333,7 +435,10 @@ export function ChatWidget() {
             {messages.map((m, i) =>
               m.role === "user" ? (
                 <div key={m.id} className="flex justify-end">
-                  <p className="max-w-[88%] break-words rounded-lg rounded-br-sm bg-primary-700 px-3.5 py-2.5 text-[15px] leading-6 whitespace-pre-wrap text-white">{m.text}</p>
+                  <div className="max-w-[88%] break-words rounded-lg rounded-br-sm bg-primary-700 px-3.5 py-2.5 text-[15px] leading-6 whitespace-pre-wrap text-white">
+                    {m.imagePreview && <img src={m.imagePreview} alt="Ảnh đã gửi" className="mb-2 max-h-44 max-w-full rounded-md object-contain" />}
+                    <p>{m.text}</p>
+                  </div>
                 </div>
               ) : m.role === "error" ? (
                 <p key={m.id} role="alert" className="flex gap-2 rounded-md border border-danger-100 bg-danger-50 px-3 py-2.5 text-[15px] leading-6 text-danger-700">
@@ -363,10 +468,18 @@ export function ChatWidget() {
           </div>
 
           {!historyOpen && <form onSubmit={onSubmit} className="border-t border-slate-200 bg-white px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {pendingImage && <div className="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <img src={pendingImage.preview} alt="Ảnh chuẩn bị gửi" className="size-14 rounded-md border border-slate-200 object-cover" />
+              <span className="min-w-0 flex-1 text-xs text-slate-600">Ảnh sẽ được gửi cùng câu hỏi</span>
+              <button type="button" onClick={() => setPendingImage(null)} className="flex size-9 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100" aria-label="Bỏ ảnh" title="Bỏ ảnh"><LuX className="size-4" /></button>
+            </div>}
+            {uploadError && <p role="alert" className="mb-2 text-xs text-danger-700">{uploadError}</p>}
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Chọn ảnh để hỏi trợ lý" onChange={(event) => void chooseImage(event.target.files?.[0])} />
             <label htmlFor={`${panelId}-input`} className="sr-only">
               Câu hỏi của bạn
             </label>
             <div className="flex items-end gap-2">
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={busy || preparingImage || quotaLoading || quota?.image.remaining === 0} className="flex size-12 shrink-0 items-center justify-center rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50" aria-label="Tải ảnh lên" title="Tải ảnh lên"><LuImagePlus className="size-5" /></button>
               <textarea
                 ref={inputRef}
                 id={`${panelId}-input`}
@@ -375,12 +488,12 @@ export function ChatWidget() {
                 maxLength={MAX_QUESTION}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Nhập câu hỏi của bạn…"
+                placeholder={pendingImage ? "Hỏi về ảnh (có thể để trống)…" : "Nhập câu hỏi của bạn…"}
                 className="max-h-28 min-h-12 flex-1 resize-none rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base leading-6 text-slate-900 outline-none placeholder:text-slate-500 focus:border-primary-600 focus:ring-2 focus:ring-primary-100"
               />
               <button
                 type="submit"
-                disabled={busy || input.trim().length < 2}
+                disabled={busy || preparingImage || quotaLoading || (input.trim().length < 2 && !pendingImage) || quota?.[pendingImage ? "image" : "text"].remaining === 0}
                 className={buttonClass({ size: "icon", className: "size-12 rounded-md sm:size-12" })}
                 aria-label="Gửi câu hỏi"
                 title="Gửi câu hỏi"
@@ -388,7 +501,12 @@ export function ChatWidget() {
                 <LuSendHorizontal className="size-5" />
               </button>
             </div>
-            <p className="mt-1.5 h-4 text-right text-xs text-slate-500" aria-live="off">{input.length > 0 ? `${input.length}/${MAX_QUESTION}` : ""}</p>
+            <div className="mt-1.5 flex min-h-5 flex-wrap justify-between gap-x-2 text-xs text-slate-500" aria-live="polite">
+              <span>{quotaLoading ? "Đang tải lượt còn lại…" : quota ? `Còn ${quota.text.remaining}/5 câu hôm nay · ${quota.image.remaining}/3 ảnh/7 ngày` : "Chưa tải được lượt còn lại"}</span>
+              <span>{preparingImage ? "Đang xử lý ảnh…" : pendingImage ? "Ảnh không lưu trong lịch sử" : input.length > 0 ? `${input.length}/${MAX_QUESTION}` : ""}</span>
+            </div>
+            {quota?.text.remaining === 0 && quota.text.resetsAt && <p className="mt-1 text-xs text-accent-800">Chat được cấp lại {new Date(quota.text.resetsAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}.</p>}
+            {quota?.image.remaining === 0 && quota.image.resetsAt && <p className="mt-1 text-xs text-accent-800">Ảnh được cấp lại {new Date(quota.image.resetsAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}.</p>}
           </form>}
         </section>
       )}

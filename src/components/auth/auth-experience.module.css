@@ -163,8 +163,9 @@
 .switchHint { margin-top: 18px; color: #6f6470; font-size: 14px; text-align: center; }
 .switchHint button { color: var(--auth-plum); font-weight: 800; cursor: pointer; }
 .alert { margin-bottom: 16px; padding: 11px 12px; border: 1px solid var(--color-danger-100); border-radius: 6px; background: var(--color-danger-50); color: var(--color-danger-700); font-size: 13px; line-height: 1.5; }
+.success { margin-bottom: 16px; padding: 11px 12px; border: 1px solid #a7d9bd; border-radius: 6px; background: #eefaf2; color: #14613a; font-size: 13px; line-height: 1.5; }
+.success strong { display: block; font-size: 14px; }
 .alert a { font-weight: 700; text-decoration: underline; }
-.successAlert { border: 1px solid #bbf7d0; color: #166534; padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.5; margin-bottom: 16px; background: #f0fdf4; }
 .demo { margin-top: 15px; color: #6f6470; font-size: 12px; }
 .demo summary { cursor: pointer; }
 .demo p { margin-top: 8px; line-height: 1.6; }

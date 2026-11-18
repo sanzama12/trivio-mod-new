@@ -13,7 +13,7 @@ import { useTrovio } from "@/stores/trovio-store";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
 
-export function SchoolCard({ school, summary }: { school: School; summary?: SchoolSearchSummary }) {
+export function SchoolCard({ school, summary, filtered = false }: { school: School; summary?: SchoolSearchSummary; filtered?: boolean }) {
   const schoolType = SCHOOL_TYPE_LABELS[school.type] || "Công lập";
   const { isSaved, toggleSaved, inCompare, toggleCompare, hydrated } = useTrovio();
   const toast = useToast();
@@ -59,7 +59,7 @@ export function SchoolCard({ school, summary }: { school: School; summary?: Scho
         <div className="mx-5 mb-5 rounded-xl bg-slate-50 p-4 sm:mx-6">
           <dl className="grid gap-4 text-sm sm:grid-cols-3">
             <div>
-              <dt className="text-xs text-slate-500">Chương trình phù hợp</dt>
+              <dt className="text-xs text-slate-500">{filtered ? "Chương trình khớp bộ lọc" : "Chương trình đào tạo"}</dt>
               <dd className="mt-1 font-semibold text-slate-900">{summary.programCount}</dd>
             </div>
             <div>
@@ -81,11 +81,6 @@ export function SchoolCard({ school, summary }: { school: School; summary?: Scho
               </dd>
             </div>
           </dl>
-          {summary.featuredProgram && (
-            <Link href={`/chuong-trinh/${summary.featuredProgram.slug}`} className="mt-3 block text-sm font-semibold text-primary-700 hover:underline">
-              {summary.featuredProgram.name} <span aria-hidden>↗</span>
-            </Link>
-          )}
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 sm:px-6">

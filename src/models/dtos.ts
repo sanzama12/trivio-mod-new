@@ -102,7 +102,6 @@ export interface SchoolSearchSummary {
   cutoffMin: number | null;
   cutoffMax: number | null;
   method: AdmissionMethodKey;
-  featuredProgram: { name: string; slug: string } | null;
 }
 
 // ==========================================

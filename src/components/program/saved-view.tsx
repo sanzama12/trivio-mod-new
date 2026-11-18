@@ -141,7 +141,7 @@ export function SavedView() {
               <EmptyState
                 icon={<LuBookmark />}
                 title="Chưa có chương trình nào được lưu"
-                description="Khi tìm thấy chương trình phù hợp, bấm nút ♡ để lưu vào đây và bắt đầu lập kế hoạch tuyển sinh."
+                description="Lưu chương trình bạn quan tâm để so sánh và sắp xếp nguyện vọng."
               >
                 <Link href="/chuong-trinh" className={buttonClass()}>
                   Tìm chương trình →

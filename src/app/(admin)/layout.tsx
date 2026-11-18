@@ -5,7 +5,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { adminBadges } from "@/components/admin/admin-nav";
 
 /** Khung quản trị (thanh bên A01–A09). Trang con tự kiểm tra quyền; tài khoản không có quyền không thấy khung. */
-export const metadata: Metadata = { title: { default: "Trovio – Tìm đúng trường, chọn đúng ngành", template: "%s · Trovio" } };
+export const metadata: Metadata = { title: { default: "Trovio – Tra cứu tuyển sinh và định hướng ngành", template: "%s · Trovio" } };
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();

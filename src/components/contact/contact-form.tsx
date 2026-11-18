@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { LuClock, LuSend } from "react-icons/lu";
+import { LuSend } from "react-icons/lu";
 import styles from "./contact-animations.module.css";
 import { cn } from "@/lib/cn";
+import { siteContact } from "@/lib/site-contact";
 
 /* Port từ mona.media/lien-he (.form-cus + .form-tab):
  * — tab chọn đối tượng (Doanh nghiệp / Học sinh & Phụ huynh) đổi field-set,
@@ -38,15 +39,13 @@ const EMPTY = {
   jobTitle: "",
   organization: "",
   workEmail: "",
-  phoneNumber: "",
-  requestType: "HopTacDeAn",
+  requestType: "TuVanChonNganh",
   message: "",
 };
 
 export function EnterpriseContactForm() {
-  const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("enterprise");
+  const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("student");
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState(EMPTY);
 
   const types = role === "enterprise" ? ENTERPRISE_TYPES : STUDENT_TYPES;
@@ -54,11 +53,11 @@ export function EnterpriseContactForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSubmitted(true);
-    }, 600);
+    const type = types.find((item) => item.value === formData.requestType)?.label ?? "Liên hệ";
+    const subject = encodeURIComponent(`[Trovio] ${type}`);
+    const body = encodeURIComponent(`Họ tên: ${formData.fullName}\nEmail: ${formData.workEmail}\nTrường/đơn vị: ${formData.organization || "Không cung cấp"}\n\n${formData.message}`);
+    window.location.href = `mailto:${siteContact.email}?subject=${subject}&body=${body}`;
+    setSubmitted(true);
   };
 
   const switchRole = (value: (typeof ROLES)[number]["value"]) => {
@@ -72,10 +71,10 @@ export function EnterpriseContactForm() {
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-md">
           <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>
-        <span className="mt-4 inline-flex items-center rounded-full bg-primary-100 px-3.5 py-1 text-xs font-bold text-primary-900">Tiếp nhận yêu cầu thành công</span>
-        <h3 className="mt-3 text-xl font-extrabold text-slate-900 sm:text-2xl">Cảm ơn bạn đã liên hệ với Trovio</h3>
+        <span className="mt-4 inline-flex items-center rounded-full bg-primary-100 px-3.5 py-1 text-xs font-bold text-primary-900">Kiểm tra ứng dụng email</span>
+        <h3 className="mt-3 text-xl font-extrabold text-slate-900 sm:text-2xl">Gửi thư để hoàn tất</h3>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
-          Phiếu yêu cầu từ <span className="font-bold text-slate-900">{formData.organization || formData.fullName}</span> đã được chuyển tới bộ phận chuyên trách. Trovio cam kết phản hồi qua email <span className="font-bold text-primary-700">{formData.workEmail}</span> trong vòng 4 – 8 giờ làm việc.
+          Kiểm tra nội dung trong ứng dụng email và bấm Gửi. Nếu ứng dụng không mở, hãy viết tới <a className="font-bold text-primary-700 underline" href={`mailto:${siteContact.email}`}>{siteContact.email}</a>.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
@@ -126,11 +125,6 @@ export function EnterpriseContactForm() {
             <label htmlFor="workEmail" className={styles.fieldLabel}>Email <span className="req">*</span></label>
           </div>
 
-          <div className={styles.field}>
-            <input id="phoneNumber" required type="tel" placeholder=" " autoComplete="tel" value={formData.phoneNumber} onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })} className={styles.fieldInput} />
-            <label htmlFor="phoneNumber" className={styles.fieldLabel}>Số điện thoại <span className="req">*</span></label>
-          </div>
-
           {isEnterprise ? (
             <>
               <div className={styles.field}>
@@ -168,17 +162,13 @@ export function EnterpriseContactForm() {
         </div>
 
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <LuClock className="size-4 shrink-0 text-primary-700" aria-hidden />
-            <span>Phản hồi trong vòng <strong className="font-semibold text-slate-900">4 – 8 giờ</strong> làm việc</span>
-          </div>
+          <p className="text-xs text-slate-500">Nội dung sẽ được mở trong ứng dụng email của bạn.</p>
           <button
             type="submit"
-            disabled={loading}
             className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary-700 px-7 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-primary-800 disabled:opacity-60"
           >
             <LuSend className="size-4" aria-hidden />
-            {loading ? "Đang gửi..." : isEnterprise ? "Gửi phiếu đề xuất hợp tác" : "Gửi câu hỏi"}
+            {isEnterprise ? "Soạn email hợp tác" : "Soạn email hỗ trợ"}
           </button>
         </div>
       </form>

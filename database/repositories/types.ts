@@ -30,6 +30,7 @@ import type {
   UserData,
 } from "@/domain/types";
 import type { ChatConversation } from "@/domain/chat";
+import type { ChatQuotaKind, ChatQuotaRecord } from "@/domain/chat-quota";
 
 export interface SchoolRepository {
   findAll(): Promise<School[]>;
@@ -91,7 +92,15 @@ export interface UserRepository {
   list(): Promise<User[]>;
   create(input: Omit<User, "id" | "createdAt">): Promise<User>;
   update(id: string, patch: Partial<Omit<User, "id">>): Promise<User | null>;
+  recordFailedLogin(id: string): Promise<{ failedAttempts: number; locked: boolean; lockUntil: string | null } | null>;
+  clearFailedLogin(id: string): Promise<User | null>;
   delete(id: string): Promise<boolean>;
+}
+
+export interface PasswordResetCodeRepository {
+  save(userId: string, hash: string, expiresAt: string): Promise<boolean>;
+  consume(userId: string, candidateHash: string): Promise<boolean>;
+  revoke(userId: string, expectedHash?: string): Promise<void>;
 }
 
 /** Dữ liệu cá nhân đồng bộ theo tài khoản: đã lưu, nguyện vọng và hồ sơ điểm. */
@@ -140,11 +149,27 @@ export interface ChatLogRepository {
   list(limit?: number): Promise<ChatLog[]>;
 }
 
+export interface ChatQuotaRepository {
+  get(subject: string, kind: ChatQuotaKind): Promise<ChatQuotaRecord | null>;
+  take(subject: string, kind: ChatQuotaKind, limit: number, resetsAt: string, now: string): Promise<ChatQuotaRecord | null>;
+  refund(subject: string, kind: ChatQuotaKind, resetsAt: string): Promise<void>;
+}
+
 export interface ChatHistoryRepository {
   findById(id: string, userId: string): Promise<ChatConversation | null>;
-  listByUser(userId: string, limit?: number): Promise<ChatConversation[]>;
+  listByUser(userId: string, limit?: number, offset?: number): Promise<ChatConversation[]>;
+  listUsers(query?: string, limit?: number, offset?: number): Promise<{ rows: ChatHistoryUserRow[]; total: number }>;
   put(conversation: ChatConversation): Promise<ChatConversation>;
   delete(id: string, userId: string): Promise<boolean>;
+}
+
+export interface ChatHistoryUserRow {
+  userId: string;
+  name: string;
+  email: string;
+  conversationCount: number;
+  questionCount: number;
+  lastActiveAt: string;
 }
 
 export interface NotificationRepository {

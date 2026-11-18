@@ -190,12 +190,14 @@
 
 .communityGrid {
   display: grid;
-  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
-  gap: clamp(45px, 8vw, 130px);
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+  align-items: center;
+  gap: clamp(40px, 6vw, 108px);
 }
 
-.communityIntro h2,
-.faqHeading h2 {
+.communityIntro { grid-column: 2; grid-row: 1; }
+
+.communityIntro h2 {
   margin-top: 12px;
   color: #17353d;
   font-size: clamp(27px, 2.6vw, 37px);
@@ -203,8 +205,7 @@
   line-height: 1.35;
 }
 
-.communityIntro > p,
-.faqHeading > p {
+.communityIntro > p {
   max-width: 350px;
   margin-top: 15px;
   color: #5d777e;
@@ -223,54 +224,56 @@
   font-weight: 700;
 }
 
-.contactLink svg,
-.faqHeading a svg,
-.faqList a svg {
+.contactLink svg {
   width: 15px;
   height: 15px;
 }
 
-.contactLink:hover,
-.faqHeading a:hover,
-.faqList a:hover {
+.contactLink:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
 .donors {
-  align-self: center;
-}
-
-.donors li {
-  display: flex;
-  align-items: center;
-  gap: 15px;
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
-  padding-block: 15px;
-  border-bottom: 1px solid #d4e5df;
 }
 
-.donors li:first-child {
-  border-top: 1px solid #d4e5df;
+.donorTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
 }
+
+.donorTable th {
+  padding: 0 0 12px;
+  border-bottom: 1px solid #bdd7ce;
+  color: #56746c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.donorTable th:last-child { width: 150px; text-align: right; }
+.donorTable td { padding: 15px 0; border-bottom: 1px solid #d0e2da; vertical-align: middle; }
+.donorTable td:first-child { padding-right: 16px; }
+.donorIdentity { display: flex; min-width: 0; align-items: center; gap: 12px; }
 
 .donorInitial {
   display: grid;
   place-items: center;
-  width: 39px;
-  height: 39px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: 6px;
   background: #d1e8de;
   color: #2c7468;
   font-size: 14px;
   font-weight: 700;
 }
 
-.donorText {
-  min-width: 0;
-  flex: 1;
-}
+.donorText { display: block; min-width: 0; }
 
 .donorText strong,
 .donorText small {
@@ -278,24 +281,26 @@
 }
 
 .donorText strong {
-  font-size: 13px;
+  overflow-wrap: anywhere;
+  color: #17353d;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .donorText small {
-  margin-top: 3px;
+  margin-top: 4px;
   color: #617b82;
   font-size: 12px;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .donorAmount {
-  flex-shrink: 0;
-  align-self: flex-start;
-  color: #237568;
-  font-size: 13px;
+  color: #176c60;
+  font-size: 14px;
   font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .emptyState {
@@ -305,75 +310,7 @@
   font-size: 14px;
 }
 
-.faq {
-  display: grid;
-  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
-  gap: clamp(45px, 8vw, 130px);
-  padding-block: 80px 92px;
-}
-
-.faqHeading a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #176c65;
-  font-weight: 700;
-}
-
-.faqList {
-  border-top: 1px solid #dce5e5;
-}
-
-.faqList details {
-  border-bottom: 1px solid #dce5e5;
-}
-
-.faqList summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  min-height: 74px;
-  padding-block: 18px;
-  color: #25444c;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  list-style: none;
-}
-
-.faqList summary::-webkit-details-marker {
-  display: none;
-}
-
-.faqList summary::after {
-  content: "+";
-  color: #248373;
-  font-size: 24px;
-  font-weight: 400;
-}
-
-.faqList details[open] summary::after {
-  content: "−";
-}
-
-.faqList details p {
-  padding-bottom: 23px;
-  color: #5d777e;
-  font-size: 13px;
-  line-height: 1.8;
-}
-
-.faqList a {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  color: #176c65;
-  font-weight: 700;
-}
-
-.page a:focus-visible,
-.faqList summary:focus-visible {
+.page a:focus-visible {
   outline: 2px solid #188977;
   outline-offset: 4px;
 }
@@ -415,17 +352,18 @@
     min-height: 0;
   }
 
-  .communityGrid,
-  .faq {
+  .communityGrid {
     grid-template-columns: minmax(0, 1fr);
     gap: 27px;
   }
+
+  .communityIntro,
+  .donors { grid-column: auto; grid-row: auto; }
+
+  .donorTable th:last-child { width: 115px; }
 
   .community {
     padding-block: 48px;
   }
 
-  .faq {
-    padding-block: 52px 65px;
-  }
 }

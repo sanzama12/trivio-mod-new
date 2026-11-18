@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { UsageBeacon } from "@/components/layout/usage-beacon";
 import { LuSearch, LuSearchX } from "react-icons/lu";
-import { catalogService, parseProgramFilters, programService, serializeProgramFilters, SORT_LABELS, type ProgramSort } from "@/services";
+import { catalogService, hasActiveFilters, parseProgramFilters, programService, serializeProgramFilters, SORT_LABELS, type ProgramSort } from "@/services";
 import { cn } from "@/lib/cn";
 import { Breadcrumb, EmptyState, Pagination } from "@/components/ui/misc";
 import { buttonClass } from "@/components/ui/button";
@@ -28,6 +28,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
   ]);
   const href = (patch: Partial<typeof filters>) => `/truong${serializeProgramFilters({ ...filters, ...patch })}`;
   const sort = filters.sort ?? "phu-hop";
+  const filtered = hasActiveFilters(filters);
 
   return (
     <div className="bg-paper-50">
@@ -39,7 +40,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm break-words text-slate-600">
-          Tìm thấy <strong className="font-bold text-slate-900">{result.total}</strong> trường phù hợp
+          Tìm thấy <strong className="font-bold text-slate-900">{result.total}</strong> {filtered ? "trường khớp bộ lọc" : "trường"}
         </p>
         <OpenCompareButton />
       </div>
@@ -63,7 +64,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
                   sort === k ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-100",
                 )}
               >
-                {SORT_LABELS[k]}
+                {k === "phu-hop" && filters.score == null ? "Điểm chuẩn cao" : SORT_LABELS[k]}
               </Link>
             ))}
           </div>
@@ -72,8 +73,8 @@ export default async function SchoolsPage({ searchParams }: Props) {
             <div className="rounded-2xl border-2 border-slate-900 bg-white">
               <EmptyState
                 icon={<LuSearchX />}
-                title="Không tìm thấy trường phù hợp"
-                description="Thử nới bớt một điều kiện bên dưới, hoặc nhập lại điểm và tổ hợp của bạn."
+                title="Không có trường khớp bộ lọc"
+                description="Thử bỏ bớt điều kiện hoặc kiểm tra lại điểm và tổ hợp."
               >
                 <Link href="/truong" className={buttonClass({ variant: "outline", size: "sm" })}>
                   Xoá bộ lọc
@@ -87,7 +88,7 @@ export default async function SchoolsPage({ searchParams }: Props) {
             <>
               <div className="space-y-4">
                 {result.items.map((school) => (
-                  <SchoolCard key={school.id} school={school} summary={result.summaries[school.id]} />
+                  <SchoolCard key={school.id} school={school} summary={result.summaries[school.id]} filtered={filtered} />
                 ))}
               </div>
               <div className="mt-8">

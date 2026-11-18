@@ -143,12 +143,13 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
                     <td className={`${td} text-slate-500`}>{ago(r.lastLoginAt, now)}</td>
                     <td className={td}>
                       <Badge tone={STATUS[r.status].tone}>{STATUS[r.status].label}</Badge>
+                      {r.lockNote && <span className="mt-1 block max-w-36 text-xs text-slate-600">{r.lockNote}</span>}
                     </td>
                     <td className={`${td} text-right whitespace-nowrap`}>
                       <button type="button" onClick={() => openView(r)} className="rounded-md p-1.5 text-primary-600 hover:bg-primary-50" aria-label={`Xem ${r.name}`}>
                         <LuEye className="size-4" aria-hidden />
                       </button>
-                      <button type="button" disabled={r.id === meId || r.admin} onClick={() => setLockTarget(r)} className="rounded-md p-1.5 text-accent-700 hover:bg-accent-50 disabled:opacity-30" aria-label={r.status === "locked" ? `Mở khoá ${r.name}` : `Khoá ${r.name}`}>
+                      <button type="button" disabled={r.id === meId || (r.admin && r.status !== "locked")} onClick={() => setLockTarget(r)} className="rounded-md p-1.5 text-accent-700 hover:bg-accent-50 disabled:opacity-30" aria-label={r.status === "locked" ? `Mở khoá ${r.name}` : `Khoá ${r.name}`}>
                         {r.status === "locked" ? <LuLockOpen className="size-4" aria-hidden /> : <LuLock className="size-4" aria-hidden />}
                       </button>
                       <button type="button" disabled={r.id === meId || r.admin} onClick={() => (setDelTarget(r), setDelConfirm(""), setDelErr(null))} className="rounded-md p-1.5 text-danger-600 hover:bg-danger-50 disabled:opacity-30" aria-label={`Xoá ${r.name}`}>
@@ -272,7 +273,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
         }
       >
         <p className="text-sm text-slate-600">
-          {lockTarget?.status === "locked" ? "Người dùng đăng nhập lại được ngay (bộ đếm sai mật khẩu được đặt lại)." : "Người dùng bị đăng xuất khỏi mọi thiết bị và không đăng nhập được (kể cả bằng Google) cho tới khi mở khoá. Dữ liệu được giữ nguyên."}
+          {lockTarget?.status === "locked" ? "Người dùng đăng nhập lại được ngay. Bộ đếm 5 lần nhập sai được đặt lại." : "Người dùng bị đăng xuất khỏi mọi thiết bị và không đăng nhập được (kể cả bằng Google) cho tới khi mở khoá. Dữ liệu được giữ nguyên."}
         </p>
       </Dialog>
 

@@ -42,10 +42,10 @@ export function FitPanel({ program }: { program: Pick<Program, "cutoffs" | "altC
     return (
       <div className="rounded-2xl border border-primary-200 bg-primary-50 p-5">
         <p className="flex items-center gap-2 text-sm font-bold text-primary-800">
-          <LuCalculator className="size-4" aria-hidden /> Bạn có khả năng đỗ không?
+          <LuCalculator className="size-4" aria-hidden /> So điểm của bạn với điểm chuẩn
         </p>
         <p className="mt-1.5 text-[13px] leading-relaxed text-primary-900/80">
-          Nhập điểm ({accepted.map((k) => ADMISSION_METHODS[k].short).join(", ")}) và khu vực ưu tiên để so với điểm chuẩn gần nhất.
+          Nhập điểm ({accepted.map((k) => ADMISSION_METHODS[k].short).join(", ")}) và thông tin ưu tiên để xem mức tham khảo.
         </p>
         <Link href="/diem-cua-toi" className={buttonClass({ size: "sm", className: "mt-4" })}>
           Nhập điểm của tôi

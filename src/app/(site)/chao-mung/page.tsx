@@ -9,9 +9,9 @@ import { OnboardingForm } from "@/components/account/onboarding-form";
 export const metadata: Metadata = { title: "Chào mừng" };
 
 const features = [
-  { icon: LuSearch, title: "Tìm chương trình phù hợp", desc: "So sánh điểm chuẩn, học phí và vị trí các trường." },
-  { icon: LuCompass, title: "Khám phá ngành học", desc: "Xem danh mục ngành, chương trình và điểm chuẩn để tìm hướng phù hợp." },
-  { icon: LuHeart, title: "Lưu & lập nguyện vọng", desc: "Lưu chương trình yêu thích và sắp xếp thứ tự nguyện vọng dự kiến." },
+  { icon: LuSearch, title: "Tìm chương trình", desc: "So điểm chuẩn, học phí và phương thức xét tuyển." },
+  { icon: LuCompass, title: "Khám phá ngành", desc: "Xem nội dung ngành và các trường đào tạo." },
+  { icon: LuHeart, title: "Lập nguyện vọng", desc: "Lưu chương trình và sắp xếp thứ tự dự kiến." },
 ];
 
 type Props = { searchParams: Promise<{ next?: string }> };
@@ -36,7 +36,7 @@ export default async function WelcomePage({ searchParams }: Props) {
           <div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Chào mừng{first ? ` ${first}` : ""} đến với Trovio!</h1>
             <p className="mt-3 leading-relaxed text-slate-600 max-w-prose">
-              {user ? "Tài khoản của bạn đã sẵn sàng." : "Bạn có thể bắt đầu khám phá ngay; dữ liệu của khách được lưu trên thiết bị này."} Trovio giúp bạn tìm trường, hiểu ngành và lập kế hoạch tuyển sinh trong vài phút.
+              {user ? "Tài khoản của bạn đã sẵn sàng." : "Bạn có thể tra cứu ngay; dữ liệu khách được lưu trên thiết bị này."} Bắt đầu với ngành học hoặc điểm số của bạn.
             </p>
             {next !== "/" && (
               <Link href={next} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:underline">
@@ -68,7 +68,7 @@ export default async function WelcomePage({ searchParams }: Props) {
             </Link>
           </div>
           <Link href={next} className="mt-5 inline-block text-sm text-slate-600 underline-offset-4 hover:underline">
-            Bỏ qua, tôi sẽ tự khám phá
+            Để sau
           </Link>
         </div>
       </Card>

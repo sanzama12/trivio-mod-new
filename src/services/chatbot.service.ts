@@ -24,6 +24,7 @@ import { majorRecommendationService } from "./major-recommendation.service";
 import { userDataService } from "./user-data.service";
 import { aiSourceService } from "./ai-source.service";
 import { findMarkdownAnswer } from "./chatbot-markdown";
+import type { ChatImageInput } from "../domain/chat-image";
 
 export { MAX_QUESTION } from "../domain/chat";
 export type { ChatAnswer, ChatItem, ChatKind, ChatSource } from "../domain/chat";
@@ -812,13 +813,21 @@ export const chatbotService = {
     return true;
   },
 
-  async ask(question: unknown, ctx: ChatContextIn = {}, history?: { userId: string; conversationId?: string | null }): Promise<{ ok: true; answer: ChatAnswer; logId: string; conversationId: string | null } | { ok: false; message: string }> {
+  async ask(question: unknown, ctx: ChatContextIn = {}, history?: { userId: string; conversationId?: string | null }, image?: ChatImageInput): Promise<{ ok: true; answer: ChatAnswer; logId: string; conversationId: string | null } | { ok: false; message: string; status?: number }> {
     const q = typeof question === "string" ? cleanChatText(question).replace(/\s+/g, " ") : "";
     if (q.length < 2) return { ok: false, message: "Bạn hãy nhập câu hỏi nhé." };
     if (q.length > MAX_QUESTION) return { ok: false, message: `Câu hỏi tối đa ${MAX_QUESTION} ký tự.` };
-    let answer = await answerQuestion(q, ctx, history?.userId);
+    if (image && !isWusRouterConfigured()) return { ok: false, status: 503, message: "Phân tích ảnh chưa khả dụng. Vui lòng thử lại sau." };
+    const imageText = image ? await answerWithWusRouter({ question: q, image }) : null;
+    if (image && !imageText) return { ok: false, status: 503, message: "Chưa đọc được ảnh. Hãy thử ảnh rõ hơn hoặc hỏi bằng văn bản." };
+    let answer = image
+      ? base("image-analysis", "answer", imageText!, {
+        note: "Nội dung được đọc từ ảnh bằng AI, có thể sai hoặc thiếu. Kiểm tra lại ảnh và nguồn tuyển sinh chính thức.",
+        polished: true,
+      })
+      : await answerQuestion(q, ctx, history?.userId);
     // Chưa có dữ liệu có cấu trúc → thử nguồn thông tin do quản trị viên biên soạn (không dùng cho câu bị từ chối).
-    if (answer.kind === "unknown") {
+    if (!image && answer.kind === "unknown") {
       const source = await aiSourceService.answerFor(q).catch(() => null);
       if (source) {
         answer = {
@@ -833,7 +842,7 @@ export const chatbotService = {
     }
 
     // Outside evidence & WusRouter AI Gateway cho các câu hỏi mở/chuyên sâu
-    if (answer.kind === "unknown") {
+    if (!image && answer.kind === "unknown") {
       const evidence = await findExternalEvidence(q).catch(() => null);
 
       if (isWusRouterConfigured()) {
@@ -900,7 +909,8 @@ export const chatbotService = {
     }
     answer = cleanChatAnswer(answer);
     const logId = randomUUID();
-    const logWrite = repositories.chatLogs.add({ id: logId, at: new Date().toISOString(), question: maskQuestion(q), intent: answer.intent, kind: answer.kind, helpful: null });
+    const recordedQuestion = image ? `[Ảnh đính kèm] ${q}` : q;
+    const logWrite = repositories.chatLogs.add({ id: logId, at: new Date().toISOString(), question: maskQuestion(recordedQuestion), intent: answer.intent, kind: answer.kind, helpful: null });
     let conversationId: string | null = null;
     if (history?.userId) {
       const now = new Date().toISOString();
@@ -909,13 +919,13 @@ export const chatbotService = {
       conversationId = current?.id ?? randomUUID();
       const messages: ChatHistoryMessage[] = [
         ...(current?.messages ?? []),
-        { id: randomUUID(), role: "user" as const, at: now, text: q },
+        { id: randomUUID(), role: "user" as const, at: now, text: recordedQuestion },
         { id: randomUUID(), role: "assistant" as const, at: now, answer, logId },
       ].slice(-40);
       await repositories.chatHistory.put({
         id: conversationId,
         userId: history.userId,
-        title: current?.title ?? q.slice(0, 80),
+        title: current?.title ?? recordedQuestion.slice(0, 80),
         createdAt: current?.createdAt ?? now,
         updatedAt: now,
         messages,
@@ -926,6 +936,14 @@ export const chatbotService = {
 
   async history(userId: string, limit = 20): Promise<ChatConversationView[]> {
     return (await repositories.chatHistory.listByUser(userId, Math.min(30, Math.max(1, limit)))).map(({ userId: _owner, ...conversation }) => conversation);
+  },
+
+  adminUsers(search: string, page: number) {
+    return repositories.chatHistory.listUsers(search, 30, (page - 1) * 30);
+  },
+
+  adminHistory(userId: string, page: number) {
+    return repositories.chatHistory.listByUser(userId, 11, (page - 1) * 10);
   },
 
   deleteHistory(userId: string, conversationId: string) {

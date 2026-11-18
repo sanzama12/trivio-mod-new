@@ -5,7 +5,8 @@ export const OAUTH_ERRORS: Record<string, string> = {
   google_state: "Phiên đăng nhập Google đã hết hạn hoặc không hợp lệ. Vui lòng thử lại.",
   google_failed: "Không kết nối được với Google. Vui lòng thử lại sau.",
   google_email_unverified: "Email Google của bạn chưa được xác minh nên không thể dùng để đăng nhập.",
-  google_disabled: "Tài khoản này đã bị quản trị viên tạm khoá. Liên hệ hỗ trợ để được mở lại.",
+  google_disabled: "Tài khoản bị khóa cho đến khi quản trị viên mở. Hãy liên hệ quản trị viên để được hỗ trợ.",
+  google_locked: "Tài khoản đang bị khóa 30 phút do nhập sai mật khẩu. Hãy thử lại sau khi hết thời gian khóa.",
   google_conflict: "Tài khoản Google này đã được liên kết với một tài khoản Trovio khác.",
   google_not_found: "Không tìm thấy tài khoản để liên kết. Vui lòng đăng nhập lại.",
 };

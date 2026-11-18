@@ -27,7 +27,7 @@ Tạo `.env.local` từ `.env.example` và bắt buộc đặt `DATABASE_URL`, `
 
 Không có tài khoản mặc định. Quản trị viên và dữ liệu nghiệp vụ phải được tạo/publish qua quy trình có kiểm soát vào PostgreSQL.
 
-Nhập sai mật khẩu 5 lần sẽ khoá tài khoản; đặt lại mật khẩu (hoặc đăng nhập Google cùng email) sẽ mở khoá. Mật khẩu được băm bằng **scrypt** trước khi ghi xuống đĩa.
+Nhập sai mật khẩu 3 lần sẽ khóa tài khoản 30 phút; lần sai thứ 4 khóa tiếp 30 phút, lần thứ 5 khóa cho đến khi quản trị viên mở tại `/quan-tri/nguoi-dung`. Bộ đếm không tự xóa khi đăng nhập đúng sau hạn khóa; admin mở khóa sẽ đặt lại bộ đếm. Đăng nhập Google và đặt lại mật khẩu không vượt qua thời gian khóa; đặt lại mật khẩu không mở được khóa vĩnh viễn. Mật khẩu được băm bằng **scrypt** trước khi ghi xuống đĩa.
 
 ## Tính năng định hướng nguyện vọng
 
@@ -44,10 +44,10 @@ Nhập sai mật khẩu 5 lần sẽ khoá tài khoản; đặt lại mật kh�
 
 | Tính năng | Ở đâu | Cơ chế kiểm soát |
 | --- | --- | --- |
-| Trợ lý hỏi đáp ngành học | Nút “Hỏi trợ lý” góc phải dưới (mọi trang trừ lúc làm bài trắc nghiệm) | Câu hỏi điều hướng khớp nguyên câu được trả nhanh từ `docs/chatbot-faq.md`; dữ liệu tuyển sinh vẫn tra cứu từ `services/chatbot.service.ts` và nguồn do quản trị viên nhập. Nếu site chưa có thông tin, tìm tài liệu ngoài có URL thật rồi mới dùng AI tóm tắt; không tìm được nguồn thì nói rõ chưa có dữ liệu. Từ chối dự đoán điểm chuẩn, cam kết đỗ, gian lận; lọc ký tự vô hình/lỗi mã hóa; 20 câu/phút, 300 câu/ngày mỗi IP; nhật ký ẩn danh đã che email/SĐT |
+| Trợ lý hỏi đáp ngành học | Nút “Hỏi trợ lý” góc phải dưới (mọi trang trừ lúc làm bài trắc nghiệm) | 5 câu chữ mỗi ngày (cấp lại 00:00 giờ Việt Nam), 3 câu có ảnh mỗi 7 ngày tính từ lượt ảnh đầu tiên. Bộ đếm lưu trong PostgreSQL theo tài khoản hoặc định danh khách có chữ ký; lỗi xử lý được hoàn lượt. Giới hạn tốc độ theo IP vẫn áp dụng để chống lạm dụng. Nhật ký không lưu dữ liệu ảnh và che email/SĐT. |
 | Giám sát chatbot | `/quan-tri/chatbot` (admin) | Thống kê trả lời/từ chối/chưa có dữ liệu, đánh giá của người dùng, danh sách câu cần xem lại |
 
-Nhánh AI dùng `WUSROUTER_API_KEY` và `WUSROUTER_MODEL` (mặc định `deepseek-v4.1-flash` để cân bằng chất lượng tiếng Việt và chi phí). Không gọi model cho câu hỏi mà dữ liệu site đã trả lời được. Nguồn ngoài dùng Brave Search khi có `BRAVE_SEARCH_API_KEY`, nếu không sẽ tra Wikipedia tiếng Việt. Câu trả lời AI chứa con số không có trong tài liệu, URL lạ hoặc quá dài sẽ bị loại; nguồn truy xuất được hiển thị để người đọc tự kiểm tra.
+Nhánh AI dùng `WUSROUTER_API_KEY` và `WUSROUTER_MODEL` (mặc định `deepseek-v4.1-flash`). Câu hỏi có ảnh dùng `WUSROUTER_VISION_MODEL` (mặc định `deepseek-v4-flash-vision-exp`); nếu không có khóa hoặc model không trả lời, API báo lỗi rõ. Ảnh JPG/PNG/WebP được chuẩn hóa trên máy chủ, tối đa 3 MB sau xử lý, và không lưu trong lịch sử. Câu hỏi bằng chữ chỉ gọi AI khi dữ liệu site chưa trả lời được. Nguồn ngoài dùng Brave Search khi có `BRAVE_SEARCH_API_KEY`, nếu không sẽ tra Wikipedia tiếng Việt. Câu trả lời AI từ ảnh cần được kiểm tra lại với ảnh gốc và nguồn tuyển sinh chính thức.
 
 > Điểm chuẩn học bạ/ĐGNL trong dữ liệu mẫu được **suy ra từ điểm thi THPT theo công thức cố định** chỉ để demo (xem `database/seeds/programs.ts`).
 
@@ -60,7 +60,7 @@ Nhánh AI dùng `WUSROUTER_API_KEY` và `WUSROUTER_MODEL` (mặc định `deepse
 | Chatbot hiểu cách gọi khác | `/quan-tri/chatbot` › Từ khoá chatbot | Quản trị thêm từ khoá → ngành/trường (chặn từ quá chung, trùng); câu hỏi “ngành này có hợp với mình không?” dùng kết quả RIASEC; thẻ chương trình trong câu trả lời có nút **Lưu** và **So sánh** |
 | Lộ trình 5 bước | Trang chủ | Trắc nghiệm → nhập điểm → lưu → lập nguyện vọng → chia sẻ phụ huynh; tự đánh dấu bước đã xong |
 | Tính tổng chi phí học | Thẻ Học phí ở `/chuong-trinh/[slug]`; `/chi-phi` so sánh các chương trình đã lưu | Học phí × số năm (tăng học phí %, học bổng %) + sinh hoạt phí + chi phí một lần; giả định do người dùng nhập, không gửi lên máy chủ (`lib/cost.ts`) |
-| Đo phễu hành vi ẩn danh | `/quan-tri/thong-ke` | 6 bước + hỏi trợ lý; mỗi trình duyệt 1 lần/bước/ngày; chỉ lưu (ngày, bước, mã ngẫu nhiên), không IP/tài khoản/URL; tự xoá sau 180 ngày; tôn trọng *Do Not Track* / *Global Privacy Control*; người dùng tắt được ở `/chinh-sach-rieng-tu` |
+| Đo phễu hành vi ẩn danh | `/quan-tri/thong-ke` | 6 bước + hỏi trợ lý; mỗi trình duyệt 1 lần/bước/ngày; chỉ lưu (ngày, bước, mã ngẫu nhiên), không IP/tài khoản/URL; tự xoá sau 365 ngày; tôn trọng *Do Not Track* / *Global Privacy Control*; người dùng tắt được ở `/chinh-sach-rieng-tu` |
 | Khảo sát SUS | `/khao-sat` (noindex) · kết quả ở `/quan-tri/thong-ke` (tải CSV) | 10 câu chuẩn, tính điểm 0–100, xếp loại Bangor; kịch bản test người dùng thật: `docs/Kich-ban-test-nguoi-dung.docx` |
 
 ## Tính năng đợt 10/2026 (14 hạng mục, bám thiết kế Figma N1–N6 · B1–B3 · C1–C5)
@@ -82,6 +82,10 @@ Nhánh AI dùng `WUSROUTER_API_KEY` và `WUSROUTER_MODEL` (mặc định `deepse
 | 14 | Huy hiệu “Trường đã xác nhận” | Trang chương trình; quản trị gắn/gỡ ở `/quan-tri/chuong-trinh/[id]` | Bắt buộc ghi căn cứ; hiệu lực 12 tháng; có nhật ký |
 
 Dữ liệu minh hoạ đi kèm (chỉ tạo ở chế độ demo, đều gắn nhãn): 2 hỏi đáp, 56 + 23 phiếu khảo sát, lớp `DEMO12`, huy hiệu xác nhận của 2 chương trình, 8 đợt xét bổ sung mùa 2027 (`database/seeds/supplementary-rounds.ts`), chính sách hỗ trợ (`database/seeds/financial-aid.ts`). DB đang ở **phiên bản 6**.
+
+### Khôi phục mật khẩu qua email
+
+Trang `/quen-mat-khau` gửi mã 6 số qua Resend khi `RESEND_API_KEY` và `MAIL_FROM` được đặt trên server. `MAIL_FROM` phải thuộc domain đã xác minh trong Resend. Mã được băm bằng HMAC, lưu riêng trong PostgreSQL, có hiệu lực 10 phút, tối đa 5 lần nhập và chỉ dùng một lần. Nhập đúng mã mới nhận token ngắn hạn để đặt mật khẩu mới; token và mã không được trả về từ API gửi email. Thiếu cấu hình gửi thư thì API trả 503, không báo gửi thành công giả. Đặt hai biến trong `.env.local` khi phát triển và Vercel Environment Variables khi triển khai, không dùng tiền tố `NEXT_PUBLIC_`. Tài khoản bị khóa sau 5 lần nhập sai chỉ quản trị viên mới mở được.
 
 ### Email nhắc hạn hằng ngày (cron)
 
@@ -114,6 +118,16 @@ Authorization: Bearer <CRON_SECRET>
 
 ## Bảo mật
 
+### Cấu hình QR donate khi triển khai
+
+- Để trình diễn thêm VNPAY và USDT mà không có merchant/ví thật, đặt `DONATION_PAYMENT_DEMO=true` trong `.env.local`. Hai lựa chọn này chỉ thay đổi giao diện trong trình duyệt, không gọi API tạo khoản ủng hộ, không tạo địa chỉ ví và không ghi doanh thu. USDT dùng tỷ giá minh họa cố định `1 USDT = 25.000 VND`. Bỏ cờ này trên production nếu chưa muốn hiển thị demo. VNPAY thật cần `VNPAY_TMN_CODE` và `VNPAY_HASH_SECRET` do VNPAY cấp; USDT thật cần chọn mạng, ví nhận và nguồn đối soát giao dịch trước khi bật.
+
+- Tạo **token History API mới** trước khi triển khai nếu token cũ từng được gửi qua chat hoặc nơi công khai. Thu hồi token cũ tại nhà cung cấp.
+- Trong Vercel, vào **Project Settings → Environment Variables**, đặt `BANK_HISTORY_API_TOKEN`, `DONATION_BANK_CODE`, `DONATION_BANK_NAME`, `DONATION_ACCOUNT_NUMBER` và `DONATION_ACCOUNT_NAME` cho môi trường **Production**, rồi redeploy. Không đặt tiền tố `NEXT_PUBLIC_` cho token, không dán giá trị vào `vercel.json`, GitHub Actions, mã nguồn hay `.env.example`. Nếu muốn thử Preview, dùng token riêng.
+- Máy chủ riêng đặt cùng các biến trong secret manager hoặc môi trường của tiến trình Node. `.env.local` chỉ dùng tại máy phát triển và đã bị `.gitignore` loại khỏi Git. `npm run secrets:check` quét Git index; `npm run ship` chạy bước này sau `git add`, trước commit; CI cũng chạy khi có push.
+- QR ngân hàng chỉ bật khi có cả tài khoản nhận và token kiểm tra hợp lệ. Trình duyệt chỉ nhận trạng thái giao dịch; token và phản hồi lịch sử ngân hàng không được trả về client. Endpoint tạo giao dịch và xem trạng thái có giới hạn tần suất. Khi History API lỗi, giao dịch tiếp tục ở trạng thái chờ.
+- Khả năng chống lạm dụng của rate limiter hiện theo từng tiến trình. Khi chạy nhiều instance/serverless và có tải lớn, cần đặt thêm giới hạn chia sẻ ở CDN/WAF hoặc Redis.
+
 - **Mật khẩu** băm scrypt; **phiên** là cookie httpOnly, SameSite=Lax, ký HMAC, kèm *phiên bản phiên* → đổi/đặt lại mật khẩu hoặc “Đăng xuất khỏi thiết bị khác” làm mọi phiên cũ mất hiệu lực.
 - **CSRF**: `src/proxy.ts` (Next 16, thay cho middleware) chặn request ghi vào `/api/*` từ nguồn khác; kèm header `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`.
 - **Giới hạn tần suất** (`lib/rate-limit.ts`): đăng nhập, đăng ký, OTP, quên mật khẩu, góp ý công khai. **Giới hạn kích thước body** (`lib/http.ts`, 413).
@@ -121,7 +135,7 @@ Authorization: Bearer <CRON_SECRET>
 - `SESSION_SECRET` thiếu ở production → dùng khoá ngẫu nhiên theo tiến trình thay vì chuỗi mặc định.
 - **Link chia sẻ**: id 144 bit ngẫu nhiên, có hạn, thu hồi được; trang `noindex`, `no-referrer`, không lộ email; góp ý giới hạn độ dài/số lượng, lọc ký tự điều khiển, có bẫy bot.
 - **Quản trị**: kiểm tra quyền ở từng route (`requireAdmin`), trang trả 404 với tài khoản thường; dữ liệu nhập được kiểm tra khoảng giá trị.
-- **Chatbot**: câu hỏi ≤ 300 ký tự, body ≤ 8 KB, dữ liệu ngữ cảnh (ngành/trường/RIASEC/trang) được kiểm tra lại ở server; client chỉ hiển thị link nội bộ hoặc `https://` (`domain/chat.ts › safeChatHref`).
+- **Chatbot**: câu hỏi ≤ 300 ký tự; body văn bản ≤ 8 KB, multipart có ảnh ≤ 4 MB; ảnh được kiểm tra loại tệp, giải mã và xóa metadata trước khi gửi tới model. Hạn mức tài khoản: 5 câu chữ/ngày và 3 ảnh/7 ngày; khách dùng cookie có chữ ký. Giới hạn tốc độ 20 câu/phút và 5 ảnh/phút mỗi IP vẫn áp dụng. Client chỉ hiển thị link nội bộ hoặc `https://` (`domain/chat.ts › safeChatHref`).
 - Giới hạn tần suất theo IP dựa vào header `X-Forwarded-For`: khi deploy phải đặt sau proxy/CDN **ghi đè** header này (Vercel, Nginx `proxy_set_header`), nếu không kẻ xấu có thể đổi IP giả để vượt giới hạn.
 - **Khảo sát / sự kiện phễu** (công khai): body ≤ 4 KB / 512 B, giới hạn tần suất theo IP, bẫy bot; phễu giới hạn 20.000 mã/sự kiện/ngày. **Xuất CSV** chặn “CSV injection” (ô bắt đầu bằng `= + - @`).
 - **Cron nhắc hạn**: so khớp `CRON_SECRET` bằng `timingSafeEqual`; không đặt → tắt.

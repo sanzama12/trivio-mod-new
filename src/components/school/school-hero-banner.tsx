@@ -229,9 +229,9 @@ export function SchoolHeroBanner({ filters, groups, totalSchools }: SchoolHeroBa
         <div className="flex flex-col justify-center lg:col-span-7">
           {/* Heading nghệ thuật với typography ấn tượng và độ tương phản cao */}
           <h1 className="font-sans text-3xl font-extrabold leading-[1.15] tracking-tight text-white sm:text-5xl lg:text-[54px] xl:text-[58px]">
-            Tìm ngôi trường <br />
+            Tìm trường <br />
             <span className="bg-gradient-to-r from-amber-200 via-yellow-100 to-cyan-100 bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(245,158,11,0.15)]">
-              phù hợp với bạn.
+              theo tiêu chí của bạn.
             </span>
           </h1>
 

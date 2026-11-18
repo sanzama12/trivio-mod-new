@@ -141,6 +141,10 @@ export function defaultRiasecForGroup(groupId: string): [RiasecType, RiasecType,
   return DEFAULT_RIASEC[groupId] ?? ["I", "R", "C"];
 }
 
+export function riasecForGroup(groupId: string): [RiasecType, RiasecType, RiasecType] | null {
+  return DEFAULT_RIASEC[groupId] ?? null;
+}
+
 /** Use the existing group mapping only when a major has no curated tags. */
 export function riasecForMajor(major: Pick<Major, "groupId" | "riasec">): RiasecType[] {
   return major.riasec.length ? major.riasec : DEFAULT_RIASEC[major.groupId] ?? [];

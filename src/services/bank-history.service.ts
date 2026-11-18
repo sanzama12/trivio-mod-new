@@ -1,0 +1,75 @@
+import "server-only";
+
+export interface BankTransfer {
+  accountNumber: string;
+  amount: number;
+  description: string;
+  transactionId: string;
+}
+
+export function parseBankHistory(value: unknown): BankTransfer[] | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as { status?: unknown; TranList?: unknown };
+  if (data.status !== "success" || !Array.isArray(data.TranList)) return null;
+  return data.TranList.flatMap((item: unknown) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as Record<string, unknown>;
+    const credit = String(row.creditAmount ?? "");
+    const debit = String(row.debitAmount ?? "");
+    const accountNumber = String(row.accountNo ?? "").replace(/\s/g, "");
+    const transactionId = String(row.tranId || row.refNo || "");
+    if (!/^\d+$/.test(credit) || !/^\d+$/.test(debit) || Number(debit) !== 0 ||
+        !Number.isSafeInteger(Number(credit)) || Number(credit) <= 0 ||
+        row.currency !== "VND" || !/^\d{6,19}$/.test(accountNumber) ||
+        !/^[A-Za-z0-9_-]{4,80}$/.test(transactionId)) return [];
+    return [{
+      accountNumber,
+      amount: Number(credit),
+      description: `${String(row.description ?? "")} ${String(row.addDescription ?? "")}`.toUpperCase(),
+      transactionId: `DVC_${transactionId}`,
+    }];
+  });
+}
+
+export function matchesBankTransfer(transfer: BankTransfer, expected: { accountNumber: string; amount: number; txnRef: string }): boolean {
+  const account = expected.accountNumber.replace(/\s/g, "");
+  const ref = expected.txnRef.toUpperCase();
+  if (!/^(?:TQ[A-F0-9]{12}(?:[A-F0-9]{4})?|TROVIOQR[A-F0-9]{32})$/.test(ref)) return false;
+  return transfer.accountNumber === account && transfer.amount === expected.amount &&
+    new RegExp(`(^|[^A-Z0-9])${ref}(?=$|[^A-Z0-9])`).test(transfer.description);
+}
+
+let cachedRequest: Promise<BankTransfer[] | null> | null = null;
+let requestedAt = 0;
+
+function bankHistoryToken(): string | null {
+  const token = process.env.BANK_HISTORY_API_TOKEN?.trim() ?? "";
+  return /^[A-Za-z0-9_-]{16,128}$/.test(token) ? token : null;
+}
+
+export function isBankHistoryConfigured(): boolean {
+  return bankHistoryToken() !== null;
+}
+
+export async function fetchBankHistory(fetchImpl: typeof fetch = fetch): Promise<BankTransfer[] | null> {
+  const token = bankHistoryToken();
+  if (!token) return null;
+  if (fetchImpl === fetch && cachedRequest && Date.now() - requestedAt < 5_000) return cachedRequest;
+  const request = (async () => {
+    try {
+      const response = await fetchImpl(`https://dichvucheap.com/historyapi/${encodeURIComponent(token)}`, {
+        headers: { Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(7000),
+      });
+      if (!response.ok) return null;
+      return parseBankHistory(await response.json());
+    } catch {
+      console.warn("[bank-history] Lịch sử giao dịch tạm thời không khả dụng.");
+      return null;
+    }
+  })();
+  if (fetchImpl === fetch) {
+    cachedRequest = request;
+    requestedAt = Date.now();
+  }
+  return request;
+}

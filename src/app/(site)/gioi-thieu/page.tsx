@@ -29,7 +29,7 @@ import { Breadcrumb } from "@/components/ui/misc";
 
 export const metadata: Metadata = {
   title: "Giới thiệu về Trovio",
-  description: "Tìm hiểu tầm nhìn, sứ mệnh, sản phẩm, nguyên tắc dữ liệu và cam kết của nền tảng định hướng tuyển sinh Trovio.",
+  description: "Trovio hỗ trợ tra cứu tuyển sinh, đối chiếu điểm và lập danh sách nguyện vọng.",
 };
 
 type Icon = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
@@ -38,12 +38,12 @@ const foundations: Array<{ icon: Icon; title: string; description: ReactNode }> 
   {
     icon: LuTarget,
     title: "Tầm nhìn",
-    description: "Trở thành không gian hỗ trợ định hướng tuyển sinh đáng tin cậy, nơi mọi học sinh đều có thể tiếp cận thông tin rõ ràng và xây dựng lựa chọn phù hợp với chính mình.",
+    description: "Giúp học sinh tiếp cận thông tin tuyển sinh rõ nguồn và dễ đối chiếu.",
   },
   {
     icon: LuSparkles,
     title: "Sứ mệnh",
-    description: "Tổ chức dữ liệu tuyển sinh thành trải nghiệm dễ hiểu; giải thích các quy tắc phức tạp và giúp người học chuyển thông tin thành một kế hoạch hành động cụ thể.",
+    description: "Tổ chức dữ liệu trường, ngành và phương thức xét tuyển để người học dễ lập kế hoạch.",
   },
   {
     icon: LuGraduationCap,
@@ -60,10 +60,10 @@ const foundations: Array<{ icon: Icon; title: string; description: ReactNode }> 
 ];
 
 const products: Array<{ icon: Icon; title: string; description: string; href: string; label: string }> = [
-  { icon: LuSearch, title: "Tra cứu & So sánh", description: "Tìm trường, ngành và chương trình theo tổ hợp, phương thức, khu vực, loại hình và học phí; đặt các lựa chọn cạnh nhau để nhìn rõ khác biệt.", href: "/chuong-trinh", label: "Khám phá chương trình" },
-  { icon: LuScale, title: "Điểm & Cơ hội", description: "Tính điểm theo tổ hợp, khu vực, đối tượng ưu tiên và đối chiếu đúng phương thức để phân tầng An toàn, Vừa sức, Thử sức.", href: "/diem-cua-toi", label: "Tính điểm của tôi" },
-  { icon: LuBrainCircuit, title: "Khám phá ngành", description: "Kết nối sở thích nghề nghiệp RIASEC với nhóm ngành và chương trình, giúp học sinh mở rộng góc nhìn trước khi chọn trường.", href: "/nganh", label: "Khám phá ngành học" },
-  { icon: LuListChecks, title: "Danh sách nguyện vọng", description: "Lưu, sắp xếp và rà soát danh sách nguyện vọng để chủ động trong suốt mùa tuyển sinh.", href: "/da-luu", label: "Xây danh sách nguyện vọng" },
+  { icon: LuSearch, title: "Tra cứu và so sánh", description: "Lọc trường, ngành, chương trình; so điểm chuẩn, học phí và phương thức xét tuyển.", href: "/chuong-trinh", label: "Xem chương trình" },
+  { icon: LuScale, title: "Đối chiếu điểm", description: "Tính điểm theo tổ hợp và ưu tiên, rồi xem mức tham khảo theo từng phương thức.", href: "/diem-cua-toi", label: "Nhập điểm" },
+  { icon: LuBrainCircuit, title: "Khám phá ngành", description: "Dùng kết quả sở thích RIASEC để tìm thêm nhóm ngành đáng quan tâm.", href: "/nganh", label: "Xem ngành học" },
+  { icon: LuListChecks, title: "Danh sách nguyện vọng", description: "Lưu, sắp xếp và rà soát các chương trình bạn cân nhắc.", href: "/da-luu", label: "Xem nguyện vọng" },
 ];
 
 const commitments = [
@@ -72,7 +72,7 @@ const commitments = [
     alt: "Học sinh thảo luận thông tin tuyển sinh với người hướng dẫn",
     icon: LuFileCheck2,
     title: "Thông tin có nguồn, có ngữ cảnh",
-    description: "Chỉ tiêu, tổ hợp, phương thức, học phí và điểm chuẩn được ưu tiên đối chiếu từ đề án hoặc thông báo của cơ sở đào tạo. Mỗi dữ liệu cần được hiểu đúng năm, đúng phương thức và đúng thang điểm.",
+    description: "Ưu tiên đề án và thông báo của trường. Luôn xem năm, phương thức và thang điểm đi kèm dữ liệu.",
     bullets: ["Không trộn điểm thi THPT, học bạ và ĐGNL", "Ưu tiên nguồn công bố chính thức", "Cảnh báo khi thông tin có thể đã thay đổi"],
   },
   {
@@ -80,7 +80,7 @@ const commitments = [
     alt: "Học sinh cùng lập kế hoạch nguyện vọng trên máy tính bảng",
     icon: LuEye,
     title: "Gợi ý phải giải thích được",
-    description: "Kết quả không đến từ một điểm số bí mật. Trovio trình bày các yếu tố đã sử dụng — sở thích, khả năng trúng tuyển, vị trí, nhóm ngành và ngân sách — để người học tự kiểm chứng.",
+    description: "Gợi ý nêu các yếu tố đã dùng, như sở thích, điểm số, khu vực và học phí, để bạn tự đối chiếu.",
     bullets: ["Nêu rõ lý do một chương trình được gợi ý", "Bộ lọc được áp dụng trước khi xếp hạng", "Không cam kết hay dự đoán chắc chắn kết quả"],
   },
   {
@@ -88,7 +88,7 @@ const commitments = [
     alt: "Nhóm học sinh khám phá khuôn viên đại học",
     icon: LuLockKeyhole,
     title: "Quyền riêng tư thuộc về người dùng",
-    description: "Trovio chỉ dùng dữ liệu bạn chủ động cung cấp để cá nhân hóa trải nghiệm. Nền tảng không thu thập số điện thoại, ngày sinh hay CCCD và không bán dữ liệu học sinh cho quảng cáo.",
+    description: "Bạn kiểm soát dữ liệu hồ sơ và lịch sử gợi ý. Xem chính sách riêng tư để biết cách Trovio sử dụng dữ liệu.",
     bullets: ["Bạn có thể xem, sửa hoặc xóa dữ liệu", "Liên kết chia sẻ có thời hạn và thu hồi được", "Không quảng cáo nhắm mục tiêu"],
   },
 ];
@@ -131,8 +131,8 @@ export default function AboutPage() {
           <SectionBand label="About us" title="Tổng quan" />
           <div className="mx-auto mt-9 max-w-5xl space-y-5 text-[15px] leading-8 text-slate-700 sm:text-base">
             <p><strong className="text-slate-900">Trovio</strong> là nền tảng hỗ trợ học sinh và phụ huynh tra cứu, so sánh chương trình đào tạo, tính điểm, khám phá sở thích nghề nghiệp và xây dựng danh sách nguyện vọng.</p>
-            <p>Thông tin tuyển sinh thường nằm rải rác trong nhiều đề án, thông báo và cổng dữ liệu khác nhau. Trovio tổ chức các mảnh thông tin này theo trường, ngành, chương trình và phương thức xét tuyển để người dùng dễ tìm, dễ đối chiếu và biết bước nào cần kiểm tra tiếp.</p>
-            <p>Nền tảng không phải cổng đăng ký tuyển sinh chính thức và không thay người học ra quyết định. Mọi kết quả được dùng như một cơ sở tham khảo có giải thích; trước khi đăng ký, thí sinh vẫn cần đối chiếu đề án mới nhất của trường và hệ thống của Bộ GD&amp;ĐT.</p>
+            <p>Dữ liệu được sắp theo trường, ngành, chương trình và phương thức xét tuyển để bạn dễ tìm và so sánh.</p>
+            <p>Gợi ý chỉ để tham khảo. Trước khi đăng ký, hãy kiểm tra đề án mới nhất của trường và hệ thống tuyển sinh chính thức.</p>
           </div>
 
           <div className="mt-10 grid gap-5 md:grid-cols-3">
@@ -149,7 +149,7 @@ export default function AboutPage() {
 
         <Reveal>
         <section className="pt-16 sm:pt-20">
-          <SectionBand label="Product ecosystem" title="Trovio có gì?" description="Bốn nhóm công cụ kết nối thành một hành trình liền mạch: khám phá, đối chiếu, lập kế hoạch và theo sát mùa tuyển sinh." />
+          <SectionBand label="Công cụ" title="Trovio có gì?" description="Tra cứu, đối chiếu điểm và sắp xếp nguyện vọng ở cùng một nơi." />
           <div className="mt-10 grid gap-x-12 gap-y-9 lg:grid-cols-2">
             {products.map(({ icon: Icon, title, description, href, label }) => (
               <article key={title} className="grid gap-5 sm:grid-cols-[8rem_1fr] sm:items-start">
@@ -176,7 +176,7 @@ export default function AboutPage() {
 
         <Reveal>
         <section className="pt-16 sm:pt-20">
-          <SectionBand label="Our commitment" title="Trovio cam kết" />
+          <SectionBand label="Nguyên tắc" title="Cách Trovio trình bày dữ liệu" />
           <div className="mt-10 space-y-12 sm:space-y-16">
             {commitments.map(({ image, alt, icon: Icon, title, description, bullets }, index) => (
               <article key={title} className="grid items-center gap-7 lg:grid-cols-2 lg:gap-14">
@@ -205,7 +205,7 @@ export default function AboutPage() {
 
         <Reveal>
         <section className="pt-16 sm:pt-20">
-          <SectionBand label="Information rules" title="Quy tắc thông tin" description="Năm nguyên tắc giúp nội dung trên Trovio rõ ràng, nhất quán và không tạo cảm giác chắc chắn giả." />
+          <SectionBand label="Dữ liệu" title="Quy tắc thông tin" description="Năm nguyên tắc để đọc và đối chiếu thông tin tuyển sinh." />
           <ol className="mt-9 grid gap-3 md:grid-cols-5">
             {rules.map(([number, title, description]) => (
               <li key={number} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -227,7 +227,7 @@ export default function AboutPage() {
         <section className="pt-16 sm:pt-20">
           <div className="rounded-[2rem] bg-primary-700 px-6 py-9 text-white sm:px-10 sm:py-11">
             <div className="grid items-center gap-6 lg:grid-cols-[1fr_auto]">
-              <div><div className="flex items-center gap-2 text-sm font-bold text-teal-100"><LuBadgeCheck className="size-5" aria-hidden /> Bắt đầu mà không cần tài khoản</div><h2 className="mt-3 max-w-3xl text-2xl font-black tracking-tight sm:text-3xl">Khám phá lựa chọn, kiểm chứng thông tin và xây kế hoạch theo cách của bạn.</h2></div>
+              <div><div className="flex items-center gap-2 text-sm font-bold text-teal-100"><LuBadgeCheck className="size-5" aria-hidden /> Có thể bắt đầu không cần tài khoản</div><h2 className="mt-3 max-w-3xl text-2xl font-black tracking-tight sm:text-3xl">Tìm chương trình và đối chiếu thông tin trước khi chọn.</h2></div>
               <div className="flex flex-wrap gap-3"><Link href="/chuong-trinh" className={buttonClass({ className: "bg-white text-primary-800 shadow-none hover:bg-primary-50" })}>Tìm chương trình <LuArrowRight className="size-4" aria-hidden /></Link><Link href="/lien-he" className={buttonClass({ variant: "outline", className: "border-white/30 bg-transparent text-white hover:bg-white/10" })}>Liên hệ Trovio</Link></div>
             </div>
           </div>

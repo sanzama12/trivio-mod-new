@@ -582,7 +582,7 @@ CREATE TABLE chat_logs (
 );
 CREATE INDEX chat_logs_at_idx ON chat_logs (at DESC);
 
--- analytics — phễu hành vi ẩn danh: mỗi mã trình duyệt tính 1 lần/sự kiện/ngày, tự xoá sau 180 ngày
+-- analytics — phễu hành vi ẩn danh: mỗi mã trình duyệt tính 1 lần/sự kiện/ngày, tự xoá sau 365 ngày
 CREATE TABLE analytics_events (
   day         DATE NOT NULL,
   event       TEXT NOT NULL CHECK (event IN ('visit', 'score_saved', 'program_saved', 'wishlist_added', 'share_created', 'chat_asked')),
@@ -693,6 +693,6 @@ COMMENT ON TABLE program_cutoffs IS 'Điểm chuẩn theo chương trình × ph�
 COMMENT ON TABLE score_profiles IS 'Hồ sơ điểm của học sinh (S07) + kết quả tính điểm xét tuyển.';
 COMMENT ON TABLE wishlist_items IS 'Nguyện vọng dự kiến, thứ tự = position + 1 (ERD cũ: nguyen_vong).';
 COMMENT ON TABLE audit_logs IS 'Nhật ký mọi thay đổi dữ liệu của quản trị viên / kiểm duyệt viên / cổng trường.';
-COMMENT ON TABLE analytics_events IS 'Phễu hành vi ẩn danh (chỉ gửi sau khi đồng ý cookie), xoá sau 180 ngày.';
+COMMENT ON TABLE analytics_events IS 'Phễu hành vi ẩn danh (chỉ gửi sau khi đồng ý cookie), xoá sau 365 ngày.';
 
 COMMIT;

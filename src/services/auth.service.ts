@@ -3,14 +3,14 @@
  * Hỗ trợ 2 phương thức: email + mật khẩu (băm scrypt) và Google (OpenID Connect).
  * Hai phương thức được liên kết theo cùng email đã xác minh.
  */
-import { createHash, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import type { PublicUser, User, UserRole } from "../domain/types";
 import { PROVINCES } from "../domain/provinces";
 import { repositories } from "@database/repositories";
 import { checkPassword } from "./password.rules";
 import { hashPassword, verifyPassword } from "./password.hash";
 import { signToken, verifyToken } from "./session.service";
-import { sendMail } from "./mailer";
+import { isMailerConfigured, sendMail } from "./mailer";
 import { emailError } from "../lib/email-validation";
 import { accountRole } from "../domain/access";
 
@@ -18,6 +18,7 @@ export { checkPassword, passwordStrength } from "./password.rules";
 
 export const MAX_LOGIN_ATTEMPTS = 5;
 const RESET_TOKEN_TTL = 30 * 60; // 30 phút
+const RESET_CODE_TTL_MS = 10 * 60 * 1000;
 const OTP_TTL_MS = 15 * 60 * 1000; // 15 phút
 
 const otpHash = (userId: string, code: string) => createHash("sha256").update(`${userId}:${code}`).digest("base64url");
@@ -37,7 +38,7 @@ async function issueEmailOtp(user: Pick<User, "id" | "email">) {
 export type LoginResult =
   | { ok: true; user: PublicUser }
   | { ok: false; reason: "invalid"; attemptsLeft: number }
-  | { ok: false; reason: "locked"; lockUntil?: string | null }
+  | { ok: false; reason: "locked"; permanent: boolean; lockUntil?: string | null; attemptsLeft?: number }
   | { ok: false; reason: "google_only" };
 
 export type RegisterResult =
@@ -54,7 +55,7 @@ export interface GoogleProfile {
 
 export type GoogleLoginResult =
   | { ok: true; user: PublicUser; isNew: boolean }
-  | { ok: false; reason: "email_unverified" | "conflict" | "not_found" | "disabled" };
+  | { ok: false; reason: "email_unverified" | "conflict" | "not_found" | "disabled" | "locked" };
 
 export interface ProfilePatch {
   name?: string;
@@ -71,6 +72,22 @@ type Fail<F extends string = string> = { ok: false; field?: F; message: string }
 const strong = (pw: string) => checkPassword(pw).every((c) => c.passed);
 /** Dấu vân tay mật khẩu hiện tại: đổi mật khẩu xong thì link đặt lại cũ tự mất hiệu lực. */
 const passwordFingerprint = (u: User) => (u.passwordHash ? u.passwordHash.slice(-12) : "none");
+const TEMP_LOCK_THRESHOLD = 3;
+type LockState = Pick<User, "locked" | "lockUntil" | "failedAttempts"> & Partial<Pick<User, "disabled">>;
+function accountLock(user: LockState, now = Date.now()): "permanent" | "temporary" | null {
+  if (user.disabled || user.failedAttempts >= MAX_LOGIN_ATTEMPTS || (user.locked && !user.lockUntil)) return "permanent";
+  if (user.locked && user.lockUntil && Date.parse(user.lockUntil) > now) return "temporary";
+  return null;
+}
+function lockedResult(user: LockState): Extract<LoginResult, { reason: "locked" }> {
+  const permanent = accountLock(user) === "permanent";
+  return { ok: false, reason: "locked", permanent, lockUntil: permanent ? null : user.lockUntil, attemptsLeft: permanent ? 0 : Math.max(0, MAX_LOGIN_ATTEMPTS - user.failedAttempts) };
+}
+const resetCodeHash = (userId: string, code: string) => {
+  const secret = process.env.SESSION_SECRET?.trim();
+  if (!secret || secret.length < 32) throw new Error("SESSION_SECRET chưa được cấu hình đủ mạnh.");
+  return createHmac("sha256", secret).update(`password-reset:${userId}:${code}`).digest("base64url");
+};
 
 export function toPublicUser(user: User): PublicUser {
   const { passwordHash, googleId, failedAttempts: _f, sessionVersion: _s, emailOtpHash: _o, emailOtpExpires: _e, admin, ...rest } = user;
@@ -93,58 +110,59 @@ const blankProfile = {
 const DUMMY_HASH = "scrypt$16384$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 export const authService = {
+  async requestPasswordResetCode(email: string): Promise<void> {
+    if (!isMailerConfigured()) throw new Error("Email provider is not configured.");
+    const user = await repositories.users.findByEmail(email.trim().toLowerCase());
+    if (!user) return;
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const hash = resetCodeHash(user.id, code);
+    if (!(await repositories.passwordResetCodes.save(user.id, hash, new Date(Date.now() + RESET_CODE_TTL_MS).toISOString()))) return;
+    try {
+      await sendMail({
+        to: user.email,
+        subject: "Mã khôi phục mật khẩu Trovio",
+        text: `Mã khôi phục mật khẩu của bạn là ${code}. Mã có hiệu lực 10 phút và chỉ dùng một lần. Nếu bạn không yêu cầu, hãy bỏ qua email này.`,
+      });
+    } catch (error) {
+      await repositories.passwordResetCodes.revoke(user.id, hash);
+      throw error;
+    }
+  },
+
+  async verifyPasswordResetCode(email: string, code: string): Promise<{ ok: true; token: string } | { ok: false }> {
+    if (!/^\d{6}$/.test(code)) return { ok: false };
+    const user = await repositories.users.findByEmail(email.trim().toLowerCase());
+    if (!user) return { ok: false };
+    const hash = resetCodeHash(user.id, code);
+    if (!(await repositories.passwordResetCodes.consume(user.id, hash))) return { ok: false };
+    return { ok: true, token: signToken({ uid: user.id, typ: "reset", pv: passwordFingerprint(user) }, 10 * 60) };
+  },
   async login(email: string, password: string): Promise<LoginResult> {
     const user = await repositories.users.findByEmail(email);
     // Chống timing attack & chống dò quét tài khoản (GIAI ĐOẠN 8):
     if (!user) {
       await verifyPassword(password, DUMMY_HASH);
-      return { ok: false, reason: "invalid", attemptsLeft: MAX_LOGIN_ATTEMPTS };
+      return { ok: false, reason: "invalid", attemptsLeft: TEMP_LOCK_THRESHOLD - 1 };
     }
-    if (user.disabled) return { ok: false, reason: "locked" };
-
-    const now = Date.now();
-    // Kiểm tra khoá tạm thời (progressive lockout):
-    if (user.lockUntil) {
-      const unlockTime = Date.parse(user.lockUntil);
-      if (unlockTime > now) {
-        return { ok: false, reason: "locked", lockUntil: user.lockUntil };
-      }
-      // Đã quá hạn khoá tạm thời -> tự động mở khoá
-    } else if (user.locked) {
-      return { ok: false, reason: "locked" };
-    }
+    if (accountLock(user)) return lockedResult(user);
 
     if (!user.passwordHash) return { ok: false, reason: "google_only" };
     if (!(await verifyPassword(password, user.passwordHash))) {
-      const failedAttempts = (user.failedAttempts ?? 0) + 1;
-      let locked = false;
-      let lockUntil: string | null = null;
-
-      if (failedAttempts >= MAX_LOGIN_ATTEMPTS) {
-        locked = true;
-        // Exponential backoff có giới hạn:
-        // 5 lần: 60s (1 phút)
-        // 6 lần: 300s (5 phút)
-        // 7 lần: 900s (15 phút)
-        // >=8 lần: 3600s (60 phút tối đa)
-        const delaySeconds =
-          failedAttempts === 5 ? 60 :
-          failedAttempts === 6 ? 300 :
-          failedAttempts === 7 ? 900 : 3600;
-        lockUntil = new Date(now + delaySeconds * 1000).toISOString();
+      const failure = await repositories.users.recordFailedLogin(user.id);
+      if (!failure) {
+        const latest = await repositories.users.findById(user.id);
+        return latest && accountLock(latest) ? lockedResult(latest) : { ok: false, reason: "invalid", attemptsLeft: 0 };
       }
-
-      await repositories.users.update(user.id, { failedAttempts, locked, lockUntil });
-      return locked
-        ? { ok: false, reason: "locked", lockUntil }
-        : { ok: false, reason: "invalid", attemptsLeft: Math.max(0, MAX_LOGIN_ATTEMPTS - failedAttempts) };
+      return failure.locked ? lockedResult(failure) : { ok: false, reason: "invalid", attemptsLeft: Math.max(0, TEMP_LOCK_THRESHOLD - failure.failedAttempts) };
     }
 
     // Đăng nhập thành công -> reset toàn bộ bộ đếm sai và khoá tạm thời
-    if (user.failedAttempts || user.locked || user.lockUntil) {
-      await repositories.users.update(user.id, { failedAttempts: 0, locked: false, lockUntil: null });
+    const active = await repositories.users.clearFailedLogin(user.id);
+    if (!active) {
+      const latest = await repositories.users.findById(user.id);
+      return latest && accountLock(latest) ? lockedResult(latest) : { ok: false, reason: "invalid", attemptsLeft: 0 };
     }
-    return { ok: true, user: toPublicUser(user) };
+    return { ok: true, user: toPublicUser(active) };
   },
 
   async register(input: { name?: string; email: string; password: string; confirm: string; terms: boolean }): Promise<RegisterResult> {
@@ -207,22 +225,26 @@ export const authService = {
     return { ok: true, token };
   },
 
-  async resetPassword(token: string, password: string): Promise<{ ok: true } | { ok: false; reason: "expired" | "weak" }> {
+  async resetPassword(token: string, password: string): Promise<{ ok: true; lockUntil: string | null } | { ok: false; reason: "expired" | "weak" | "locked" }> {
     const data = verifyToken<{ uid: string; typ: string; pv: string }>(token);
     if (!data || data.typ !== "reset") return { ok: false, reason: "expired" };
     const user = await repositories.users.findById(data.uid);
     if (!user || passwordFingerprint(user) !== data.pv) return { ok: false, reason: "expired" };
+    if (accountLock(user) === "permanent") return { ok: false, reason: "locked" };
     if (!strong(password)) return { ok: false, reason: "weak" };
-    // Mở được link trong email = đã chứng minh sở hữu email → coi như đã xác thực.
+    // Mã hoặc link email chứng minh sở hữu email; không thay đổi trạng thái khóa.
     await repositories.users.update(user.id, {
       passwordHash: await hashPassword(password),
-      locked: false,
-      lockUntil: null,
-      failedAttempts: 0,
       verified: true,
       sessionVersion: (user.sessionVersion ?? 0) + 1, // đăng xuất mọi phiên cũ
     });
-    return { ok: true };
+    await repositories.passwordResetCodes.revoke(user.id).catch(() => undefined);
+    const active = await repositories.users.clearFailedLogin(user.id);
+    if (active) return { ok: true, lockUntil: null };
+    const latest = await repositories.users.findById(user.id);
+    return accountLock(latest ?? user) === "permanent"
+      ? { ok: false, reason: "locked" }
+      : { ok: true, lockUntil: latest?.lockUntil ?? user.lockUntil ?? null };
   },
 
   /**
@@ -235,38 +257,37 @@ export const authService = {
   async loginWithGoogle(profile: GoogleProfile, opts: { linkToUserId?: string } = {}): Promise<GoogleLoginResult> {
     if (!profile.emailVerified) return { ok: false, reason: "email_unverified" };
     const byGoogle = await repositories.users.findByGoogleId(profile.sub);
-    if (byGoogle?.disabled) return { ok: false, reason: "disabled" };
+    if (byGoogle && accountLock(byGoogle)) return { ok: false, reason: accountLock(byGoogle) === "temporary" ? "locked" : "disabled" };
 
     if (opts.linkToUserId) {
       const target = await repositories.users.findById(opts.linkToUserId);
       if (!target) return { ok: false, reason: "not_found" };
+      if (accountLock(target)) return { ok: false, reason: accountLock(target) === "temporary" ? "locked" : "disabled" };
       if (byGoogle && byGoogle.id !== target.id) return { ok: false, reason: "conflict" };
       const updated = await repositories.users.update(target.id, { googleId: profile.sub, avatarUrl: target.avatarUrl ?? profile.picture });
       return { ok: true, user: toPublicUser(updated!), isNew: false };
     }
 
     if (byGoogle) {
-      const updated = await repositories.users.update(byGoogle.id, {
-        avatarUrl: byGoogle.avatarUrl ?? profile.picture,
-        locked: false,
-        failedAttempts: 0,
-      });
-      return { ok: true, user: toPublicUser(updated!), isNew: false };
+      await repositories.users.update(byGoogle.id, { avatarUrl: byGoogle.avatarUrl ?? profile.picture });
+      const active = await repositories.users.clearFailedLogin(byGoogle.id);
+      if (!active) return { ok: false, reason: "disabled" };
+      return { ok: true, user: toPublicUser(active), isNew: false };
     }
 
     const byEmail = await repositories.users.findByEmail(profile.email);
-    if (byEmail?.disabled) return { ok: false, reason: "disabled" };
+    if (byEmail && accountLock(byEmail)) return { ok: false, reason: accountLock(byEmail) === "temporary" ? "locked" : "disabled" };
     if (byEmail) {
-      const updated = await repositories.users.update(byEmail.id, {
+      await repositories.users.update(byEmail.id, {
         googleId: profile.sub,
         avatarUrl: byEmail.avatarUrl ?? profile.picture,
         verified: true,
-        locked: false,
-        failedAttempts: 0,
         // Tài khoản mật khẩu chưa xác thực email có thể do người khác tạo hộ → huỷ mật khẩu đó.
         ...(byEmail.verified ? {} : { passwordHash: null, sessionVersion: (byEmail.sessionVersion ?? 0) + 1 }),
       });
-      return { ok: true, user: toPublicUser(updated!), isNew: false };
+      const active = await repositories.users.clearFailedLogin(byEmail.id);
+      if (!active) return { ok: false, reason: "disabled" };
+      return { ok: true, user: toPublicUser(active), isNew: false };
     }
 
     const created = await repositories.users.create({
@@ -289,7 +310,7 @@ export const authService = {
   /** Người dùng của một phiên — null nếu phiên đã bị thu hồi (đổi mật khẩu, đăng xuất mọi thiết bị). */
   async getUserForSession(id: string, sessionVersion: number): Promise<PublicUser | null> {
     const user = await repositories.users.findById(id);
-    if (!user || user.disabled || (user.sessionVersion ?? 0) !== sessionVersion) return null;
+    if (!user || accountLock(user) || (user.sessionVersion ?? 0) !== sessionVersion) return null;
     return toPublicUser(user);
   },
 

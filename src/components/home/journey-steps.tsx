@@ -30,11 +30,11 @@ export function JourneySteps() {
   }, [user]);
 
   const steps: Step[] = [
-    { key: "explore", title: "Khám phá ngành học", desc: "Xem danh mục ngành và chương trình đào tạo phù hợp với bạn.", href: "/nganh", cta: "Khám phá ngành", done: saved.length > 0 },
-    { key: "score", title: "Hồ sơ học tập & xét tuyển", desc: "Điểm các môn, tổ hợp mạnh và phương thức xét tuyển THPT, học bạ.", href: "/diem-cua-toi", cta: "Tạo hồ sơ", done: !!profile },
-    { key: "save", title: "Xem gợi ý", desc: "Trovio gợi ý chương trình An toàn / Vừa sức / Thử sức từ hồ sơ của bạn.", href: "/chuong-trinh", cta: "Xem gợi ý", done: saved.length > 0 },
-    { key: "wishlist", title: "Lập nguyện vọng", desc: "Sắp xếp thứ tự nguyện vọng và kiểm tra chiến lược.", href: "/da-luu", cta: "Lập nguyện vọng", done: wishlist.length > 0 },
-    { key: "share", title: "Hỏi ý kiến gia đình", desc: "Gửi link chỉ xem cho phụ huynh để nhận góp ý.", href: "/da-luu", cta: "Chia sẻ", done: shared },
+    { key: "explore", title: "Xem ngành học", desc: "Tra cứu ngành và chương trình đào tạo.", href: "/nganh", cta: "Xem ngành", done: saved.length > 0 },
+    { key: "score", title: "Nhập điểm", desc: "Lưu điểm, tổ hợp và phương thức xét tuyển.", href: "/diem-cua-toi", cta: "Nhập điểm", done: !!profile },
+    { key: "save", title: "So sánh chương trình", desc: "Xem mức tham khảo theo hồ sơ và điểm chuẩn.", href: "/chuong-trinh", cta: "Xem chương trình", done: saved.length > 0 },
+    { key: "wishlist", title: "Lập nguyện vọng", desc: "Sắp xếp các chương trình đã lưu.", href: "/da-luu", cta: "Lập nguyện vọng", done: wishlist.length > 0 },
+    { key: "share", title: "Trao đổi với gia đình", desc: "Chia sẻ danh sách chỉ xem để nhận góp ý.", href: "/da-luu", cta: "Chia sẻ", done: shared },
   ];
   const doneCount = hydrated ? steps.filter((s) => s.done).length : 0;
   const next = hydrated ? steps.find((s) => !s.done) : steps[0];
@@ -49,7 +49,7 @@ export function JourneySteps() {
               Lộ trình chọn ngành của bạn
             </h2>
             <p className="mt-0.5 text-sm text-slate-600" aria-live="polite">
-              {!hydrated ? "Đang tải tiến độ…" : next ? `Bước ${nextIndex + 1}/5: ${next.title.toLowerCase()}` : "Bạn đã hoàn thành cả 5 bước — hãy xem lại nguyện vọng trước hạn đăng ký."}
+              {!hydrated ? "Đang tải tiến độ…" : next ? `Bước ${nextIndex + 1}/5: ${next.title.toLowerCase()}` : "Đã hoàn thành 5 bước. Hãy kiểm tra lại nguyện vọng trước khi đăng ký."}
             </p>
           </div>
           {next && (

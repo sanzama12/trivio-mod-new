@@ -51,7 +51,7 @@ export default async function CutoffTrendPage() {
       <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Xu hướng điểm chuẩn" }]} />
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Xu hướng điểm chuẩn</h1>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
-        Mức tăng giảm điểm chuẩn điểm thi THPT (thang 30) giữa năm sớm nhất và năm mới nhất có dữ liệu. Đây là biến động đã xảy ra để bạn tham khảo, không phải dự đoán điểm chuẩn năm sau.
+        So sánh điểm chuẩn thi THPT (thang 30) giữa các năm đã có dữ liệu. Biến động cũ không dự đoán điểm chuẩn năm tới.
       </p>
 
       {programs.length === 0 ? (

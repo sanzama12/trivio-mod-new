@@ -36,6 +36,9 @@ jobs:
       - name: 🔍 TypeScript Typecheck
         run: npm run typecheck
 
+      - name: Check tracked secrets
+        run: npm run secrets:check
+
       - name: 🚀 Build Next.js Application
         run: npm run build
         env:

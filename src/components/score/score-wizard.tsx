@@ -473,7 +473,7 @@ export function ScoreWizard({
           <section>
             <LedgerStep no="8" icon={<LuBookOpen />} title="Khám phá ngành" desc="Xem danh mục ngành và chương trình đang xét tuyển." />
             <p className="mt-4 text-sm text-slate-600">
-              <Link href="/nganh" className="font-semibold text-primary-600 hover:underline">Xem danh mục ngành</Link> hoặc <Link href="/chuong-trinh" className="font-semibold text-primary-600 hover:underline">tìm chương trình</Link> phù hợp với tổ hợp đã nhập.
+              <Link href="/nganh" className="font-semibold text-primary-600 hover:underline">Xem danh mục ngành</Link> hoặc <Link href="/chuong-trinh" className="font-semibold text-primary-600 hover:underline">tìm chương trình</Link> theo tổ hợp đã nhập.
             </p>
           </section>
         </div>

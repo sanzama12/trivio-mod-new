@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { RIASEC_ORDER } from "../../src/domain/riasec";
+import { rankRiasecStudyGroups } from "../../src/domain/riasec-guidance";
 import { RIASEC_QUESTIONS } from "../../src/domain/riasec-questions";
 import { matchMajor, sanitizeRiasec, sanitizeRiasecResult, scoreAnswers } from "../../src/services/riasec.service";
 import { contentViewWeight, recordContentView, sanitizeContentViews, VIEW_RETENTION_MS } from "../../src/domain/browsing";
@@ -43,6 +44,19 @@ test("uniform answers expose flat profiles and all tied dimensions without fabri
   assert.equal(result.isFlatProfile, true);
   assert.deepEqual(result.tiedDimensions, RIASEC_ORDER);
   assert.equal(result.confidenceScore, undefined);
+});
+
+test("study group guidance follows the six reported scores and does not rank a flat profile", () => {
+  const groups = [
+    { id: "kinh-te", name: "Kinh tế", riasec: ["E", "C", "S"] as [RiasecType, RiasecType, RiasecType] },
+    { id: "giao-duc", name: "Giáo dục", riasec: ["S", "A", "I"] as [RiasecType, RiasecType, RiasecType] },
+    { id: "cntt", name: "Công nghệ thông tin", riasec: ["I", "R", "C"] as [RiasecType, RiasecType, RiasecType] },
+  ];
+  const profile = { percents: { R: 40, I: 67.5, A: 30, S: 65, E: 67.5, C: 62.5 }, isFlatProfile: false };
+  const ranked = rankRiasecStudyGroups(profile, groups);
+  assert.deepEqual(ranked.map((item) => item.id), ["kinh-te", "cntt", "giao-duc"]);
+  assert.equal(ranked[0].score, 65.4);
+  assert.deepEqual(rankRiasecStudyGroups({ ...profile, isFlatProfile: true }, groups), []);
 });
 
 test("untrusted result codes are recomputed, malformed scores rejected, and legacy results accepted", () => {

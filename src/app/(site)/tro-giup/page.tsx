@@ -30,23 +30,20 @@ export default async function HelpPage() {
 
       <div className="container-page py-10">
         <div className="mx-auto max-w-3xl">
-          <SectionHeading title="Các câu hỏi thường gặp" subtitle={faq.some((g) => g.items.length > 0) ? "Bấm vào câu hỏi để xem câu trả lời." : undefined} />
+          <SectionHeading title="Câu hỏi thường gặp" />
           <div className="mt-6">
             <FaqSearch groups={faq} />
           </div>
         </div>
 
         <section id="lien-he" className="mt-16">
-          <SectionHeading title="Vẫn cần hỗ trợ trực tiếp từ ban biên tập?" subtitle="Kết nối với đội ngũ hỗ trợ của Trovio qua email." />
+          <SectionHeading title="Liên hệ hỗ trợ" />
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <Card className="p-6">
               <LuMail className="size-6 text-primary-600" aria-hidden />
               <h3 className="mt-3 font-bold">Gửi email hỗ trợ</h3>
-              <p className="mt-1 text-sm text-slate-600">Nhận giải đáp chi tiết về cách dùng nền tảng, thắc mắc về dữ liệu.</p>
-              <a href={`mailto:${siteContact.email}`} className="mt-3 inline-block font-semibold text-primary-600 hover:underline">
-                {siteContact.email}
-              </a>
-              {siteContact.demo && <p className="text-xs text-slate-600">(email demo của đồ án)</p>}
+              <p className="mt-1 text-sm text-slate-600">Gửi câu hỏi về dữ liệu hoặc tài khoản.</p>
+              {siteContact.demo ? <p className="mt-3 text-sm text-slate-600">Kênh email hỗ trợ chưa được cấu hình.</p> : <a href={`mailto:${siteContact.email}`} className="mt-3 inline-block font-semibold text-primary-600 hover:underline">{siteContact.email}</a>}
             </Card>
 {siteContact.phone && <Card className="p-6"><LuPhone className="size-6 text-primary-600" /><a href={`tel:${siteContact.phone}`}>{siteContact.phone}</a></Card>}
           </div>

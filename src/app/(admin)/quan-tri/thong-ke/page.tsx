@@ -1,294 +1,159 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LuDownload, LuExternalLink, LuMessageCircle, LuShieldCheck } from "react-icons/lu";
+import { LuArrowUpRight, LuDownload, LuEye, LuHandHeart, LuMousePointerClick, LuSearch, LuUsers } from "react-icons/lu";
 import { adminPage } from "@/lib/admin-page";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody } from "@/components/admin/ui";
-import { analyticsService, FUNNEL_LABELS } from "@/services/analytics.service";
-import { Card } from "@/components/ui/card";
+import { analyticsService, dateRange, vnDay } from "@/services/analytics.service";
+import { donationService } from "@/services/donation.service";
 import { cn } from "@/lib/cn";
 
-export const metadata: Metadata = { title: "Thống kê & khảo sát", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Thống kê hoạt động", robots: { index: false, follow: false } };
 
-const RANGES = [7, 30, 90] as const;
-const fmtDay = (iso: string) => iso.slice(5).split("-").reverse().join("/");
-const pct = (v: number) => `${v.toLocaleString("vi-VN")}%`;
+const RANGES = [
+  { days: 1, label: "1 ngày" },
+  { days: 7, label: "7 ngày" },
+  { days: 30, label: "30 ngày" },
+  { days: 365, label: "1 năm" },
+] as const;
+const number = (value: number) => value.toLocaleString("vi-VN");
+const money = (value: number) => `${number(Math.round(value))} ₫`;
+const fmtDate = (day: string) => new Date(`${day}T00:00:00+07:00`).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" });
+
+type DailyPoint = { day: string; value: number };
+
+function chartPoints(from: string, to: string, rows: DailyPoint[], annual: boolean): DailyPoint[] {
+  const values = new Map(rows.map((row) => [row.day, row.value]));
+  const buckets = new Map<string, number>();
+  for (let time = Date.parse(`${from}T00:00:00Z`), end = Date.parse(`${to}T00:00:00Z`); time <= end; time += 86400_000) {
+    const day = new Date(time).toISOString().slice(0, 10);
+    const key = annual ? day.slice(0, 7) : day;
+    buckets.set(key, (buckets.get(key) ?? 0) + (values.get(day) ?? 0));
+  }
+  return [...buckets].map(([day, value]) => ({ day, value }));
+}
+
+function Metric({ label, value, sub, Icon, tone = "slate" }: {
+  label: string; value: string; sub?: string; Icon: typeof LuUsers; tone?: "slate" | "teal";
+}) {
+  return <div className="min-w-0 border-t border-slate-200 pt-4">
+    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Icon className={cn("size-4", tone === "teal" ? "text-teal-700" : "text-primary-700")} aria-hidden />{label}</div>
+    <p className="mt-2 break-words text-2xl font-bold text-slate-900 tabular-nums sm:text-3xl">{value}</p>
+    {sub && <p className="mt-1 text-xs leading-5 text-slate-500">{sub}</p>}
+  </div>;
+}
+
+function Trend({ points, label, annual, tone = "primary" }: { points: DailyPoint[]; label: string; annual: boolean; tone?: "primary" | "teal" }) {
+  const max = Math.max(1, ...points.map((point) => point.value));
+  return <div>
+    <p className="mb-3 text-xs font-semibold text-slate-600">{label}</p>
+    <div className="flex h-28 items-end gap-1 border-b border-slate-200" role="img" aria-label={`${label}: ${points.map((point) => `${point.day}: ${number(point.value)}`).join(", ")}`}>
+      {points.map((point) => <div key={point.day} className="flex h-full min-w-0 flex-1 items-end" title={`${point.day}: ${number(point.value)}`}>
+        <span className={cn("block w-full rounded-t-sm", point.value === 0 ? "h-1 bg-slate-200" : tone === "teal" ? "bg-teal-600" : "bg-primary-600")} style={point.value ? { height: `${Math.max(5, point.value / max * 100)}%` } : undefined} />
+      </div>)}
+    </div>
+    <div className="mt-1 flex justify-between text-[11px] text-slate-500">
+      <span>{annual ? points[0]?.day : fmtDate(points[0]?.day ?? "")}</span>
+      <span>{annual ? points.at(-1)?.day : fmtDate(points.at(-1)?.day ?? "")}</span>
+    </div>
+  </div>;
+}
 
 export default async function AdminStatsPage({ searchParams }: { searchParams: Promise<{ ngay?: string }> }) {
   await adminPage("/quan-tri/thong-ke");
   const { ngay } = await searchParams;
-  const days = (RANGES as readonly number[]).includes(Number(ngay)) ? Number(ngay) : 30;
-  const [funnel, sus, usage] = await Promise.all([analyticsService.report(days), analyticsService.surveyReport(), analyticsService.usageReport(days)]);
-  const recent = [...funnel.daily].reverse().slice(0, 14);
+  const days = RANGES.some((range) => range.days === Number(ngay)) ? Number(ngay) : 30;
+  const to = vnDay();
+  const { from } = dateRange(days, to);
+  const [funnel, usage, donations, sus] = await Promise.all([
+    analyticsService.report(days, to),
+    analyticsService.usageReport(days, to),
+    donationService.rangeReport(from, to),
+    analyticsService.surveyReport(),
+  ]);
+  const visits = funnel.steps[0].users;
+  const dailyVisits = funnel.daily.reduce((sum, row) => sum + row.counts.visit, 0);
+  const views = usage.totals.school_view.hits + usage.totals.major_view.hits + usage.totals.program_view.hits;
+  const saves = usage.totals.school_save.hits + usage.totals.major_save.hits + usage.totals.program_save.hits + usage.totals.wishlist_add.hits;
+  const annual = days === 365;
+  const visitPoints = chartPoints(from, to, funnel.daily.map((row) => ({ day: row.day, value: row.counts.visit })), annual);
+  const donationPoints = chartPoints(from, to, donations.daily.map((row) => ({ day: row.day, value: row.amount })), annual);
 
-  return (
-    <>
-      <AdminHeader title="Thống kê hành vi & khảo sát người dùng" crumb="Thống kê & khảo sát" />
-      <AdminBody>
-      <p className="max-w-3xl text-sm text-slate-500">
-        Phễu đếm số trình duyệt (ẩn danh) thực hiện từng bước — cho biết người dùng rơi ở đâu trong hành trình. Điểm SUS lấy từ phiếu khảo sát sau buổi test người dùng thật.
-      </p>
-
-      <section aria-labelledby="funnel-h" className="mt-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="funnel-h" className="text-lg font-bold text-slate-900">
-              Phễu hành vi
-            </h2>
-            <p className="text-[13px] text-slate-500">
-              Từ {fmtDay(funnel.from)} đến {fmtDay(funnel.to)} · mỗi trình duyệt tính tối đa 1 lần mỗi bước
-            </p>
-          </div>
-          <nav aria-label="Khoảng thời gian" className="flex gap-1 rounded-lg bg-slate-100 p-1">
-            {RANGES.map((r) => (
-              <Link
-                key={r}
-                href={`/quan-tri/thong-ke?ngay=${r}`}
-                aria-current={r === days ? "page" : undefined}
-                className={cn("rounded-md px-3 py-1.5 text-sm font-semibold", r === days ? "bg-white text-primary-700 shadow-sm" : "text-slate-600 hover:text-slate-900")}
-              >
-                {r} ngày
-              </Link>
-            ))}
-          </nav>
+  return <>
+    <AdminHeader title="Thống kê hoạt động" crumb="Thống kê" />
+    <AdminBody>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <p className="text-sm text-slate-600">{fmtDate(from)} – {fmtDate(to)} · Giờ Việt Nam</p>
+          {annual && <p className="mt-1 text-xs text-slate-500">Dữ liệu truy cập và sử dụng trước khi áp dụng lưu trữ 365 ngày có thể đã bị xoá.</p>}
         </div>
+        <nav aria-label="Khoảng thời gian" className="flex flex-wrap gap-1 rounded-md bg-slate-100 p-1">
+          {RANGES.map((range) => <Link key={range.days} href={`/quan-tri/thong-ke?ngay=${range.days}`} aria-current={days === range.days ? "page" : undefined} className={cn("rounded px-3 py-2 text-sm font-semibold", days === range.days ? "bg-white text-primary-700 shadow-sm" : "text-slate-600 hover:text-slate-900")}>{range.label}</Link>)}
+        </nav>
+      </div>
 
-        <Card className="mt-4 p-5">
-          {funnel.steps[0].users === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-500">Chưa có dữ liệu trong khoảng này. Số liệu bắt đầu ghi nhận khi có người truy cập trang (trình duyệt không bật “Do Not Track”).</p>
-          ) : (
-            <ol className="space-y-3">
-              {funnel.steps.map((s, i) => (
-                <li key={s.event} className="grid gap-1 sm:grid-cols-[180px_1fr_150px] sm:items-center sm:gap-4">
-                  <span className="text-sm font-semibold text-slate-800">
-                    {i + 1}. {s.label}
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <span aria-hidden className="h-6 flex-1 overflow-hidden rounded-md bg-slate-100">
-                      <span className="block h-full rounded-md bg-primary-600" style={{ width: `${Math.max(s.ofVisit, 1)}%` }} />
-                    </span>
-                    <strong className="w-16 text-right text-sm text-slate-900 tabular-nums">{s.users.toLocaleString("vi-VN")}</strong>
-                  </span>
-                  <span className="text-[13px] text-slate-600">
-                    {i === 0 ? (
-                      "100% lượt vào"
-                    ) : (
-                      <>
-                        {pct(s.ofVisit)} lượt vào · <span className={cn(s.fromPrev < 30 ? "font-semibold text-danger-700" : "")}>{pct(s.fromPrev)} so với bước trước</span>
-                      </>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-          <p className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-sm text-slate-600">
-            <LuMessageCircle className="size-4 text-primary-600" aria-hidden />
-            <span>
-              {FUNNEL_LABELS.chat_asked}: <strong className="text-slate-900">{funnel.chat.toLocaleString("vi-VN")}</strong> trình duyệt
-              {funnel.steps[0].users > 0 && ` (${pct(Math.round((funnel.chat / funnel.steps[0].users) * 1000) / 10)} lượt vào)`}
-            </span>
-          </p>
-          <p className="mt-2 text-xs text-slate-500">
-            Các bước không bắt buộc theo thứ tự. Tỉ lệ “so với bước trước” dưới 30% được tô đỏ — nên xem lại giao diện của bước đó.
-          </p>
-        </Card>
-
-        {recent.length > 0 && (
-          <details className="mt-4 rounded-xl border border-slate-200 bg-white">
-            <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-slate-800">Chi tiết theo ngày (14 ngày gần nhất có dữ liệu)</summary>
-            <div className="overflow-x-auto px-5 pb-4">
-              <table className="w-full min-w-[640px] text-sm">
-                <caption className="sr-only">Số trình duyệt thực hiện mỗi bước theo ngày</caption>
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                    <th scope="col" className="py-2 pr-3 font-semibold">
-                      Ngày
-                    </th>
-                    {funnel.steps.map((s) => (
-                      <th key={s.event} scope="col" className="py-2 pr-3 text-right font-semibold">
-                        {s.label}
-                      </th>
-                    ))}
-                    <th scope="col" className="py-2 text-right font-semibold">
-                      {FUNNEL_LABELS.chat_asked}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.map((d) => (
-                    <tr key={d.day} className="border-b border-slate-100 last:border-0">
-                      <th scope="row" className="py-2 pr-3 text-left font-medium text-slate-700">
-                        {fmtDay(d.day)}
-                      </th>
-                      {funnel.steps.map((s) => (
-                        <td key={s.event} className="py-2 pr-3 text-right tabular-nums">
-                          {d.counts[s.event]}
-                        </td>
-                      ))}
-                      <td className="py-2 text-right tabular-nums">{d.counts.chat_asked}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        )}
-        <p className="mt-3 flex items-start gap-2 text-xs text-slate-500">
-          <LuShieldCheck className="mt-0.5 size-4 shrink-0 text-success-700" aria-hidden />
-          Chỉ lưu ngày, tên bước và một mã ngẫu nhiên do trình duyệt tạo; không lưu IP, tài khoản, nội dung hay đường dẫn. Dữ liệu tự xoá sau 180 ngày. Người dùng có thể tắt ở trang Chính sách quyền riêng tư.
-        </p>
+      <section aria-labelledby="visits-title" className="space-y-5">
+        <div><h2 id="visits-title" className="text-lg font-bold text-slate-900">Truy cập</h2><p className="text-sm text-slate-500">Trình duyệt ẩn danh đã đồng ý thống kê; một trình duyệt được tính một lần trong kỳ.</p></div>
+        <div className="grid gap-x-6 gap-y-5 sm:grid-cols-3">
+          <Metric label="Trình duyệt truy cập" value={number(visits)} Icon={LuUsers} sub="Không bao gồm người tắt theo dõi" />
+          <Metric label="Lượt truy cập theo ngày" value={number(dailyVisits)} Icon={LuEye} sub="Cộng các lượt duy nhất của từng ngày" />
+          <Metric label="Trung bình mỗi ngày" value={number(Math.round(dailyVisits / days))} Icon={LuMousePointerClick} sub={`Trong ${days} ngày được chọn`} />
+        </div>
+        {days > 1 && <Trend points={visitPoints} label={annual ? "Truy cập theo tháng" : "Truy cập theo ngày"} annual={annual} />}
       </section>
 
-      <section aria-labelledby="interest-h" className="mt-10">
-        <h2 id="interest-h" className="text-lg font-bold text-slate-900">Trường và ngành được quan tâm</h2>
-        <p className="text-[13px] text-slate-600">
-          Số trình duyệt (ẩn danh) đã xem hoặc lưu trường, ngành, chương trình từ {fmtDay(usage.from)} đến {fmtDay(usage.to)}; thêm vào nguyện vọng tính cho chương trình. Xem một chương trình tính cả trường và ngành của nó.
-        </p>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <Card className="p-5">
-            <p className="text-sm text-slate-600">Lượt tìm kiếm</p>
-            <p className="mt-1 text-3xl font-extrabold text-slate-900 tabular-nums">{usage.totals.search.hits.toLocaleString("vi-VN")}</p>
-            <p className="text-xs text-slate-600">từ {usage.totals.search.people.toLocaleString("vi-VN")} trình duyệt (không lưu nội dung tìm kiếm)</p>
-          </Card>
-          <Card className="p-5">
-            <p className="text-sm text-slate-600">Lượt tư vấn với trợ lý AI</p>
-            <p className="mt-1 text-3xl font-extrabold text-slate-900 tabular-nums">{funnel.chat.toLocaleString("vi-VN")}</p>
-            <p className="text-xs text-slate-600">trình duyệt đã hỏi trợ lý · <Link href="/quan-tri/chatbot" className="font-semibold text-primary-700 underline underline-offset-2">xem chi tiết</Link></p>
-          </Card>
-          <Card className="p-5">
-            <p className="text-sm text-slate-600">Trang được xem</p>
-            <p className="mt-1 text-3xl font-extrabold text-slate-900 tabular-nums">{(usage.totals.school_view.people + usage.totals.major_view.people).toLocaleString("vi-VN")}</p>
-            <p className="text-xs text-slate-600">{usage.totals.school_view.people.toLocaleString("vi-VN")} lượt người xem trường · {usage.totals.major_view.people.toLocaleString("vi-VN")} xem ngành</p>
-          </Card>
+      <section aria-labelledby="usage-title" className="space-y-5 border-t border-slate-200 pt-6">
+        <div><h2 id="usage-title" className="text-lg font-bold text-slate-900">Lượt dùng</h2><p className="text-sm text-slate-500">Các thao tác được ghi nhận khi người dùng cho phép thống kê.</p></div>
+        <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric label="Tìm kiếm" value={number(usage.totals.search.hits)} Icon={LuSearch} sub={`${number(usage.totals.search.people)} trình duyệt`} />
+          <Metric label="Xem nội dung" value={number(views)} Icon={LuEye} sub="Trường, ngành và chương trình" />
+          <Metric label="Lưu & nguyện vọng" value={number(saves)} Icon={LuMousePointerClick} sub="Lưu trường, ngành, chương trình hoặc thêm nguyện vọng" />
+          <Metric label="Dùng trợ lý" value={number(funnel.chat)} Icon={LuUsers} sub="Trình duyệt đã hỏi trợ lý trong kỳ" />
         </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          {[
-            { title: "Trường được quan tâm nhất", rows: usage.topSchools, href: (id: string) => `/quan-tri/truong?q=${id}` },
-            { title: "Ngành được quan tâm nhất", rows: usage.topMajors, href: (id: string) => `/quan-tri/nganh?q=${id}` },
-            { title: "Chương trình được xem nhiều nhất", rows: usage.topPrograms, href: (id: string) => `/quan-tri/chuong-trinh/${id}` },
-          ].map((list) => (
-            <Card key={list.title} className="p-5">
-              <h3 className="font-bold text-slate-900">{list.title}</h3>
-              {list.rows.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-600">Chưa có dữ liệu trong khoảng này.</p>
-              ) : (
-                <ol className="mt-3 space-y-2">
-                  {list.rows.map((r, i) => (
-                    <li key={r.id} className="flex items-baseline justify-between gap-3 text-sm">
-                      <span className="min-w-0 truncate text-slate-800"><span className="mr-2 text-slate-500 tabular-nums">{i + 1}.</span><Link href={list.href(r.id)} className="hover:underline">{r.name}</Link></span>
-                      <span className="shrink-0 font-semibold text-slate-900 tabular-nums">{r.people.toLocaleString("vi-VN")}</span>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </Card>
-          ))}
+        <div className="grid gap-x-8 gap-y-6 lg:grid-cols-2">
+          <div><h3 className="text-sm font-semibold text-slate-900">Hành trình sử dụng</h3><dl className="mt-2 divide-y divide-slate-100 text-sm">
+            {funnel.steps.slice(1).map((step) => <div key={step.event} className="flex items-center justify-between gap-4 py-2"><dt className="text-slate-600">{step.label}</dt><dd className="font-semibold text-slate-900 tabular-nums">{number(step.users)} <span className="font-normal text-slate-500">trình duyệt</span></dd></div>)}
+          </dl></div>
+          <div><h3 className="text-sm font-semibold text-slate-900">Nội dung được quan tâm</h3><div className="mt-2 grid gap-5 sm:grid-cols-3">
+            {[
+              { title: "Trường", rows: usage.topSchools },
+              { title: "Ngành", rows: usage.topMajors },
+              { title: "Chương trình", rows: usage.topPrograms },
+            ].map((group) => <div key={group.title} className="min-w-0"><p className="text-xs font-semibold text-slate-600">{group.title}</p><ol className="mt-2 space-y-1.5 text-xs">{group.rows.slice(0, 3).map((row) => <li key={row.id} className="flex justify-between gap-2"><span className="min-w-0 truncate text-slate-700" title={row.name}>{row.name}</span><strong className="tabular-nums text-slate-900">{number(row.people)}</strong></li>)}</ol>{group.rows.length === 0 && <p className="mt-2 text-xs text-slate-500">Chưa có dữ liệu</p>}</div>)}
+          </div></div>
         </div>
-        <p className="mt-3 flex items-start gap-2 text-xs text-slate-600">
-          <LuShieldCheck className="mt-0.5 size-4 shrink-0 text-success-700" aria-hidden />
-          Chỉ ghi nhận khi người dùng đồng ý thống kê; lưu ngày, loại sự kiện (xem, lưu, thêm nguyện vọng), mã trường/ngành/chương trình và mã ngẫu nhiên của trình duyệt, tự xoá sau 180 ngày.
-        </p>
+        <Link href="/quan-tri/chatbot" className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline">Xem lịch sử trợ lý <LuArrowUpRight className="size-4" aria-hidden /></Link>
       </section>
 
-      <section aria-labelledby="sus-h" className="mt-10">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="sus-h" className="text-lg font-bold text-slate-900">
-              Khảo sát SUS (System Usability Scale)
-            </h2>
-            <p className="text-[13px] text-slate-500">10 câu chuẩn, thang 1–5, quy đổi 0–100. Mốc trung bình ngành là 68 điểm.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/khao-sat" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-primary-600 bg-white px-3.5 text-[13px] font-semibold text-primary-700 hover:bg-primary-50">
-              <LuExternalLink className="size-4" aria-hidden /> Mở phiếu khảo sát
-              <span className="sr-only"> (mở tab mới)</span>
-            </Link>
-            {sus.n > 0 && (
-              <a href="/api/admin/survey/export" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary-50 px-3.5 text-[13px] font-semibold text-primary-700 hover:bg-primary-100">
-                <LuDownload className="size-4" aria-hidden /> Tải CSV
-              </a>
-            )}
-          </div>
+      <section aria-labelledby="donations-title" className="space-y-5 border-t border-slate-200 pt-6">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="donations-title" className="text-lg font-bold text-slate-900">Donate</h2><p className="text-sm text-slate-500">Chỉ cộng giao dịch thành công theo ngày thanh toán.</p></div><Link href="/quan-tri/ung-ho" className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline">Xem giao dịch <LuArrowUpRight className="size-4" aria-hidden /></Link></div>
+        <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric label="Tổng ủng hộ" value={money(donations.amount)} Icon={LuHandHeart} tone="teal" />
+          <Metric label="Giao dịch thành công" value={number(donations.successful)} Icon={LuHandHeart} tone="teal" />
+          <Metric label="Trung bình / giao dịch" value={money(donations.average)} Icon={LuHandHeart} tone="teal" />
+          <Metric label="Đang chờ xử lý" value={number(donations.pending)} Icon={LuHandHeart} tone="teal" sub="Giao dịch tạo trong kỳ" />
         </div>
-
-        {sus.n === 0 ? (
-          <Card className="mt-4 p-6 text-center text-sm text-slate-500">
-            Chưa có phiếu nào. Sau mỗi buổi test, mời người tham gia điền phiếu tại <strong className="text-slate-700">/khao-sat</strong> (5–8 người mỗi vòng là đủ phát hiện phần lớn vấn đề).
-          </Card>
-        ) : (
-          <div className="mt-4 grid gap-4 lg:grid-cols-[300px_1fr]">
-            <Card className="p-5 text-center">
-              <p className="text-sm text-slate-500">Điểm SUS trung bình</p>
-              <p className="mt-1 text-5xl font-extrabold text-slate-900">{sus.mean?.toLocaleString("vi-VN")}</p>
-              <p className={cn("mt-1 font-bold", (sus.mean ?? 0) >= 68 ? "text-success-700" : "text-danger-700")}>{sus.grade}</p>
-              <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-sm">
-                <div>
-                  <dt className="text-xs text-slate-500">Số phiếu</dt>
-                  <dd className="font-bold text-slate-900">{sus.n}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Trung vị</dt>
-                  <dd className="font-bold text-slate-900">{sus.median?.toLocaleString("vi-VN")}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Độ lệch chuẩn</dt>
-                  <dd className="font-bold text-slate-900">{sus.sd != null ? sus.sd.toLocaleString("vi-VN") : "—"}</dd>
-                </div>
-              </dl>
-              <ul className="mt-4 space-y-1 border-t border-slate-100 pt-4 text-left text-[13px]">
-                {sus.byRole
-                  .filter((r) => r.n > 0)
-                  .map((r) => (
-                    <li key={r.role} className="flex justify-between gap-2">
-                      <span className="text-slate-600">
-                        {r.role} ({r.n})
-                      </span>
-                      <strong className="text-slate-900">{r.mean?.toLocaleString("vi-VN")}</strong>
-                    </li>
-                  ))}
-              </ul>
-            </Card>
-            <Card className="p-5">
-              <h3 className="text-sm font-bold text-slate-900">Điểm trung bình từng câu (1–5)</h3>
-              <p className="text-xs text-slate-500">Câu lẻ: càng cao càng tốt. Câu chẵn (phát biểu tiêu cực): càng thấp càng tốt.</p>
-              <ol className="mt-3 space-y-2">
-                {sus.perQuestion.map((q, i) => {
-                  const good = q.mean == null ? null : i % 2 === 0 ? q.mean >= 3.5 : q.mean <= 2.5;
-                  return (
-                    <li key={i} className="grid grid-cols-[1fr_52px] items-start gap-3 text-[13px]">
-                      <span className="text-slate-700">
-                        <span className="font-semibold text-slate-900">{i + 1}.</span> {q.q}
-                      </span>
-                      <span className={cn("text-right font-bold tabular-nums", good === false ? "text-danger-700" : "text-slate-900")}>
-                        {q.mean?.toLocaleString("vi-VN", { minimumFractionDigits: 2 }) ?? "—"}
-                        {good === false && <span className="sr-only"> (cần cải thiện)</span>}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </Card>
-          </div>
-        )}
-
-        {sus.comments.length > 0 && (
-          <Card className="mt-4 p-5">
-            <h3 className="text-sm font-bold text-slate-900">Góp ý gần đây</h3>
-            <ul className="mt-3 divide-y divide-slate-100">
-              {sus.comments.map((c) => (
-                <li key={c.at} className="py-2.5 text-sm">
-                  <p className="whitespace-pre-line text-slate-700">{c.comment}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {new Date(c.at).toLocaleDateString("vi-VN")} · SUS {c.score.toLocaleString("vi-VN")}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
+        {days > 1 && <Trend points={donationPoints} label={annual ? "Số tiền nhận theo tháng" : "Số tiền nhận theo ngày"} annual={annual} tone="teal" />}
       </section>
-      </AdminBody>
-    </>
-  );
+
+      <details className="border-t border-slate-200 pt-5">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-900">Chi tiết {annual ? "theo tháng" : "theo ngày"}</summary>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[420px] text-left text-sm">
+            <thead className="border-b border-slate-200 text-xs text-slate-600"><tr><th scope="col" className="py-2 font-medium">{annual ? "Tháng" : "Ngày"}</th><th scope="col" className="py-2 text-right font-medium">Lượt truy cập</th><th scope="col" className="py-2 text-right font-medium">Donate thành công</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">{visitPoints.map((point, index) => <tr key={point.day}><th scope="row" className="py-2 font-medium text-slate-700">{annual ? point.day : fmtDate(point.day)}</th><td className="py-2 text-right tabular-nums">{number(point.value)}</td><td className="py-2 text-right tabular-nums">{money(donationPoints[index]?.value ?? 0)}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </details>
+
+      <details className="border-t border-slate-200 pt-5">
+        <summary className="cursor-pointer text-base font-bold text-slate-900">Khảo sát trải nghiệm SUS · toàn thời gian</summary>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm"><p className="text-slate-600">{number(sus.n)} phiếu · Điểm trung bình: <strong className="text-slate-900">{sus.mean === null ? "—" : number(sus.mean)}</strong> {sus.grade && `· ${sus.grade}`}</p><div className="flex gap-4"><Link href="/khao-sat" className="font-semibold text-primary-700 hover:underline">Phiếu khảo sát</Link>{sus.n > 0 && <a href="/api/admin/survey/export" className="inline-flex items-center gap-1 font-semibold text-primary-700 hover:underline"><LuDownload className="size-4" aria-hidden /> Tải CSV</a>}</div></div>
+        {sus.n > 0 && <div className="mt-4 grid gap-6 lg:grid-cols-2">
+          <div><h3 className="text-sm font-semibold text-slate-900">Điểm từng câu</h3><ol className="mt-2 divide-y divide-slate-100 text-sm">{sus.perQuestion.map((item, index) => <li key={index} className="flex justify-between gap-3 py-2"><span className="text-slate-700">{index + 1}. {item.q}</span><strong className="shrink-0 tabular-nums">{item.mean?.toLocaleString("vi-VN", { maximumFractionDigits: 2 }) ?? "—"}</strong></li>)}</ol></div>
+          <div><h3 className="text-sm font-semibold text-slate-900">Góp ý gần đây</h3>{sus.comments.length ? <ul className="mt-2 divide-y divide-slate-100 text-sm">{sus.comments.map((item, index) => <li key={`${item.at}-${index}`} className="py-2"><p className="whitespace-pre-wrap text-slate-700">{item.comment}</p><p className="mt-1 text-xs text-slate-500">{new Date(item.at).toLocaleDateString("vi-VN")} · SUS {number(item.score)}</p></li>)}</ul> : <p className="mt-2 text-sm text-slate-500">Chưa có góp ý.</p>}</div>
+        </div>}
+      </details>
+    </AdminBody>
+  </>;
 }

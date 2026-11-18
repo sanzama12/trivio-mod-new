@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  LuArrowRight,
   LuArrowUpRight,
   LuBookOpen,
   LuChevronRight,
@@ -13,12 +12,13 @@ import {
 import { DonateForm } from "@/components/donate/donate-form";
 import { donationService } from "@/services/donation.service";
 import { getDonationPaymentAvailability } from "@/services/donation-payment.service";
+import { getCurrentUser } from "@/lib/auth";
 import styles from "./donate.module.css";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Ủng hộ Trovio",
-  description: "Đồng hành cùng Trovio duy trì công cụ tra cứu tuyển sinh và khám phá ngành học miễn phí cho học sinh.",
+  description: "Ủng hộ việc duy trì và cải thiện công cụ tra cứu tuyển sinh Trovio.",
 };
 
 const money = (amount: number) => `${amount.toLocaleString("vi-VN")} ₫`;
@@ -30,7 +30,7 @@ const purposes = [
 ];
 
 export default async function DonatePage() {
-  const donors = await donationService.getRecentDonors();
+  const [donors, user] = await Promise.all([donationService.getRecentDonors(), getCurrentUser()]);
   const availability = getDonationPaymentAvailability();
 
   return (
@@ -46,11 +46,10 @@ export default async function DonatePage() {
             <span className={styles.eyebrow}><LuHeart aria-hidden /> CÙNG GIỮ TROVIO MỞ</span>
             <h1 id="donation-title">Ủng hộ<br /><span>Trovio.</span></h1>
             <p className={styles.lead}>
-              Mỗi khoản đóng góp giúp Trovio tiếp tục phục vụ học sinh
-              bằng các công cụ tra cứu và định hướng miễn phí.
+              Đóng góp của bạn giúp duy trì công cụ tra cứu và thông tin tuyển sinh.
             </p>
             <div className={styles.purposes}>
-              <p>Sự đồng hành của bạn góp phần</p>
+              <p>Khoản ủng hộ được dùng để</p>
               <ul>
                 {purposes.map(({ icon: Icon, title, detail }) => (
                   <li key={title}>
@@ -63,7 +62,7 @@ export default async function DonatePage() {
           </section>
 
           <div className={styles.checkout}>
-            <DonateForm availability={availability} />
+          <DonateForm availability={availability} defaultDonorName={user?.name} demoMethods={process.env.DONATION_PAYMENT_DEMO === "true"} />
             <p className={styles.checkoutNote}>Đóng góp hoàn toàn tự nguyện. Vui lòng kiểm tra thông tin người nhận trước khi thanh toán.</p>
           </div>
 
@@ -92,20 +91,23 @@ export default async function DonatePage() {
           </div>
           <div className={styles.donors}>
             {donors.length ? (
-              <ul aria-label="Đóng góp gần đây">
+              <table aria-label="Đóng góp gần đây" className={styles.donorTable}>
+                <thead><tr><th scope="col">Người ủng hộ</th><th scope="col">Đóng góp</th></tr></thead>
+                <tbody>
                 {donors.map((donor) => (
-                  <li key={donor.id}>
-                    <span className={styles.donorInitial} aria-hidden>
-                      {donor.donorName.trim().charAt(0).toLocaleUpperCase("vi-VN")}
-                    </span>
-                    <span className={styles.donorText}>
-                      <strong>{donor.donorName}</strong>
-                      {donor.message && <small>“{donor.message}”</small>}
-                    </span>
-                    <span className={styles.donorAmount}>{money(donor.amount)}</span>
-                  </li>
+                  <tr key={donor.id}>
+                    <td><span className={styles.donorIdentity}>
+                      <span className={styles.donorInitial} aria-hidden>{donor.name.charAt(0).toLocaleUpperCase("vi-VN")}</span>
+                      <span className={styles.donorText}>
+                        <strong>{donor.name}</strong>
+                        <small>{donor.paidAt ? new Date(donor.paidAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }) : "Đã xác nhận"}</small>
+                      </span>
+                    </span></td>
+                    <td className={styles.donorAmount}>{money(donor.amount)}</td>
+                  </tr>
                 ))}
-              </ul>
+                </tbody>
+              </table>
             ) : (
               <p className={styles.emptyState}>Chưa có khoản đóng góp hoàn tất để hiển thị.</p>
             )}
@@ -113,27 +115,6 @@ export default async function DonatePage() {
         </div>
       </section>
 
-      <section className={`container-page ${styles.faq}`} aria-labelledby="donation-faq">
-        <div className={styles.faqHeading}>
-          <span className={styles.sectionLabel}>THÔNG TIN CẦN BIẾT</span>
-          <h2 id="donation-faq">Câu hỏi thường gặp</h2>
-          <p>Cần hỗ trợ thêm về một giao dịch? <Link href="/lien-he">Liên hệ Trovio <LuArrowRight aria-hidden /></Link></p>
-        </div>
-        <div className={styles.faqList}>
-          <details>
-            <summary>Ủng hộ ẩn danh được không?</summary>
-            <p>Có. Bạn có thể chọn ẩn danh và bỏ trống tên. Khoản đóng góp được hiển thị dưới tên “Người ủng hộ ẩn danh”.</p>
-          </details>
-          <details>
-            <summary>Khi nào giao dịch được xác nhận?</summary>
-            <p>Trạng thái sẽ cập nhật khi hệ thống nhận xác nhận từ VNPAY hoặc SePay. Với chuyển khoản QR, hệ thống ghi nhận sau khi đối soát.</p>
-          </details>
-          <details>
-            <summary>Có thể góp ý thay vì đóng góp không?</summary>
-            <p>Có. Bạn có thể báo dữ liệu cần cập nhật hoặc gửi góp ý qua <Link href="/lien-he">trang Liên hệ <LuArrowUpRight aria-hidden /></Link>.</p>
-          </details>
-        </div>
-      </section>
     </div>
   );
 }

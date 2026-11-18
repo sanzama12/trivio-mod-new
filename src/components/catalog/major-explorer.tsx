@@ -380,7 +380,7 @@ export function MajorExplorer({ groups, items, initialGroup, initialQuery }: Maj
               <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary-50 text-primary-700">
                 <LuSearch className="size-6" />
               </div>
-              <h3 className="mt-4 text-lg font-bold text-slate-900">Không tìm thấy ngành học phù hợp</h3>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Không có ngành khớp tìm kiếm</h3>
               <p className="mt-1 text-sm text-slate-600">
                 Thử thay đổi từ khóa tìm kiếm hoặc chọn nhóm ngành khác để tiếp tục khám phá.
               </p>

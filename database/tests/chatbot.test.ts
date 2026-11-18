@@ -5,7 +5,7 @@ import { isFaithful } from '../../src/services/chatbot-llm';
 import { cleanChatAnswer, cleanChatText, safeChatHref } from '../../src/domain/chat';
 import { findExternalEvidence } from '../../src/services/external-evidence.service';
 import { findMarkdownAnswer, parseMarkdownFaq } from '../../src/services/chatbot-markdown';
-import { sendWusRouterChat } from '../../src/services/wusrouter-llm';
+import { answerWithWusRouter, sendWusRouterChat } from '../../src/services/wusrouter-llm';
 import { repositories } from '../repositories';
 
 test('chatbot analytics log masks contact details', () => {
@@ -111,6 +111,31 @@ test('chat aliases are reused and refreshed after an admin deletion', async () =
   }
 });
 
+test('school questions about current staff and FPT Polytechnic bypass generic school details', async () => {
+  const original = {
+    majors: repositories.majors.findAll,
+    schools: repositories.schools.findAll,
+    programs: repositories.programs.findAll,
+    aliases: repositories.chatAliases.list,
+  };
+  try {
+    repositories.majors.findAll = async () => [];
+    repositories.schools.findAll = async () => [{ id: 'fpt', name: 'Trường Đại học FPT', shortName: 'FPT', slug: 'dai-hoc-fpt' } as Awaited<ReturnType<typeof original.schools>>[number]];
+    repositories.programs.findAll = async () => [];
+    repositories.chatAliases.list = async () => [];
+    assert.equal((await answerQuestion('FPT')).intent, 'school-info');
+    assert.equal((await answerQuestion('Hiệu trưởng FPT?')).kind, 'unknown');
+    const polytechnic = await answerQuestion('Hiện tại FPT Polytechnic do ai là hiệu trưởng?');
+    assert.equal(polytechnic.kind, 'unknown');
+    assert.equal(polytechnic.context.schoolId, undefined);
+  } finally {
+    repositories.majors.findAll = original.majors;
+    repositories.schools.findAll = original.schools;
+    repositories.programs.findAll = original.programs;
+    repositories.chatAliases.list = original.aliases;
+  }
+});
+
 test('chat log write and conversation lookup start together', async () => {
   const original = {
     add: repositories.chatLogs.add,
@@ -122,7 +147,7 @@ test('chat log write and conversation lookup start together', async () => {
   try {
     repositories.chatLogs.add = () => new Promise<void>((resolve) => { finishLog = resolve; });
     repositories.chatHistory.findById = async () => { lookupStarted = true; return null; };
-    repositories.chatHistory.put = async () => {};
+    repositories.chatHistory.put = async (c) => c;
     const pending = chatbotService.ask('xin chào', {}, { userId: 'test-user', conversationId: '11111111-1111-4111-8111-111111111111' });
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(lookupStarted, true);
@@ -147,6 +172,25 @@ test('model request is bounded and upstream text errors are not shown as answers
   try {
     assert.equal(await sendWusRouterChat([{ role: 'user', content: 'test' }], {}, fetchMock), null);
     assert.equal(maxTokens, 240);
+  } finally {
+    if (previous === undefined) delete process.env.WUSROUTER_API_KEY;
+    else process.env.WUSROUTER_API_KEY = previous;
+  }
+});
+
+test('open question prompt asks for a concise sourced answer', async () => {
+  const previous = process.env.WUSROUTER_API_KEY;
+  process.env.WUSROUTER_API_KEY = 'test-key';
+  let request: any = null;
+  const fetchMock = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    request = JSON.parse(String(init?.body));
+    return Response.json({ choices: [{ message: { content: 'Trả lời ngắn.' } }] });
+  }) as typeof fetch;
+  try {
+    assert.equal(await answerWithWusRouter({ question: 'Kỹ sư phần mềm làm gì?', evidence: 'Tài liệu về nghề nghiệp' }, fetchMock), 'Trả lời ngắn.');
+    assert.equal(request?.max_tokens, 300);
+    assert.match(request!.messages[0].content, /2-4 câu ngắn/);
+    assert.match(request!.messages[0].content, /Tài liệu về nghề nghiệp/);
   } finally {
     if (previous === undefined) delete process.env.WUSROUTER_API_KEY;
     else process.env.WUSROUTER_API_KEY = previous;

@@ -3,7 +3,7 @@
  * Dữ liệu được lưu trong `trovio.app_documents`; không đọc/ghi filesystem và
  * không tự sinh dữ liệu mẫu. Các danh mục tuyển sinh lõi vẫn dùng bảng quan hệ.
  */
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { query, withTransaction } from "@database/client";
 import { FUNNEL_EVENTS } from "@/domain/types";
 import type {
@@ -11,10 +11,13 @@ import type {
   AuditRepository,
   ChatAliasRepository,
   ChatLogRepository,
+  ChatQuotaRepository,
   ChatHistoryRepository,
+  ChatHistoryUserRow,
   CommentRepository,
   ImportBatchRepository,
   NotificationRepository,
+  PasswordResetCodeRepository,
   QaRepository,
   ShareRepository,
   SurveyRepository,
@@ -36,6 +39,43 @@ import type {
   UserData,
 } from "@/domain/types";
 import type { ChatConversation } from "@/domain/chat";
+import type { ChatQuotaRecord } from "@/domain/chat-quota";
+
+export const postgresChatQuotaRepository: ChatQuotaRepository = {
+  async get(subject, kind) {
+    const rows = await query<DocumentRow<ChatQuotaRecord>>(
+      "SELECT payload FROM trovio.app_documents WHERE collection = 'chat-quota' AND id = $1",
+      [`${subject}:${kind}`],
+    );
+    return rows[0]?.payload ?? null;
+  },
+  async take(subject, kind, limit, resetsAt, now) {
+    const rows = await query<DocumentRow<ChatQuotaRecord>>(
+      `INSERT INTO trovio.app_documents AS current (collection, id, payload)
+       VALUES ('chat-quota', $1, jsonb_build_object('used', 1, 'resetsAt', $2::text))
+       ON CONFLICT (collection, id) DO UPDATE SET
+         payload = CASE
+           WHEN (current.payload->>'resetsAt')::timestamptz <= $3::timestamptz
+             OR (current.payload->>'used')::int = 0 THEN EXCLUDED.payload
+           ELSE jsonb_set(current.payload, '{used}', to_jsonb((current.payload->>'used')::int + 1))
+         END,
+         updated_at = now()
+       WHERE (current.payload->>'resetsAt')::timestamptz <= $3::timestamptz
+          OR (current.payload->>'used')::int < $4::int
+       RETURNING payload`,
+      [`${subject}:${kind}`, resetsAt, now, limit],
+    );
+    return rows[0]?.payload ?? null;
+  },
+  async refund(subject, kind, resetsAt) {
+    await query(
+      `UPDATE trovio.app_documents
+       SET payload = jsonb_set(payload, '{used}', to_jsonb(GREATEST(0, (payload->>'used')::int - 1))), updated_at = now()
+       WHERE collection = 'chat-quota' AND id = $1 AND payload->>'resetsAt' = $2 AND (payload->>'used')::int > 0`,
+      [`${subject}:${kind}`, resetsAt],
+    );
+  },
+};
 
 interface DocumentRow<T> {
   payload: T;
@@ -126,6 +166,61 @@ export const postgresUserDataRepository: UserDataRepository = {
   },
 };
 
+interface PasswordResetCodeDocument {
+  hash: string;
+  expiresAt: string;
+  attempts: number;
+  issuedAt: string;
+  windowStartedAt: string;
+  issuedCount: number;
+}
+
+export const postgresPasswordResetCodeRepository: PasswordResetCodeRepository = {
+  async save(userId, hash, expiresAt) {
+    return withTransaction(async () => {
+      await query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`password-reset-code:${userId}`]);
+      const [row] = await query<DocumentRow<PasswordResetCodeDocument>>(
+        `SELECT payload FROM trovio.app_documents WHERE collection='password-reset-code' AND id=$1 FOR UPDATE`, [userId]);
+      const now = Date.now();
+      const previous = row?.payload;
+      if (previous && now - Date.parse(previous.issuedAt) < 60_000) return false;
+      const inWindow = previous && now - Date.parse(previous.windowStartedAt) < 15 * 60_000;
+      if (inWindow && previous.issuedCount >= 3) return false;
+      const issuedAt = new Date(now).toISOString();
+      await putDocument("password-reset-code", userId, {
+        hash, expiresAt, attempts: 0, issuedAt,
+        windowStartedAt: inWindow ? previous.windowStartedAt : issuedAt,
+        issuedCount: inWindow ? previous.issuedCount + 1 : 1,
+      }, { ownerId: userId });
+      return true;
+    });
+  },
+  async consume(userId, candidateHash) {
+    return withTransaction(async () => {
+      const [row] = await query<DocumentRow<PasswordResetCodeDocument>>(
+        `SELECT payload FROM trovio.app_documents WHERE collection='password-reset-code' AND id=$1 FOR UPDATE`, [userId]);
+      if (!row) return false;
+      const current = row.payload;
+      if (Date.parse(current.expiresAt) <= Date.now() || current.attempts >= 5 || !current.hash) return false;
+      const expected = Buffer.from(current.hash);
+      const actual = Buffer.from(candidateHash);
+      if (expected.length === actual.length && timingSafeEqual(expected, actual)) {
+        await putDocument("password-reset-code", userId, { ...current, hash: "", attempts: 5 }, { ownerId: userId });
+        return true;
+      }
+      await putDocument("password-reset-code", userId, current.attempts + 1 >= 5
+        ? { ...current, hash: "", attempts: 5 }
+        : { ...current, attempts: current.attempts + 1 }, { ownerId: userId });
+      return false;
+    });
+  },
+  async revoke(userId, expectedHash) {
+    if (expectedHash) {
+      await query(`DELETE FROM trovio.app_documents WHERE collection='password-reset-code' AND id=$1 AND payload->>'hash'=$2`, [userId, expectedHash]);
+    } else await deleteDocument("password-reset-code", userId);
+  },
+};
+
 export const postgresShareRepository: ShareRepository = {
   create: (share) => putDocument("share", share.id, share, { ownerId: share.userId }),
   findById: (id) => getDocument<Share>("share", id),
@@ -172,7 +267,43 @@ export const postgresChatHistoryRepository: ChatHistoryRepository = {
     const conversation = await getDocument<ChatConversation>("chat-history", id);
     return conversation?.userId === userId ? conversation : null;
   },
-  listByUser: (userId, limit = 20) => listDocuments<ChatConversation>("chat-history", { ownerId: userId }, limit),
+  async listByUser(userId, limit = 20, offset = 0) {
+    const rows = await query<DocumentRow<ChatConversation>>(
+      `SELECT payload FROM trovio.app_documents
+       WHERE collection = 'chat-history' AND owner_id = $1
+       ORDER BY updated_at DESC LIMIT $2 OFFSET $3`,
+      [userId, Math.max(1, Math.min(100, Math.trunc(limit))), Math.max(0, Math.trunc(offset))],
+    );
+    return rows.map((row) => row.payload);
+  },
+  async listUsers(search = "", limit = 30, offset = 0) {
+    const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
+    const safeOffset = Math.max(0, Math.trunc(offset));
+    const filter = search.trim().slice(0, 100);
+    const rows = await query<ChatHistoryUserRow & { total: string; conversationCount: string; questionCount: string; lastActiveAt: Date }>(`
+      WITH activity AS (
+        SELECT owner_id AS "userId", count(*) AS "conversationCount",
+               sum(CASE WHEN jsonb_typeof(payload->'messages') = 'array'
+                   THEN jsonb_array_length(payload->'messages') / 2 ELSE 0 END) AS "questionCount",
+               max(updated_at) AS "lastActiveAt"
+        FROM trovio.app_documents
+        WHERE collection = 'chat-history' AND owner_id IS NOT NULL
+        GROUP BY owner_id
+      )
+      SELECT a.*, u.name, u.email, count(*) OVER () AS total
+      FROM activity a JOIN trovio.users u ON u.id = a."userId"
+      WHERE $1 = '' OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%'
+      ORDER BY a."lastActiveAt" DESC
+      LIMIT $2 OFFSET $3`, [filter, safeLimit, safeOffset]);
+    return {
+      rows: rows.map((row) => ({
+        userId: row.userId, name: row.name, email: row.email,
+        conversationCount: Number(row.conversationCount), questionCount: Number(row.questionCount),
+        lastActiveAt: new Date(row.lastActiveAt).toISOString(),
+      })),
+      total: Number(rows[0]?.total ?? 0),
+    };
+  },
   put: (conversation) => putDocument("chat-history", conversation.id, conversation, { ownerId: conversation.userId }),
   async delete(id, userId) {
     const conversation = await getDocument<ChatConversation>("chat-history", id);
@@ -215,6 +346,7 @@ export const postgresAnalyticsRepository: AnalyticsRepository = {
        VALUES ($1::date, $2, $3) ON CONFLICT DO NOTHING`,
       [day, event, anonId],
     );
+    if (Math.random() < 0.01) await query("DELETE FROM trovio.analytics_events WHERE day < (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 364");
   },
   async summary(from, to) {
     const result = emptyFunnel();

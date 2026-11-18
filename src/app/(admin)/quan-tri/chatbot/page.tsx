@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { adminPage } from "@/lib/admin-page";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody } from "@/components/admin/ui";
@@ -53,17 +54,18 @@ const INTENT_LABELS: Record<string, string> = {
 
 const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" });
 
-export default async function AdminChatbotPage() {
+export default async function AdminChatbotPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
   await adminPage("/quan-tri/chatbot");
-  const [stats, aliases, majors, schools, aiSources] = await Promise.all([chatbotService.stats(500), chatbotService.listAliases(), catalogService.listMajors(), catalogService.listSchools(), aiSourceService.list()]);
+  const params = await searchParams;
+  const search = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
+  const page = Math.max(1, Math.min(10000, Number.parseInt(params.page ?? "1", 10) || 1));
+  const [stats, aliases, majors, schools, aiSources, users] = await Promise.all([chatbotService.stats(500), chatbotService.listAliases(), catalogService.listMajors(), catalogService.listSchools(), aiSourceService.list(), chatbotService.adminUsers(search, page)]);
   const rated = stats.positive + stats.negative;
   return (
     <>
       <AdminHeader title="Giám sát trợ lý hỏi đáp" crumb="Chatbot" />
       <AdminBody>
-      <p className="max-w-3xl text-sm text-slate-500">
-        Trợ lý trả lời bằng cách truy xuất dữ liệu đã kiểm soát của Trovio (không tự sinh số liệu). Nhật ký chỉ lưu câu hỏi đã che email/số điện thoại, không gắn với tài khoản.
-      </p>
+      <p className="max-w-3xl text-sm text-slate-500">Lịch sử hội thoại của tài khoản đã đăng nhập được sắp theo người dùng. Nhật ký câu hỏi chung bên dưới được lưu ẩn danh.</p>
 
       <section className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Thống kê 500 câu hỏi gần nhất">
         <StatTile label="Câu hỏi (gần nhất)" value={stats.total} tone="primary" />
@@ -72,6 +74,47 @@ export default async function AdminChatbotPage() {
         <StatTile label="Chưa có dữ liệu / hỏi lại" value={stats.unknown} />
         <StatTile label="Đánh giá có ích" value={rated ? `${stats.positive}/${rated}` : "—"} />
         <StatTile label="Bị đánh giá chưa đúng" value={stats.negative} />
+      </section>
+
+      <section className="mt-6" aria-labelledby="chat-users-title">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="chat-users-title" className="text-base font-bold text-slate-900">Lịch sử theo người dùng</h2>
+            <p className="mt-1 text-sm text-slate-500">Chỉ gồm hội thoại của tài khoản đã đăng nhập. Khách chưa đăng nhập chỉ lưu lịch sử trên thiết bị của họ.</p>
+          </div>
+          <form action="/quan-tri/chatbot" role="search" className="flex w-full max-w-sm gap-2">
+            <input name="q" type="search" defaultValue={search} placeholder="Tìm tên hoặc email" aria-label="Tìm người dùng" className="h-10 min-w-0 flex-1 rounded border border-slate-300 px-3 text-sm" />
+            <button type="submit" className="h-10 rounded bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800">Tìm</button>
+          </form>
+        </div>
+        <div className="mt-3 overflow-x-auto border-y border-slate-200 bg-white">
+          <table className="w-full min-w-[650px] text-left text-sm">
+            <thead className="border-b border-slate-200 text-xs text-slate-500"><tr>
+              <th scope="col" className="px-3 py-3 font-medium">Người dùng</th>
+              <th scope="col" className="px-3 py-3 font-medium">Hội thoại</th>
+              <th scope="col" className="px-3 py-3 font-medium">Lượt hỏi</th>
+              <th scope="col" className="px-3 py-3 font-medium">Gần nhất</th>
+              <th scope="col" className="px-3 py-3 font-medium">Chi tiết</th>
+            </tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.rows.map((user) => <tr key={user.userId}>
+                <td className="px-3 py-3"><span className="block font-semibold text-slate-900">{user.name}</span><span className="text-xs text-slate-500">{user.email}</span></td>
+                <td className="px-3 py-3 tabular-nums">{user.conversationCount}</td>
+                <td className="px-3 py-3 tabular-nums">{user.questionCount}</td>
+                <td className="px-3 py-3 whitespace-nowrap text-slate-600">{fmt(user.lastActiveAt)}</td>
+                <td className="px-3 py-3"><Link href={`/quan-tri/chatbot/nguoi-dung/${encodeURIComponent(user.userId)}`} className="font-semibold text-primary-700 hover:underline">Xem lịch sử</Link></td>
+              </tr>)}
+            </tbody>
+          </table>
+          {users.rows.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-500">{search ? "Không tìm thấy người dùng có lịch sử chat." : "Chưa có tài khoản nào lưu lịch sử chat."}</p>}
+        </div>
+        <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+          <span>{users.total} người dùng có lịch sử</span>
+          <div className="flex gap-3">
+            {page > 1 && <Link href={`/quan-tri/chatbot?${new URLSearchParams({ ...(search ? { q: search } : {}), page: String(page - 1) })}`} className="font-semibold text-primary-700 hover:underline">Trước</Link>}
+            {page * 30 < users.total && <Link href={`/quan-tri/chatbot?${new URLSearchParams({ ...(search ? { q: search } : {}), page: String(page + 1) })}`} className="font-semibold text-primary-700 hover:underline">Sau</Link>}
+          </div>
+        </div>
       </section>
 
       <div className="mt-6">
@@ -88,10 +131,10 @@ export default async function AdminChatbotPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-base font-bold">Cần xem lại ({stats.needsReview.length})</h2>
+          <h2 className="text-base font-bold">Nhật ký chung ẩn danh: cần xem lại ({stats.needsReview.length})</h2>
           <p className="mt-1 text-sm text-slate-500">Câu hỏi chưa có dữ liệu, cần hỏi lại, hoặc người dùng đánh giá “chưa đúng”. Dùng để bổ sung dữ liệu / từ khoá.</p>
           <LogTable logs={stats.needsReview} empty="Chưa có câu hỏi cần xem lại." />
-          <h2 className="mt-8 text-base font-bold">20 câu hỏi gần nhất</h2>
+          <h2 className="mt-8 text-base font-bold">20 câu hỏi gần nhất trong nhật ký chung</h2>
           <LogTable logs={stats.recent} empty="Chưa có câu hỏi nào." />
         </section>
 

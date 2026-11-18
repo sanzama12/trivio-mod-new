@@ -40,6 +40,7 @@ async function main() {
 
   // Step 4: Git add, commit and push
   run("git add -A", "Thêm toàn bộ tệp thay đổi vào Git staging");
+  run("npm run secrets:check", "Kiểm tra bí mật trước khi commit");
   
   try {
     execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { stdio: "inherit" });

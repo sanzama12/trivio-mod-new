@@ -5,29 +5,29 @@ import styles from "./featured-benefits.module.css";
 const benefits = [
   {
     icon: LuCompass,
-    title: "Hiểu bản thân, tìm hướng đi phù hợp.",
-    description: "Khám phá sở thích qua trắc nghiệm RIASEC và tìm hiểu các nhóm ngành. Kết nối điều bạn yêu thích với những lựa chọn học tập cụ thể.",
+    title: "Hiểu sở thích nghề nghiệp",
+    description: "Trả lời trắc nghiệm RIASEC và xem các nhóm ngành liên quan đến sở thích của bạn.",
     href: "/trac-nghiem",
     action: "Khám phá bản thân",
   },
   {
     icon: LuChartNoAxesCombined,
-    title: "Nhìn rõ cơ hội từ năng lực hiện tại.",
-    description: "Lưu điểm học tập, chọn tổ hợp và xem gợi ý An toàn, Vừa sức, Thử sức. Có thêm cơ sở để cân nhắc khi tham khảo điểm chuẩn các năm.",
+    title: "Đối chiếu điểm của bạn",
+    description: "Nhập điểm và tổ hợp để so với điểm chuẩn đã công bố theo từng phương thức.",
     href: "/diem-cua-toi",
     action: "Tạo hồ sơ học tập",
   },
   {
     icon: LuLayers,
-    title: "So sánh dễ dàng, lựa chọn có cơ sở.",
-    description: "Đặt các chương trình cạnh nhau để xem điểm chuẩn, học phí và phương thức xét tuyển. Tìm lựa chọn phù hợp với mục tiêu và điều kiện của bạn.",
+    title: "So sánh chương trình",
+    description: "Xem điểm chuẩn, học phí và phương thức xét tuyển trong cùng một bảng.",
     href: "/so-sanh",
     action: "So sánh chương trình",
   },
   {
     icon: LuUsers,
-    title: "Chủ động nguyện vọng, cùng nhau quyết định.",
-    description: "Lưu những chương trình bạn quan tâm, sắp xếp thứ tự nguyện vọng và chia sẻ kế hoạch với gia đình để cùng trao đổi trước bước tiếp theo.",
+    title: "Sắp xếp nguyện vọng",
+    description: "Lưu chương trình, đổi thứ tự và chia sẻ danh sách với gia đình.",
     href: "/da-luu",
     action: "Xây dựng nguyện vọng",
   },
@@ -38,9 +38,9 @@ export function FeaturedBenefits() {
     <section className={styles.section} aria-labelledby="featured-benefits-title">
       <div className="container-page">
         <header className={styles.header}>
-          <span>ĐỒNG HÀNH CÙNG MỖI LỰA CHỌN</span>
-          <h2 id="featured-benefits-title">Giá trị nổi bật</h2>
-          <p>Hiểu mình rõ hơn. Nhìn xa hơn. Chọn tương lai bằng sự chủ động.</p>
+          <span>CÔNG CỤ CHO HỌC SINH</span>
+          <h2 id="featured-benefits-title">Tìm hiểu trước khi chọn</h2>
+          <p>Từ sở thích, điểm số đến danh sách nguyện vọng.</p>
         </header>
         <div className={styles.layout}>
           <div className={styles.cards}>
@@ -74,7 +74,7 @@ export function FeaturedBenefits() {
               <path d="M289 277L294 290L307 295L294 300L289 313L284 300L271 295L284 290Z" fill="#82b7d4" />
               <circle cx="68" cy="272" r="6" fill="#76b9a7" /><circle cx="282" cy="38" r="4" fill="#a2cbdc" />
             </svg>
-            <div className={styles.artCaption}><span>TỪ HIỂU MÌNH</span><strong>Đến chọn đúng.</strong><i /></div>
+            <div className={styles.artCaption}><span>HIỂU MÌNH</span><strong>Chọn có cơ sở.</strong><i /></div>
           </div>
           <div className={styles.cards}>
             {benefits.slice(2).map(benefit => <BenefitCard key={benefit.href} benefit={benefit} />)}

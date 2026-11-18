@@ -9,12 +9,44 @@ import { scoreAnswers, type QuizAnswers } from "@/services/riasec.service";
 import { useTrovio } from "@/stores/trovio-store";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
-import { PersonalizedSuggestions } from "@/components/search/personalized-suggestions";
+import type { RiasecStudyGroup } from "@/domain/riasec-guidance";
+import type { RiasecResult, RiasecType } from "@/domain/types";
+import { RiasecStudyGuidance } from "./riasec-study-guidance";
 
 const PAGE_SIZE = 6;
 const PAGE_COUNT = RIASEC_QUESTIONS.length / PAGE_SIZE;
 
-export function RiasecQuiz() {
+const INTEREST_ACTIVITY: Record<RiasecType, string> = {
+  R: "thực hành và kỹ thuật",
+  I: "tìm hiểu và phân tích",
+  A: "sáng tạo và thể hiện ý tưởng",
+  S: "hỗ trợ và làm việc với người khác",
+  E: "thuyết phục và dẫn dắt",
+  C: "sắp xếp thông tin và làm việc theo quy trình",
+};
+
+function InterestSummary({ result }: { result: RiasecResult }) {
+  if (result.isFlatProfile) {
+    return <div className="mt-5 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+      <h3 className="font-bold">Chưa có nhóm sở thích nổi trội</h3>
+      <p>Điểm sáu nhóm khá gần nhau. Hãy tìm hiểu nhiều nhóm ngành và đối chiếu thêm môn học, trải nghiệm thực tế.</p>
+    </div>;
+  }
+
+  const [first, second, third] = result.ranking;
+  const score = (type: RiasecType) => result.percents[type].toLocaleString("vi-VN");
+  const tiedTypes = result.tiedDimensions ?? [];
+  const tied = tiedTypes.length > 1;
+
+  return <div className="mt-5 border-l-4 border-primary-600 bg-primary-50/60 px-4 py-3 text-sm leading-6 text-slate-800">
+    <h3 className="font-bold text-slate-950">{tied ? `Nghiêng về ${tiedTypes.map((type) => RIASEC_INFO[type].label).join(" và ")}` : `Nghiêng về ${RIASEC_INFO[first].label}, tiếp đến ${RIASEC_INFO[second].label}`}</h3>
+    <p className="mt-1">Điểm cao nhất: {RIASEC_INFO[first].label} {score(first)}/100; tiếp đến {RIASEC_INFO[second].label} {score(second)}/100 và {RIASEC_INFO[third].label} {score(third)}/100.{tied && " Hai nhóm đứng đầu có điểm gần nhau."}</p>
+    <p className="mt-1">Bạn thể hiện hứng thú với hoạt động {INTEREST_ACTIVITY[first]} và {INTEREST_ACTIVITY[second]}. Đây là sở thích tự đánh giá, không đo năng lực hay kết luận ngành nào chắc chắn hợp với bạn.</p>
+    <a href="#study-groups-title" className="mt-2 inline-flex items-center gap-1 font-semibold text-primary-700 hover:underline">Xem nhóm ngành nên tìm hiểu <LuArrowRight className="size-4" aria-hidden /></a>
+  </div>;
+}
+
+export function RiasecQuiz({ groups }: { groups: RiasecStudyGroup[] }) {
   const store = useTrovio();
   const [answers, setAnswers] = useState<QuizAnswers>({});
   const [page, setPage] = useState(0);
@@ -99,7 +131,7 @@ export function RiasecQuiz() {
       <div role="tablist" aria-label="Trắc nghiệm và kết quả" className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:w-fit">
         {([
           { id: "quiz", label: "Làm trắc nghiệm" },
-          { id: "results", label: "Kết quả & ngành phù hợp" },
+          { id: "results", label: "Kết quả & gợi ý" },
         ] as const).map((item) => (
           <button key={item.id} id={`riasec-tab-${item.id}`} type="button" role="tab" aria-selected={tab === item.id}
             aria-controls={`riasec-panel-${item.id}`} tabIndex={tab === item.id ? 0 : -1}
@@ -165,12 +197,10 @@ export function RiasecQuiz() {
                 </div>
                 <Button variant="secondary" onClick={restart}><LuRotateCcw aria-hidden />Làm lại</Button>
               </div>
-              {result.isFlatProfile ? (
-                <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">Điểm giữa sáu nhóm khá gần nhau. Bạn hãy khám phá nhiều nhóm ngành và đối chiếu với trải nghiệm thực tế trước khi chọn hướng đi.</p>
-              ) : (
+              <InterestSummary result={result} />
+              {!result.isFlatProfile && (
                 <div className="mt-5 flex flex-wrap gap-2">{result.code.map((type) => <span key={type} className="rounded-lg bg-primary-50 px-4 py-2 text-sm font-bold text-primary-800">{type} · {RIASEC_INFO[type].label}</span>)}</div>
               )}
-              {result.tiedDimensions && result.tiedDimensions.length > 1 && <p className="mt-3 text-sm text-slate-600">Các nhóm có điểm cao xấp xỉ nhau gồm {result.tiedDimensions.map((type) => RIASEC_INFO[type].label).join(", ")}.</p>}
               <div className="mt-6 grid gap-x-8 gap-y-5 md:grid-cols-2">
                 {RIASEC_ORDER.map((type) => (
                   <div key={type}>
@@ -182,7 +212,7 @@ export function RiasecQuiz() {
               </div>
               <p className="mt-6 text-sm leading-relaxed text-slate-600">Mỗi nhóm có 10 câu, mỗi câu 0–4 điểm. Tổng điểm nhóm được đổi sang thang 100. Các chỉ số phản ánh mức độ hứng thú với hoạt động nghề nghiệp.</p>
             </div>
-            <PersonalizedSuggestions limit={8} />
+            <RiasecStudyGuidance result={result} groups={groups} />
           </>
         ) : (
           <div className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -196,7 +226,7 @@ export function RiasecQuiz() {
       <details className="mt-6 max-w-4xl rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">
         <summary className="cursor-pointer font-semibold text-slate-800">Cơ sở mô hình và cách sử dụng kết quả</summary>
         <p className="mt-3 leading-relaxed">Bài gồm sáu nhóm Holland RIASEC. Trovio biên soạn 60 câu hoạt động bằng tiếng Việt và cộng điểm theo từng nhóm. Bộ câu hỏi này hiện chưa được kiểm định chuẩn hóa trên học sinh Việt Nam. Kết quả dùng để khám phá sở thích và tham khảo ngành học, cần kết hợp với năng lực học tập, điều kiện và trải nghiệm của bạn.</p>
-        <p className="mt-3 leading-relaxed">Ngành học được đối chiếu với nhãn RIASEC trong danh mục của Trovio. Khi ngành chưa có nhãn riêng, hệ thống dùng tham chiếu của nhóm ngành và ghi rõ trong lý do gợi ý. Lượt xem gần đây có trọng số bổ sung và giảm dần theo thời gian.</p>
+        <p className="mt-3 leading-relaxed">Các nhóm ngành được TriOVO đối chiếu với ba nhãn RIASEC theo trọng số 3:2:1. Thứ tự gợi ý trên trang này chỉ dùng kết quả trắc nghiệm, không dùng lịch sử xem hay mục đã lưu. Danh mục ngành là dữ liệu đào tạo; việc quy chiếu ngành với sở thích do TriOVO biên soạn.</p>
         <a href={RIASEC_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block font-semibold text-primary-700 underline underline-offset-4">Tài liệu mô hình và chấm điểm của O*NET® Interest Profiler</a>
         <p className="mt-3">Bạn có thể bổ sung sở thích và môn thế mạnh trong <Link href="/dinh-huong-nghe-nghiep" className="font-semibold text-primary-700 underline">khảo sát định hướng nghề nghiệp</Link>.</p>
       </details>

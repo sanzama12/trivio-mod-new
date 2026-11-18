@@ -22,12 +22,12 @@ interface TourStep {
 }
 
 export const TOUR_STEPS: TourStep[] = [
-  { target: null, title: "Chào bạn, mình là trợ lý Trovio", body: "Mình sẽ chỉ bạn 5 chỗ quan trọng trong khoảng 1 phút. Bạn có thể bỏ qua bất cứ lúc nào." },
-  { target: "search", title: "Tìm chương trình", body: "Gõ tên trường, ngành hoặc mã chương trình. Thử “Marketing Hà Nội” — Trovio hiện điểm chuẩn 3 năm, học phí và mức An toàn / Vừa sức / Thử sức với điểm của bạn." },
-  { target: "nav-quiz", title: "Trắc nghiệm sở thích", body: "7–10 phút, ra mã RIASEC 3 chữ cái và các nhóm ngành hợp với bạn. Trovio không dùng ngày sinh hay cung hoàng đạo." },
-  { target: "for-you", title: "Nhãn khả năng & gợi ý có lý do", body: "Mỗi gợi ý ghi rõ vì sao. Chưa có điểm hoặc chưa đủ 3 năm điểm chuẩn thì Trovio ghi “Chưa đủ dữ liệu” thay vì đoán." },
-  { target: "saved", title: "Lưu & lập nguyện vọng", body: "Bấm ♡ để lưu, rồi sắp xếp nguyện vọng, kiểm tra chiến lược và gửi link chỉ xem cho phụ huynh." },
-  { target: "chat", title: "Hỏi trợ lý bất cứ lúc nào", body: "Hỏi về ngành, điểm chuẩn và học phí. Câu trả lời luôn kèm nguồn. Chúc bạn chọn đúng ngành!" },
+  { target: null, title: "Bắt đầu với Trovio", body: "Xem nhanh các mục chính. Bạn có thể bỏ qua bất cứ lúc nào." },
+  { target: "search", title: "Tìm chương trình", body: "Tìm theo trường, ngành hoặc mã chương trình; xem điểm chuẩn, học phí và phương thức xét tuyển." },
+  { target: "nav-quiz", title: "Khám phá sở thích", body: "Trả lời câu hỏi RIASEC để xem nhóm nghề bạn quan tâm. Kết quả không đánh giá năng lực học tập." },
+  { target: "for-you", title: "Xem gợi ý có lý do", body: "Thêm điểm và sở thích để xem gợi ý. Mỗi mức tham khảo cần được đối chiếu với đề án tuyển sinh mới nhất." },
+  { target: "saved", title: "Lưu nguyện vọng", body: "Lưu chương trình, sắp xếp thứ tự và chia sẻ danh sách với gia đình." },
+  { target: "chat", title: "Hỏi trợ lý", body: "Hỏi về ngành, điểm chuẩn hoặc học phí. Kiểm tra nguồn trước khi quyết định." },
 ];
 
 type Rect = { top: number; left: number; width: number; height: number };

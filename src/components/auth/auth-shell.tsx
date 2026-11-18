@@ -3,7 +3,7 @@ import { LuGraduationCap, LuSchool, LuSparkles } from "react-icons/lu";
 import { Logo } from "@/components/layout/logo";
 
 /** Bố cục 2 cột dùng chung cho đăng nhập / đăng ký / quên mật khẩu. */
-export function AuthShell({ children, title = "Tìm đúng trường, chọn đúng ngành", subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
+export function AuthShell({ children, title = "Tìm hiểu ngành, trường và điểm chuẩn", subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 p-12 text-white lg:flex lg:flex-col">
@@ -23,10 +23,10 @@ export function AuthShell({ children, title = "Tìm đúng trường, chọn đ�
           </div>
           <h2 className="mt-10 text-3xl font-bold">{title}</h2>
           <p className="mt-3 max-w-md text-primary-100">
-            {subtitle ?? "Khởi đầu tương lai của bạn với dữ liệu tuyển sinh minh bạch, so sánh chương trình và gợi ý cá nhân hoá."}
+            {subtitle ?? "Lưu hồ sơ học tập, so sánh chương trình và theo dõi nguyện vọng của bạn."}
           </p>
         </div>
-        <p className="relative text-sm text-primary-100 italic">“Tương lai bắt đầu từ sự lựa chọn đúng đắn” — Trovio</p>
+        <p className="relative text-sm text-primary-100">Thông tin tuyển sinh cần được đối chiếu với công bố mới nhất của trường.</p>
       </div>
       <div className="flex flex-col px-5 py-8 sm:px-10">
         <div className="lg:hidden">
