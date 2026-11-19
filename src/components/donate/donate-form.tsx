@@ -13,7 +13,6 @@ import {
   LuLockKeyhole,
   LuQrCode,
   LuCoins,
-  LuRefreshCw,
 } from "react-icons/lu";
 import { Input, Label } from "@/components/ui/field";
 import type { DonationPayment, DonationPaymentAvailability, DonationPaymentMethod } from "@/domain/donation";
@@ -50,8 +49,6 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
   const [showSuccess, setShowSuccess] = useState(false);
   const [confirmedAt, setConfirmedAt] = useState<string | null>(null);
   const [pollingError, setPollingError] = useState(false);
-  const [checkingNow, setCheckingNow] = useState(false);
-  const checkStatusRef = useRef<() => Promise<void>>(async () => {});
   const [qrFailed, setQrFailed] = useState(false);
   const [copied, setCopied] = useState<"account" | "reference" | null>(null);
   const [paymentDonor, setPaymentDonor] = useState({ donorName: "", message: "" });
@@ -77,13 +74,13 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
     async function checkStatus() {
       if (inFlight || controller.signal.aborted) return;
       inFlight = true;
-      setCheckingNow(true);
       try {
         const response = await fetch(`/api/donations/status/${payment!.txnRef}`, {
-          signal: controller.signal,
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
           cache: "no-store",
         });
         const result = await response.json();
+        if (controller.signal.aborted) return;
         if (!response.ok || !result.ok) throw new Error("Không kiểm tra được giao dịch.");
         if (["pending", "success", "failed", "cancelled"].includes(result.data?.status)) {
           setPaymentStatus(result.data.status);
@@ -94,19 +91,16 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
         if (!controller.signal.aborted) setPollingError(true);
       } finally {
         inFlight = false;
-        setCheckingNow(false);
       }
     }
-    checkStatusRef.current = checkStatus;
     void checkStatus();
-    const timer = setInterval(() => void checkStatus(), 4000);
+    const timer = setInterval(() => void checkStatus(), 5000);
     const onVisible = () => { if (document.visibilityState === "visible") void checkStatus(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       controller.abort();
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
-      checkStatusRef.current = async () => {};
     };
   }, [payment, paymentStatus]);
 
@@ -365,22 +359,11 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
               <div className={styles.pollingStatus}>
                 <p className={styles.hint} role="status">
                   {pollingError
-                    ? "Đang chờ đối soát từ ngân hàng (có thể trễ 1–2 phút). Hệ thống vẫn đang tự động kiểm tra."
+                    ? "Chưa kết nối được dữ liệu xác nhận từ ngân hàng. Hệ thống vẫn tự kiểm tra mỗi 5 giây; bạn không cần chuyển tiền lại."
                     : payment.method === "qr"
-                      ? "Đang tự động kiểm tra tài khoản mỗi 4 giây..."
+                      ? "Đang tự động kiểm tra tài khoản mỗi 5 giây..."
                       : "Trạng thái sẽ tự động cập nhật sau khi thanh toán."}
                 </p>
-                {payment.method === "qr" && (
-                  <button
-                    type="button"
-                    className={styles.checkNow}
-                    disabled={checkingNow}
-                    onClick={() => void checkStatusRef.current()}
-                  >
-                    <LuRefreshCw className={checkingNow ? styles.spinning : undefined} aria-hidden />
-                    {checkingNow ? "Đang kiểm tra..." : "Kiểm tra ngay"}
-                  </button>
-                )}
               </div>
             </>
           ) : (

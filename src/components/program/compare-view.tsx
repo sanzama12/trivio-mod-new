@@ -16,6 +16,8 @@ import { CompetitionBadge } from "./fit-badge";
 import { WishlistButton } from "./program-actions";
 import { useProgramViews } from "./use-program-views";
 import { useProgramYears } from "./use-program-years";
+import { safeChatHref } from "@/domain/chat";
+import { isPrimaryDocumentUrl } from "@/services/chatbot-evidence";
 
 type Row = { label: string; value: (v: ProgramView) => ReactNode; raw: (v: ProgramView) => string };
 
@@ -92,16 +94,21 @@ export function CompareView() {
 
   const mine = profile ? profileScore(profile) : null;
   const altKeys = (["hocba"] as AltMethodKey[]).filter((k) => items.some((v) => cutoffFor(v.program, k)));
-  const cut = (v: ProgramView, i: number) => v.program.cutoffs[i];
+  const cutoffYears = [...new Set(items.flatMap((v) => v.program.cutoffs.filter((c) => !c.estimated).map((c) => c.year)))].sort((a, b) => b - a).slice(0, 3);
+  const cut = (v: ProgramView, year: number) => v.program.cutoffs.find((c) => c.year === year && !c.estimated);
   const yearOf = (v: ProgramView): ProgramYearData[] => yearData[v.program.id] ?? [];
   const hasYearData = items.some((v) => yearOf(v).length > 0);
 
   const rows: Row[] = [
+    { label: "Nguồn gốc / ngày đối chiếu", value: ({ program: p }) => {
+      const href = p.sourceUrl && safeChatHref(p.sourceUrl);
+      return <div className="text-xs">{href ? <a href={href} target="_blank" rel="noreferrer" className="underline">{p.source || "Tài liệu nguồn"}</a> : <strong>Chưa có tài liệu nguồn để đối chiếu</strong>}<p>{p.sourceCheckedAt ? `Ngày đối chiếu: ${p.sourceCheckedAt}` : "Chưa ghi nhận ngày đối chiếu"}</p><p>{p.sourceNote || "Cần kiểm tra đúng năm, phương thức và đơn vị trước khi dùng số liệu để quyết định."}</p></div>;
+    }, raw: ({ program: p }) => `${p.sourceUrl || "missing"}:${p.sourceCheckedAt || "unchecked"}` },
     { label: "Trường / Cơ sở", value: (v) => v.program.campus, raw: (v) => v.program.campus },
-    ...[0, 1, 2].map<Row>((i) => ({
-      label: `Điểm chuẩn ${2025 - i}`,
-      value: (v) => (cut(v, i) ? <strong className={i === 0 ? "text-primary-700" : ""}>{formatScore(cut(v, i).score)}</strong> : <span className="text-slate-400 italic">Chưa có dữ liệu chính thức</span>),
-      raw: (v) => String(cut(v, i)?.score ?? "-"),
+    ...cutoffYears.map<Row>((year, i) => ({
+      label: `Điểm chuẩn ${year}`,
+      value: (v) => (cut(v, year) ? <strong className={i === 0 ? "text-primary-700" : ""}>{formatScore(cut(v, year)!.score)}</strong> : <span className="text-slate-400 italic">Chưa có dữ liệu chính thức cùng năm</span>),
+      raw: (v) => String(cut(v, year)?.score ?? "-"),
     })),
     ...altKeys.map<Row>((k) => ({
       label: `Điểm chuẩn ${ADMISSION_METHODS[k].short}`,
@@ -169,7 +176,14 @@ export function CompareView() {
         ]
       : []),
   ];
-  const visibleRows = diffOnly ? rows.filter((r) => new Set(items.map(r.raw)).size > 1) : rows;
+  const documentedRows = rows.map((row, index) => index === 0 ? row : {
+    ...row,
+    value: (view: ProgramView) => isPrimaryDocumentUrl(view.program.sourceUrl) && view.program.sourceCheckedAt
+      ? row.value(view)
+      : <span className="text-xs text-amber-800">Chưa có tài liệu gốc và ngày đối chiếu; chưa dùng để so sánh.</span>,
+    raw: (view: ProgramView) => isPrimaryDocumentUrl(view.program.sourceUrl) && view.program.sourceCheckedAt ? row.raw(view) : "unverified",
+  });
+  const visibleRows = diffOnly ? documentedRows.filter((r, index) => index === 0 || new Set(items.map(r.raw)).size > 1) : documentedRows;
   const cols = items.length + (items.length < MAX_COMPARE ? 1 : 0);
 
   const colToneStyles = [

@@ -3,6 +3,7 @@
  */
 import type { Major, MajorGroup, Program, Region, School, SchoolType } from "../domain/types";
 import { repositories } from "@database/repositories";
+import { isPrimaryDocumentUrl } from "./chatbot-evidence";
 import { firstLetterVi, matchesQuery } from "../lib/text";
 
 import { countBy } from '../lib/collections';
@@ -204,7 +205,8 @@ export const catalogService = {
     const result: SchoolCompareItem[] = [];
 
     for (const [index, school] of selected.entries()) {
-      const rawPrograms = programsBySchool[index];
+      const rawPrograms = programsBySchool[index].filter((p) => isPrimaryDocumentUrl(p.sourceUrl) && p.sourceCheckedAt);
+      const unverifiedProgramCount = programsBySchool[index].length - rawPrograms.length;
 
       const tuitionMins = rawPrograms.map((p) => p.tuitionMin).filter((t) => t > 0);
       const tuitionMaxs = rawPrograms.map((p) => p.tuitionMax).filter((t) => t > 0);
@@ -262,6 +264,8 @@ export const catalogService = {
 
       const programsFormatted = rawPrograms.map((p) => ({
         id: p.id,
+        sourceUrl: p.sourceUrl,
+        sourceCheckedAt: p.sourceCheckedAt,
         name: p.name,
         admissionCode: p.admissionCode,
         majorId: p.majorId,
@@ -275,6 +279,7 @@ export const catalogService = {
 
       result.push({
         school,
+        unverifiedProgramCount,
         tuitionMin,
         tuitionMax,
         programCount: rawPrograms.length,

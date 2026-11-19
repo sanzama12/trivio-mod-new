@@ -35,6 +35,7 @@ export interface MajorGroupSummary {
 
 export interface SchoolCompareItem {
   school: School;
+  unverifiedProgramCount?: number;
   tuitionMin: number;
   tuitionMax: number;
   programCount: number;
@@ -45,6 +46,8 @@ export interface SchoolCompareItem {
     id: string;
     name: string;
     admissionCode: string;
+    sourceUrl?: string | null;
+    sourceCheckedAt?: string | null;
     majorId: string;
     majorName: string;
     tuitionMin: number;

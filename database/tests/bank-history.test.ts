@@ -15,7 +15,7 @@ const bankRow = (patch: Record<string, unknown> = {}) => ({
 
 test("bank history shares the cooldown and exposes failures instead of stale success", async (t) => {
   const previous = process.env.BANK_HISTORY_API_TOKEN;
-  process.env.BANK_HISTORY_API_TOKEN = "cache_regression_token_123456789";
+  process.env.BANK_HISTORY_API_TOKEN = "b".repeat(32);
   let now = 100_000;
   t.mock.method(Date, "now", () => now);
   const upstream = t.mock.method(globalThis, "fetch", async () => Response.json({ status: "success", TranList: [bankRow()] }));
@@ -29,9 +29,33 @@ test("bank history shares the cooldown and exposes failures instead of stale suc
     now += 4_000;
     assert.equal(await fetchBankHistory(), null);
     assert.equal(upstream.mock.callCount(), 2);
-    process.env.BANK_HISTORY_API_TOKEN = "different_token_123456789";
+    process.env.BANK_HISTORY_API_TOKEN = "c".repeat(32);
     await fetchBankHistory();
     assert.equal(upstream.mock.callCount(), 3);
+  } finally {
+    if (previous === undefined) delete process.env.BANK_HISTORY_API_TOKEN;
+    else process.env.BANK_HISTORY_API_TOKEN = previous;
+  }
+});
+
+test("slow bank requests remain shared after cooldown and recover on the next poll", async (t) => {
+  const previous = process.env.BANK_HISTORY_API_TOKEN;
+  process.env.BANK_HISTORY_API_TOKEN = "d".repeat(32);
+  let now = 200_000;
+  t.mock.method(Date, "now", () => now);
+  let finish!: (response: Response) => void;
+  const upstream = t.mock.method(globalThis, "fetch", () => new Promise<Response>((resolve) => { finish = resolve; }));
+  try {
+    const first = fetchBankHistory();
+    now += 11_000;
+    const second = fetchBankHistory();
+    assert.equal(upstream.mock.callCount(), 1);
+    finish(Response.json({ status: "success", TranList: [bankRow()] }));
+    assert.equal((await first)?.length, 1);
+    assert.equal((await second)?.length, 1);
+    upstream.mock.mockImplementation(async () => Response.json({ status: "success", TranList: [] }));
+    assert.deepEqual(await fetchBankHistory(), []);
+    assert.equal(upstream.mock.callCount(), 2);
   } finally {
     if (previous === undefined) delete process.env.BANK_HISTORY_API_TOKEN;
     else process.env.BANK_HISTORY_API_TOKEN = previous;

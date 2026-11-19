@@ -17,7 +17,7 @@ import { hasTuitionData } from "../lib/format";
 import { normalizeVi } from "../lib/text";
 import { ADMISSION_METHODS, cutoffFor, formatMethodScore } from "./scoring.service";
 import { matchMajor, sanitizeRiasec } from "./riasec.service";
-import { isFaithful } from "./chatbot-llm";
+import { isFaithful, isUsableGeneralAnswer } from "./chatbot-llm";
 import { answerWithWusRouter, isWusRouterConfigured } from "./wusrouter-llm";
 import { findExternalEvidence } from "./external-evidence.service";
 import { majorRecommendationService } from "./major-recommendation.service";
@@ -25,6 +25,8 @@ import { userDataService } from "./user-data.service";
 import { aiSourceService } from "./ai-source.service";
 import { findMarkdownAnswer } from "./chatbot-markdown";
 import type { ChatImageInput } from "../domain/chat-image";
+import { requiresPrimaryEvidence, isPrimaryDocumentUrl } from "./chatbot-evidence";
+import { OFFICIAL_POLICY_2026 } from "./admission-policy.service";
 
 export { MAX_QUESTION } from "../domain/chat";
 export type { ChatAnswer, ChatItem, ChatKind, ChatSource } from "../domain/chat";
@@ -212,7 +214,7 @@ const I = {
 // ---------------------------------------------------------------------------
 
 const DATA_NOTE = "Thông tin phản ánh dữ liệu Trovio đang có; hãy đối chiếu đề án tuyển sinh chính thức của trường trước khi quyết định.";
-const OFFICIAL_PORTAL: ChatSource = { label: "Cổng thông tin tuyển sinh của Bộ GD&ĐT", href: "https://thisinh.thitotnghiepthpt.edu.vn", external: true };
+const OFFICIAL_PORTAL: ChatSource = { label: "Thông tư 06/2026/TT-BGDĐT — văn bản gốc", href: OFFICIAL_POLICY_2026.officialSourceUrl, external: true };
 
 const vn = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 
@@ -270,6 +272,18 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
   };
   const markdown = findMarkdownAnswer(q);
   if (markdown) return base("markdown-faq", "answer", markdown.text, { context: shortContext, sources: markdown.sources });
+  if (has(n, ["diem uu tien", "uu tien khu vuc", "uu tien doi tuong", "kv1", "kv2", "ut1", "ut2"])) {
+    return base("rules-priority", "answer", "Theo Điều 7 Thông tư 06/2026/TT-BGDĐT, trên thang 30: KV1 0,75; KV2-NT 0,50; KV2 0,25; KV3 0; UT1 (01–03) 2,00; UT2 (04–06) 1,00. Từ tổng 22,50 điểm, ưu tiên = (30 − tổng điểm) / 7,50 × mức ưu tiên, làm tròn hàng phần trăm. Ưu tiên khu vực chỉ áp dụng năm tốt nghiệp và một năm kế tiếp; nhiều diện đối tượng hưởng mức cao nhất.", {
+      context: shortContext, sources: [OFFICIAL_PORTAL],
+      note: "Đối chiếu Điều 7 khoản 1–4 và Phụ lục I–II; cần năm tốt nghiệp và hồ sơ đúng diện để tính cho từng người. Công cụ không tự xác nhận giấy tờ ưu tiên.",
+    });
+  }
+  if (has(n, ["diem cong", "cong diem", "diem thuong", "diem khuyen khich", "quy doi ielts"])) {
+    return base("rules-bonus", "answer", "Điểm cộng khác điểm ưu tiên: Điều 2 khoản 20 quy định trần thưởng 3,00; xét thưởng thành tích/năng khiếu 1,50; khuyến khích chứng chỉ 1,50 trên thang 30. Điều 6 khoản 2 giới hạn tổng điểm cộng 10% thang điểm; tổng xét tuyển gồm ưu tiên và điểm cộng không vượt 30. Đây không phải mức tự động được cộng: cần công bố cụ thể của trường, chương trình, phương thức và mùa tuyển sinh. Một chứng chỉ chỉ dùng quy đổi ngoại ngữ hoặc cộng khuyến khích, không dùng đồng thời (Điều 6 khoản 4 điểm d).", {
+      context: shortContext, sources: [OFFICIAL_PORTAL],
+      note: "Chưa có bảng quy đổi hoặc chính sách trường đã đối chiếu thì không tính thêm điểm. Hãy chọn trường/ngành/năm để kiểm tra tài liệu tương ứng.",
+    });
+  }
   if (/^(cam on|thanks|thank you|tks)( ban| nhe| nha| tro ly)?$/.test(n.trim())) {
     return base("thanks", "answer", "Rất vui được hỗ trợ bạn! Bạn có thể hỏi tiếp về ngành, trường, điểm chuẩn hoặc học phí.", { context: shortContext, suggestions: defaultSuggestions() });
   }
@@ -744,6 +758,12 @@ export async function answerQuestion(question: string, ctxIn: ChatContextIn = {}
 
 
 
+function isWebsiteQuestion(question: string, ctx: ChatContextIn): boolean {
+  const normalized = normalizeVi(question).toLowerCase();
+  if ((ctx.majorId || ctx.schoolId) && /\b(nay|do|vay|o day)\b/.test(normalized)) return true;
+  return /\b(trovio|nganh|truong|diem|hoc phi|tuyen sinh|riasec|nguyen vong|chuong trinh|dang nhap|ung ho)\b/.test(normalized);
+}
+
 function defaultSuggestions() {
   return ["Giới thiệu ngành Marketing", "Điểm chuẩn ngành Công nghệ thông tin", "Học phí ngành Kế toán", "Thứ tự nguyện vọng quan trọng thế nào?"];
 }
@@ -826,10 +846,23 @@ export const chatbotService = {
         polished: true,
       })
       : await answerQuestion(q, ctx, history?.userId);
+    if (!image && answer.kind === "answer" && ["cutoff", "tuition", "quota", "duration", "compare"].includes(answer.intent)) {
+      const ids = [...new Set(answer.items.map((item) => item.programId).filter((id): id is string => Boolean(id)))];
+      const programs = await Promise.all(ids.map((id) => repositories.programs.findById(id)));
+      const documented = programs.length > 0 && programs.every((p) => p && isPrimaryDocumentUrl(p.sourceUrl) && p.sourceCheckedAt);
+      if (!documented) {
+        answer = base("missing-primary-source", "unknown", "Chưa đủ tài liệu gốc đã đối chiếu để công bố hoặc so sánh số liệu này. Cần nguồn trường công bố, năm áp dụng, phương thức và ngày kiểm tra; mình không lấy số liệu từ trí nhớ AI để thay thế.", {
+          context: answer.context,
+          sources: [{ label: "Tra cứu chương trình và nguồn dữ liệu", href: "/chuong-trinh" }],
+        });
+      } else {
+        answer.sources.push(...programs.map((p) => ({ label: `${p!.source} · đối chiếu ${p!.sourceCheckedAt}`, href: p!.sourceUrl!, external: true })));
+      }
+    }
     // Chưa có dữ liệu có cấu trúc → thử nguồn thông tin do quản trị viên biên soạn (không dùng cho câu bị từ chối).
     if (!image && answer.kind === "unknown") {
       const source = await aiSourceService.answerFor(q).catch(() => null);
-      if (source) {
+      if (source && (!(requiresPrimaryEvidence(q) || answer.intent === "missing-primary-source") || isPrimaryDocumentUrl(source.url))) {
         answer = {
           ...answer,
           kind: "answer",
@@ -843,7 +876,10 @@ export const chatbotService = {
 
     // Outside evidence & WusRouter AI Gateway cho các câu hỏi mở/chuyên sâu
     if (!image && answer.kind === "unknown") {
-      const evidence = await findExternalEvidence(q).catch(() => null);
+      const strictEvidence = requiresPrimaryEvidence(q) || answer.intent === "missing-primary-source";
+      // Search snippets and model memory cannot establish a legal/business rule.
+      // Unresolved business questions stay unverified until a primary document is curated.
+      const evidence = strictEvidence ? null : await findExternalEvidence(q).catch(() => null);
 
       if (isWusRouterConfigured()) {
         let recentHistory: Array<{ role: "user" | "assistant"; text: string }> = [];
@@ -861,23 +897,28 @@ export const chatbotService = {
           }
         }
 
-        const aiText = await answerWithWusRouter({
+        const aiText = strictEvidence ? null : await answerWithWusRouter({
           question: q,
           evidence: evidence?.text,
+          mode: evidence ? "general" : (isWebsiteQuestion(q, ctx) ? "website" : "general"),
           history: recentHistory,
         });
 
-        if (aiText && isFaithful(aiText, evidence?.text ?? q)) {
+        if (!strictEvidence && !aiText && !evidence) {
+          return { ok: false, status: 503, message: "AI chưa trả được câu trả lời đạt kiểm tra. Bạn thử lại hoặc bổ sung câu hỏi; hệ thống không dùng câu trả lời đoán để thay thế." };
+        }
+        const usableAiText = aiText && (evidence ? isFaithful(aiText, evidence.text) : isUsableGeneralAnswer(aiText));
+        if (usableAiText) {
           answer = {
             ...answer,
             kind: "answer",
-            intent: evidence ? "external-evidence" : "wusrouter-assistant",
+            intent: evidence ? "external-evidence" : (isWebsiteQuestion(q, ctx) ? "wusrouter-website" : "wusrouter-general"),
             text: aiText.trim(),
             note: evidence
               ? "Thông tin được tổng hợp từ nguồn tham khảo và Trợ lý AI TriOVO; hãy đối chiếu văn bản chính thức của trường."
               : "Câu trả lời được hỗ trợ bởi Trợ lý AI TriOVO (WusRouter Gateway); hãy đối chiếu thông tin chính thức của trường.",
             sources: evidence?.sources ?? [],
-            suggestions: defaultSuggestions(),
+            suggestions: [],
             polished: true,
           };
         } else if (evidence) {

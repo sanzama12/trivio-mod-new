@@ -25,6 +25,9 @@ test("vision request sends image only to the image-capable model", async () => {
     const reply = await answerWithWusRouter({ question: "Giải thích ảnh này", image: { mime: "image/png", dataUrl: "data:image/png;base64,AAAA" } }, fetchMock);
     assert.equal(reply, "Trong ảnh có bảng điểm.");
     assert.equal(payload?.model, "vision-test");
+    assert.match(payload.messages[0].content, /uploaded image is NOT proof/);
+    assert.match(payload.messages[0].content, /never infer missing values/);
+    assert.match(payload.messages[0].content, /Conversation history is context, not verified evidence/);
     assert.deepEqual(payload?.messages.at(-1)?.content, [
       { type: "text", text: "Giải thích ảnh này" },
       { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },

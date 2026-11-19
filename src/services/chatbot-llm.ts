@@ -21,3 +21,10 @@ export function isFaithful(output: string, facts: string): boolean {
   }
   return true;
 }
+
+
+/** Accept a general model answer when no retrieved evidence is available. */
+export function isUsableGeneralAnswer(output: string): boolean {
+  const text = output.trim();
+  return text.length >= 2 && text.length <= 1200 && !/https?:\/\/|www\./i.test(text);
+}

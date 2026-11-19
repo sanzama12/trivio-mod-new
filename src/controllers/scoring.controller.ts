@@ -10,6 +10,7 @@ import {
   evaluateTieBreaker,
   isMethodKey,
 } from "../services/scoring.service";
+import { admissionPolicyService } from "../services/admission-policy.service";
 import { certificatePolicyService } from "../services/certificate-policy.service";
 import type { PriorityGroup, PriorityRegion, Combo } from "../models";
 import { jsonBody } from "../lib/http";
@@ -23,6 +24,9 @@ export class ScoringController {
     const { body, error } = await jsonBody(req, 8 * 1024);
     if (error) return error;
     const b = body ?? {};
+    if (["bonusPoints", "certificateBonus", "achievementBonus"].some((key) => b[key] !== undefined)) {
+      return NextResponse.json({ ok: false, error: "Không nhận điểm cộng tự khai khi chưa có chính sách của trường/chương trình/mùa tuyển sinh đã đối chiếu.", source: "https://datafiles.chinhphu.vn/cpp/files/vbpq/2026/3/06-bgddt.pdf", provisions: ["Điều 2 khoản 20", "Điều 6 khoản 2 và khoản 4"] }, { status: 422 });
+    }
 
     if (typeof b.rawTotal !== "number" || !Number.isFinite(b.rawTotal) || b.rawTotal < 0 || b.rawTotal > 30 ||
         (b.method !== undefined && !isMethodKey(b.method)) ||
@@ -47,7 +51,27 @@ export class ScoringController {
       return NextResponse.json({ ok: false, error: "Cần năm tốt nghiệp để kiểm tra thời hạn ưu tiên khu vực." }, { status: 400 });
     }
     const admission = computeAdmissionScore(rawTotal, region, group, method, { admissionSeason: 2026, graduationYear: typeof b.graduationYear === "number" ? b.graduationYear : undefined });
-    return NextResponse.json({ ok: true, admission, season: 2026, referenceOnly: true });
+    const policy = admissionPolicyService.getOfficialPolicy(2026);
+    return NextResponse.json({
+      ok: true,
+      admission,
+      season: 2026,
+      referenceOnly: true,
+      calculationScope: "Điểm gốc + ưu tiên khu vực/đối tượng; chưa tính điểm cộng riêng của trường và quy đổi chứng chỉ.",
+      policy: {
+        legalDocumentNumber: policy.legalDocumentNumber,
+        issuer: policy.issuer,
+        status: policy.status,
+        officialSourceUrl: policy.officialSourceUrl,
+        accessedAt: policy.accessedAt,
+        provisions: { priority: "Điều 7 khoản 1–4; Phụ lục I–II", bonus: "Điều 2 khoản 20; Điều 6 khoản 2", certificate: "Điều 6 khoản 4" },
+        formula: policy.priorityRules.reductionFormula,
+        reductionThreshold: policy.priorityRules.reductionThreshold,
+        regionPoints: policy.priorityRules.regions,
+        groupPoints: policy.priorityRules.groups,
+        bonusRules: policy.bonusRules,
+      },
+    });
   }
 
   /**

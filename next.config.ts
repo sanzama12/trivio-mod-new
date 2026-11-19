@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },
   outputFileTracingIncludes: {
-    "/api/chat": ["./docs/chatbot-faq.md"],
+    "/api/chat": ["./docs/chatbot-faq.md", "./docs/TRIOVO_AI_KNOWLEDGE.md"],
   },
 };
 

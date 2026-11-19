@@ -196,3 +196,42 @@ test('open question prompt asks for a concise sourced answer', async () => {
     else process.env.WUSROUTER_API_KEY = previous;
   }
 });
+
+test('outside questions use the configured model without requiring retrieved evidence', async (t) => {
+  const previous = process.env.WUSROUTER_API_KEY;
+  process.env.WUSROUTER_API_KEY = 'test-key';
+  let request: any = null;
+  const fetchMock = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    request = JSON.parse(String(init?.body));
+    return Response.json({ choices: [{ message: { content: 'Cà phê chứa caffeine và có thể giúp tăng sự tỉnh táo trong thời gian ngắn.' } }] });
+  }) as typeof fetch;
+  try {
+    const answer = await answerWithWusRouter({ question: 'Cà phê có tác dụng gì?', mode: 'general' }, fetchMock);
+    assert.match(answer ?? '', /caffeine/);
+    assert.match(request.messages[0].content, /OUTSIDE WEBSITE/);
+    assert.match(request.messages[0].content, /2-4 câu ngắn/);
+  } finally {
+    if (previous === undefined) delete process.env.WUSROUTER_API_KEY;
+    else process.env.WUSROUTER_API_KEY = previous;
+  }
+});
+
+test('model integration rejects unsupported numbers, fabricated links, truncation and invalid payloads', async (t) => {
+  const previous = process.env.WUSROUTER_API_KEY;
+  process.env.WUSROUTER_API_KEY = 'test-key';
+  const request = { question: 'Tóm tắt dữ liệu học phí được cung cấp', evidence: 'Học phí năm 2026 là 20 triệu đồng.' };
+  try {
+    for (const content of ['Học phí là 30 triệu đồng.', 'Xem https://invented.example.com', { text: 'not a string' }]) {
+      const upstream = (async () => Response.json({ choices: [{ message: { content } }] })) as typeof fetch;
+      assert.equal(await answerWithWusRouter(request, upstream), null);
+    }
+    const truncated = (async () => Response.json({ choices: [{ finish_reason: 'length', message: { content: 'Học phí năm 2026 là 20 triệu đồng nhưng' } }] })) as typeof fetch;
+    assert.equal(await answerWithWusRouter(request, truncated), null);
+    const upstream = t.mock.fn(async () => Response.json({ choices: [{ message: { content: 'Đoán số liệu' } }] }));
+    assert.equal(await answerWithWusRouter({ question: 'Điểm cộng chứng chỉ IELTS 2026?', mode: 'general' }, upstream as typeof fetch), null);
+    assert.equal(upstream.mock.callCount(), 0);
+  } finally {
+    if (previous === undefined) delete process.env.WUSROUTER_API_KEY;
+    else process.env.WUSROUTER_API_KEY = previous;
+  }
+});

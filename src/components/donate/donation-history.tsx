@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LuArrowRight, LuCircleCheck, LuClock3, LuHandHeart, LuRefreshCw } from "react-icons/lu";
+import { LuArrowRight, LuCircleCheck, LuClock3, LuHandHeart } from "react-icons/lu";
 import type { DonationPayment } from "@/domain/donation";
 import type { donationService } from "@/services/donation.service";
 import { Breadcrumb } from "@/components/ui/misc";
@@ -31,7 +31,6 @@ export function DonationHistory({ initialItems }: { initialItems: HistoryItem[] 
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { setItems(initialItems); }, [initialItems]);
 
@@ -40,42 +39,39 @@ export function DonationHistory({ initialItems }: { initialItems: HistoryItem[] 
   useEffect(() => {
     if (!pendingRefs) return;
     let cancelled = false;
+    const controller = new AbortController();
     let checking = false;
     const refs = pendingRefs.split("|");
     const check = async () => {
       if (cancelled || checking || document.visibilityState !== "visible") return;
       checking = true;
-      for (const ref of refs) {
-        if (cancelled) break;
+      await Promise.all(refs.map(async (ref) => {
+        if (cancelled) return;
         try {
-          const response = await fetch(`/api/donations/status/${encodeURIComponent(ref)}`, { cache: "no-store" });
-          if (!response.ok) continue;
+          const response = await fetch(`/api/donations/status/${encodeURIComponent(ref)}`, { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) });
+          if (!response.ok) return;
           const body = await response.json() as { data?: { status: HistoryItem["status"]; paidAt: string | null } };
-          if (cancelled || !body.data || body.data.status === "pending") continue;
+          if (cancelled || !body.data || body.data.status === "pending") return;
           const previous = items.find((item) => item.vnpTxnRef === ref);
-          if (!previous) continue;
+          if (!previous) return;
           setItems((current) => current.map((item) => item.vnpTxnRef === ref ? { ...item, status: body.data!.status, paidAt: body.data!.paidAt } : item));
           if (body.data.status === "success") {
             setConfirmation({ payment: { txnRef: ref, amount: previous.amount, method: methodOf(ref) }, confirmedAt: body.data.paidAt ?? new Date().toISOString() });
           }
         } catch { /* Try again on the next check. */ }
-      }
+      }));
       checking = false;
     };
     void check();
-    const timer = window.setInterval(() => void check(), 4000);
+    const timer = window.setInterval(() => void check(), 5000);
     const onVisible = () => { if (document.visibilityState === "visible") void check(); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => { cancelled = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+    return () => { cancelled = true; controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [pendingRefs, items]);
 
   const confirmed = items.filter((item) => item.status === "success");
   const total = confirmed.reduce((sum, item) => sum + item.amount, 0);
-  const refresh = () => {
-    setRefreshing(true);
-    router.refresh();
-    window.setTimeout(() => setRefreshing(false), 800);
-  };
+
 
   return <div className={styles.page}>
     <div className="container-page">
@@ -97,7 +93,6 @@ export function DonationHistory({ initialItems }: { initialItems: HistoryItem[] 
 
       <div className={styles.listHeading}>
         <div><h2>Giao dịch gần đây</h2><p>Hiển thị tối đa 50 giao dịch mới nhất.</p></div>
-        <button type="button" className={styles.refresh} onClick={refresh} disabled={refreshing} title="Làm mới lịch sử"><LuRefreshCw aria-hidden className={refreshing ? styles.spinning : ""} />Làm mới</button>
       </div>
 
       {items.length === 0 ? <div className={styles.empty}>

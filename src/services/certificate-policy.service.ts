@@ -9,86 +9,9 @@ import type {
 } from "../domain/certificate-policy";
 
 // Dữ liệu chính sách quy đổi đã được kiểm chứng từ đề án tuyển sinh chính thức của các trường
-export const VERIFIED_CERTIFICATE_POLICIES: CertificateConversionPolicy[] = [
-  {
-    id: "neu-2026-ielts",
-    season: 2026,
-    institutionId: "neu", // ĐH Kinh tế Quốc dân
-    certificateType: "IELTS",
-    admissionMethod: "xet-tuyen-ket-hop",
-    minimumCertificateScore: 5.5,
-    conversionTable: {
-      "5.5": 7.5,
-      "6.0": 8.0,
-      "6.5": 8.5,
-      "7.0": 9.0,
-      "7.5": 9.5,
-      "8.0": 10.0,
-      "8.5": 10.0,
-      "9.0": 10.0,
-    },
-    subjectReplacement: "tieng-anh",
-    formulaDescription: "Quy đổi IELTS thành điểm môn Tiếng Anh theo Đề án tuyển sinh ĐH Kinh tế Quốc dân",
-    maximumConvertedScore: 10.0,
-    eligibilityConditions: ["Chứng chỉ còn thời hạn 2 năm tính đến ngày nộp hồ sơ xét tuyển"],
-    officialSourceUrl: "https://tuyensinh.neu.edu.vn",
-    documentTitle: "Đề án tuyển sinh đại học năm 2026 - Trường Đại học Kinh tế Quốc dân",
-    publishedAt: "2026-03-15",
-    verifiedAt: "2026-09-01",
-    status: "verified",
-  },
-  {
-    id: "hust-2026-ielts",
-    season: 2026,
-    institutionId: "hust", // ĐH Bách Khoa Hà Nội
-    certificateType: "IELTS",
-    admissionMethod: "xet-tuyen-tai-nang",
-    minimumCertificateScore: 6.0,
-    conversionTable: {
-      "6.0": 8.5,
-      "6.5": 9.0,
-      "7.0": 9.5,
-      "7.5": 10.0,
-      "8.0": 10.0,
-      "8.5": 10.0,
-      "9.0": 10.0,
-    },
-    subjectReplacement: "tieng-anh",
-    formulaDescription: "Quy đổi IELTS cho phương thức xét tuyển tài năng và kết hợp của ĐH Bách khoa Hà Nội",
-    maximumConvertedScore: 10.0,
-    eligibilityConditions: ["Áp dụng cho các tổ hợp có môn Tiếng Anh và thí sinh đạt ngưỡng ĐGNL/TSA theo quy định"],
-    officialSourceUrl: "https://ts.hust.edu.vn",
-    documentTitle: "Đề án tuyển sinh đại học năm 2026 - Đại học Bách khoa Hà Nội",
-    publishedAt: "2026-03-20",
-    verifiedAt: "2026-09-01",
-    status: "verified",
-  },
-  {
-    id: "ftu-2026-ielts",
-    season: 2026,
-    institutionId: "ftu", // ĐH Ngoại Thương
-    certificateType: "IELTS",
-    admissionMethod: "xet-tuyen-ket-hop",
-    minimumCertificateScore: 6.5,
-    conversionTable: {
-      "6.5": 8.5,
-      "7.0": 9.0,
-      "7.5": 9.5,
-      "8.0": 10.0,
-      "8.5": 10.0,
-      "9.0": 10.0,
-    },
-    subjectReplacement: "tieng-anh",
-    formulaDescription: "Quy đổi IELTS thành điểm môn Ngoại ngữ theo Đề án tuyển sinh Trường Đại học Ngoại thương",
-    maximumConvertedScore: 10.0,
-    eligibilityConditions: ["Điểm trung bình các năm THPT đạt loại Giỏi trở lên"],
-    officialSourceUrl: "https://ftu.edu.vn/tuyen-sinh",
-    documentTitle: "Đề án tuyển sinh năm 2026 - Trường Đại học Ngoại thương",
-    publishedAt: "2026-03-10",
-    verifiedAt: "2026-09-01",
-    status: "verified",
-  },
-];
+// Previous tables linked only to homepages, not a document supporting each conversion.
+// Keep conversions unavailable until a specific institution/season publication is verified.
+export const VERIFIED_CERTIFICATE_POLICIES: CertificateConversionPolicy[] = [];
 
 export const certificatePolicyService = {
   /**
@@ -110,18 +33,9 @@ export const certificatePolicyService = {
         if (p.certificateType !== params.certificateType) return false;
         if (p.status !== "verified") return false;
 
-        // Khớp chương trình cụ thể trước nếu có
-        if (params.programId && p.programId && p.programId === params.programId) {
-          return true;
-        }
-
-        // Khớp cấp trường
-        const matchInst =
-          p.institutionId === instId ||
-          instId.includes(p.institutionId) ||
-          p.institutionId.includes(instId);
-
-        return matchInst;
+        if (p.institutionId !== instId) return false;
+        if (p.programId && p.programId !== params.programId) return false;
+        return true;
       }) ?? null
     );
   },

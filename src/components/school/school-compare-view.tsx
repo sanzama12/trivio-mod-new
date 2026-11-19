@@ -315,6 +315,15 @@ export function SchoolCompareView({ initialSchools = [] }: SchoolCompareViewProp
         <div className="h-96 animate-pulse rounded-3xl bg-slate-100" />
       ) : (
         <div className="space-y-8">
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-slate-700" aria-label="Nguồn đối chiếu">
+            <p className="font-semibold">Chỉ tổng hợp chương trình có tài liệu gốc và ngày đối chiếu. Điểm trung bình toàn trường là thống kê các chương trình đang có dữ liệu, không phải điểm trúng tuyển hay xếp hạng chất lượng.</p>
+            {items.map((item) => <div key={item.school.id} className="mt-3">
+              <strong>{item.school.name}</strong>
+              {!!item.unverifiedProgramCount && <p>{item.unverifiedProgramCount} chương trình chưa đủ nguồn, không đưa vào thống kê.</p>}
+              {item.programs.length === 0 && <p>Chưa có chương trình đủ nguồn để so sánh số liệu.</p>}
+              <ul>{item.programs.map((p) => p.sourceUrl && <li key={p.id}><a href={p.sourceUrl} target="_blank" rel="noreferrer" className="underline">{p.name}</a> · đối chiếu {p.sourceCheckedAt}</li>)}</ul>
+            </div>)}
+          </section>
           {/* A. THẺ TỔNG QUAN TỪNG TRƯỜNG TRÊN ĐẦU */}
           <div
             className="grid gap-4 overflow-x-auto"

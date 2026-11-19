@@ -333,6 +333,8 @@ export function ScoreWizard({
               title="Khu vực & đối tượng ưu tiên"
               desc="Mức ưu tiên thang 30 theo Điều 7; từ 22,50 điểm áp dụng công thức giảm dần, làm tròn điểm ưu tiên đến hàng phần trăm."
             />
+            <a className="mt-2 inline-block text-xs font-semibold text-primary-700 underline" href="https://datafiles.chinhphu.vn/cpp/files/vbpq/2026/3/06-bgddt.pdf#page=9" target="_blank" rel="noreferrer">Đối chiếu Điều 7 — Thông tư 06/2026/TT-BGDĐT</a>
+            <p className="mt-2 text-xs text-slate-600">Kết quả gồm điểm gốc và ưu tiên khu vực/đối tượng. Chưa cộng thưởng, chứng chỉ hoặc thành tích của trường khi chưa có chính sách tương ứng. Chứng chỉ không đồng thời dùng để quy đổi môn ngoại ngữ và cộng điểm khuyến khích (Điều 6 khoản 4 điểm d).</p>
             {validYear && graduationYear < 2025 && <p className="mt-3 text-sm text-amber-800">Đã hết thời hạn ưu tiên khu vực trong mùa 2026. Hệ thống không cộng điểm khu vực; ưu tiên đối tượng vẫn được tính nếu đúng diện.</p>}
             <p className="mt-3 text-xs leading-relaxed text-slate-500">Khu vực xác định theo nơi học THPT lâu nhất, không phải nơi muốn học đại học; nếu thời gian bằng nhau, dùng nơi học sau cùng. Chỉ chọn một nhóm đối tượng được hưởng mức cao nhất.</p>
             <p className="mt-4 mb-2 text-sm font-semibold text-slate-700">Khu vực</p>

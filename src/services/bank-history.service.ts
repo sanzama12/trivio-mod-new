@@ -51,6 +51,7 @@ export const matchesBankTransfer = (transfer: BankTransfer, expected: { accountN
 let cachedRequest: Promise<BankTransfer[] | null> | null = null;
 let cachedToken: string | null = null;
 let requestedAt = 0;
+let requestInFlight = false;
 
 function bankHistoryToken(): string | null {
   const token = process.env.BANK_HISTORY_API_TOKEN?.trim() ?? "";
@@ -68,16 +69,20 @@ export async function fetchBankHistory(fetchImpl: typeof fetch = fetch): Promise
     cachedToken = token;
     cachedRequest = null;
     requestedAt = 0;
+    requestInFlight = false;
   }
-  if (fetchImpl === fetch && cachedRequest && Date.now() - requestedAt < 10_000) return cachedRequest;
+  if (fetchImpl === fetch && cachedRequest && (requestInFlight || Date.now() - requestedAt < 10_000)) return cachedRequest;
   const request = (async () => {
     try {
       const response = await fetchImpl(`https://dichvucheap.com/historyapi/${encodeURIComponent(token)}`, {
         headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
         cache: "no-store",
-        signal: AbortSignal.timeout(3500),
+        signal: AbortSignal.timeout(12000),
       });
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.warn("[bank-history] HTTP error:", response.status);
+        return null;
+      }
       const text = await response.text();
       if (!text || !text.trim()) {
         console.warn("[bank-history] dichvucheap trả về nội dung rỗng (cần kiểm tra MB Bank session trên dichvucheap.com).");
@@ -95,14 +100,18 @@ export async function fetchBankHistory(fetchImpl: typeof fetch = fetch): Promise
         return null;
       }
       return parseBankHistory(raw);
-    } catch {
-      console.warn("[bank-history] Lịch sử giao dịch tạm thời không khả dụng.");
+    } catch (error) {
+      console.warn("[bank-history] Request failed:", error instanceof Error ? error.name : "UnknownError");
       return null;
     }
   })();
   if (fetchImpl === fetch) {
     cachedRequest = request;
     requestedAt = Date.now();
+    requestInFlight = true;
+    void request.finally(() => {
+      if (cachedRequest === request) requestInFlight = false;
+    });
   }
   return request;
 }

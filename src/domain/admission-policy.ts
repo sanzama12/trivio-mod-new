@@ -36,7 +36,7 @@ export interface AdmissionPriorityRules {
 export interface AdmissionPolicy {
   season: number; // Ví dụ 2026
   effectiveFrom: string; // "2026-02-15"
-  effectiveTo: string; // "2026-12-31"
+  effectiveTo?: string; // Only when an end date is established by a source.
   status: PolicyStatus;
   issuer: string; // "Bộ Giáo dục và Đào tạo"
   legalDocumentNumber: string; // "Thông tư 06/2026/TT-BGDĐT"
@@ -56,7 +56,7 @@ export interface AdmissionPolicy {
   transcriptMinimumThptScore?: number; // Ngưỡng điểm thi THPT 16 điểm nếu có
 
   // Ngưỡng đảm bảo chất lượng
-  minimumThptScoreThreshold: number; // 15.0 / 30
+  minimumThptScoreThreshold: number;
 
   // Quy tắc điểm ưu tiên
   priorityRules: AdmissionPriorityRules;
@@ -65,6 +65,8 @@ export interface AdmissionPolicy {
   bonusRules: {
     maxBonusPoints: number; // Trần điểm thưởng tối đa
     maxTotalAfterBonus: number; // 30.0
+    categories?: { directAdmissionUnused: number; achievementOrTalent: number; internationalCertificate: number };
+    institutionSpecific?: boolean;
   };
 
   // Chính sách chứng chỉ (IELTS/TOEFL)

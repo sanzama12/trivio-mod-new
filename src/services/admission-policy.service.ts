@@ -10,13 +10,12 @@ export const isMathOrLiterature = (value: string) => ["toan", "van", "nguvan"].i
 export const OFFICIAL_POLICY_2026: AdmissionPolicy = {
   season: 2026,
   effectiveFrom: "2026-02-15",
-  effectiveTo: "2026-12-31",
   status: "official",
   issuer: "Bộ Giáo dục và Đào tạo",
   legalDocumentNumber: "Thông tư số 06/2026/TT-BGDĐT",
-  officialSourceUrl: "https://vanban.chinhphu.vn/?classid=1&docid=217071&orggroupid=4&pageid=27160",
+  officialSourceUrl: "https://datafiles.chinhphu.vn/cpp/files/vbpq/2026/3/06-bgddt.pdf",
   publishedAt: "2026-02-15",
-  accessedAt: "2026-11-16",
+  accessedAt: "2026-11-18",
   maxWishlistItems: 15,
   teacherTrainingAllowedRanks: [1, 5],
   transcriptSemesterCount: 6,
@@ -42,6 +41,8 @@ export const OFFICIAL_POLICY_2026: AdmissionPolicy = {
   bonusRules: {
     maxBonusPoints: 3.0,
     maxTotalAfterBonus: 30.0,
+    categories: { directAdmissionUnused: 3.0, achievementOrTalent: 1.5, internationalCertificate: 1.5 },
+    institutionSpecific: true,
   },
   certificatePolicyMode: "institution_specific",
   notes: "Quy chế tuyển sinh chính thức áp dụng cho mùa tuyển sinh năm 2026 theo Thông tư số 06/2026/TT-BGDĐT. Giới hạn tối đa 15 nguyện vọng; đào tạo giáo viên chỉ xét NV 1-5; học bạ dùng 6 học kỳ có Toán hoặc Văn tối thiểu 1/3 trọng số.",
@@ -89,33 +90,9 @@ export const EXPIRED_POLICY_2025: AdmissionPolicy = {
   notes: "Quy chế tuyển sinh áp dụng cho các mùa tuyển sinh trước năm 2026 (đã hết hiệu lực từ ngày 15/02/2026).",
 };
 
-export const DRAFT_POLICY_2027: AdmissionPolicy = {
-  season: 2027,
-  effectiveFrom: "2027-01-01",
-  effectiveTo: "2027-12-31",
-  status: "draft",
-  issuer: "Bộ Giáo dục và Đào tạo",
-  legalDocumentNumber: "Dự thảo (Chưa ban hành văn bản chính thức)",
-  officialSourceUrl: "https://moet.gov.vn",
-  publishedAt: "2026-09-01",
-  accessedAt: "2026-10-11",
-  maxWishlistItems: 15,
-  teacherTrainingAllowedRanks: [1, 5],
-  transcriptSemesterCount: 6,
-  transcriptMinimumSubjectCount: 3,
-  mandatorySubjectsForTranscript: ["Toán", "Ngữ văn"],
-  mandatorySubjectMinWeightRatio: 1 / 3,
-  minimumThptScoreThreshold: 15.0,
-  priorityRules: OFFICIAL_POLICY_2026.priorityRules,
-  bonusRules: OFFICIAL_POLICY_2026.bonusRules,
-  certificatePolicyMode: "institution_specific",
-  notes: "CẢNH BÁO: Đây là bản dự thảo tham khảo cho mùa 2027, chưa có văn bản quy phạm pháp luật chính thức có hiệu lực. Hệ thống không áp dụng bản này như quy chuẩn chính thức.",
-};
-
 const POLICIES_REGISTRY: Record<number, AdmissionPolicy> = {
   2025: EXPIRED_POLICY_2025,
   2026: OFFICIAL_POLICY_2026,
-  2027: DRAFT_POLICY_2027,
 };
 
 export const admissionPolicyService = {
@@ -140,7 +117,7 @@ export const admissionPolicyService = {
    */
   isPolicyEffective(policy: AdmissionPolicy, dateStr: string = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" })): boolean {
     if (policy.status !== "official") return false;
-    return dateStr >= policy.effectiveFrom && dateStr <= policy.effectiveTo;
+    return dateStr >= policy.effectiveFrom && (!policy.effectiveTo || dateStr <= policy.effectiveTo);
   },
 
   /**

@@ -736,42 +736,6 @@
   margin: 10px 0;
 }
 
-.checkNow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 0 16px;
-  border: 1px solid #c7ded7;
-  border-radius: 7px;
-  background: #f7faf9;
-  color: #1a6f62;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.checkNow:hover:not(:disabled) {
-  background: #eff8f5;
-  border-color: #1a6f62;
-}
-
-.checkNow:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
 @media (max-width: 560px) {
   .form {
     padding: 22px 18px;
