@@ -7,6 +7,18 @@ Next.js App Router · React 19 · Tailwind CSS v4 · TypeScript · kiến trúc 
 
 > Dữ liệu runtime chỉ đến từ PostgreSQL. Ứng dụng không tự tạo tài khoản, danh mục hoặc số liệu mẫu khi khởi động.
 
+Các công cụ thu thập/ETL và báo cáo audit cũng lưu trực tiếp trong PostgreSQL, không cần file JSON dữ liệu. Snapshot mới dùng SQL. Chi tiết tại [hướng dẫn database](database/README.md#dữ-liệu-postgresql-không-dùng-file-json-làm-kho-lưu-trữ).
+
+## Trạng thái hiện tại — 20/11/2026
+
+- Production dùng rate limit chia sẻ qua PostgreSQL; development dùng bộ nhớ. API rate limiter là bất đồng bộ.
+- `SESSION_SECRET` phải có ít nhất 32 ký tự ở production; server từ chối khởi động khi cấu hình thiếu/sai. Database từ xa dùng TLS xác thực certificate; CA riêng cấu hình bằng `PG_SSL_CA`.
+- Đồng bộ tài khoản kiểm tra phiên bản để chặn ghi đè đa thiết bị; xung đột giữ bản local và báo tải lại để gộp theo quy tắc hiện có.
+- Hội thoại nối thêm nguyên tử, không cắt tin cũ khi lưu. Không thể tự phục hồi tin đã bị cắt trước bản sửa.
+- Chỉ còn vai trò **user/admin**. Mô tả cổng trường, lớp học, mini-test phong cách và nhắc hạn ở các phần lịch sử bên dưới không phải tính năng đang hoạt động.
+- OTP không có mã cố định; tài khoản học sinh demo chỉ dùng trên localhost khi được phép. `ADMIN_EMAILS` chỉ phục vụ migration cũ; cấp quyền bằng quản trị tài khoản.
+- Công thức gợi ý, nghiệp vụ tuyển sinh, quota và xử lý thanh toán giữ nguyên. Xem [nhật ký sửa kỹ thuật](docs/technical-fixes-2026-11-20.md).
+
 ## Chạy dự án
 
 Yêu cầu Node.js ≥ 20.9.
@@ -134,20 +146,20 @@ Authorization: Bearer <CRON_SECRET>
 - Trong Vercel, vào **Project Settings → Environment Variables**, đặt `BANK_HISTORY_API_TOKEN`, `DONATION_BANK_CODE`, `DONATION_BANK_NAME`, `DONATION_ACCOUNT_NUMBER` và `DONATION_ACCOUNT_NAME` cho môi trường **Production**, rồi redeploy. Không đặt tiền tố `NEXT_PUBLIC_` cho token, không dán giá trị vào `vercel.json`, GitHub Actions, mã nguồn hay `.env.example`. Nếu muốn thử Preview, dùng token riêng.
 - Máy chủ riêng đặt cùng các biến trong secret manager hoặc môi trường của tiến trình Node. `.env.local` chỉ dùng tại máy phát triển và đã bị `.gitignore` loại khỏi Git. `npm run secrets:check` quét Git index; `npm run ship` chạy bước này sau `git add`, trước commit; CI cũng chạy khi có push.
 - QR ngân hàng chỉ bật khi có cả tài khoản nhận và token kiểm tra hợp lệ. Trình duyệt chỉ nhận trạng thái giao dịch; token và phản hồi lịch sử ngân hàng không được trả về client. Endpoint tạo giao dịch và xem trạng thái có giới hạn tần suất. Khi History API lỗi, giao dịch tiếp tục ở trạng thái chờ.
-- Khả năng chống lạm dụng của rate limiter hiện theo từng tiến trình. Khi chạy nhiều instance/serverless và có tải lớn, cần đặt thêm giới hạn chia sẻ ở CDN/WAF hoặc Redis.
+- Rate limiter production dùng PostgreSQL để chia sẻ trạng thái giữa các instance. Development dùng memory; có thể đặt thêm giới hạn ở CDN/WAF cho tải lớn.
 
 - **Mật khẩu** băm scrypt; **phiên** là cookie httpOnly, SameSite=Lax, ký HMAC, kèm *phiên bản phiên* → đổi/đặt lại mật khẩu hoặc “Đăng xuất khỏi thiết bị khác” làm mọi phiên cũ mất hiệu lực.
 - **CSRF**: `src/proxy.ts` (Next 16, thay cho middleware) chặn request ghi vào `/api/*` từ nguồn khác; kèm header `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`.
 - **Giới hạn tần suất** (`lib/rate-limit.ts`): đăng nhập, đăng ký, OTP, quên mật khẩu, góp ý công khai. **Giới hạn kích thước body** (`lib/http.ts`, 413).
-- **Chế độ demo** (`lib/env.ts`): OTP cố định, token đặt lại mật khẩu trả về trình duyệt và tài khoản demo **chỉ có khi demo** (mặc định bật ở `npm run dev`, tắt ở `npm start`). Production: OTP ngẫu nhiên 6 số (băm, hạn 15 phút, dùng 1 lần), link đặt lại gửi qua `services/mailer.ts`.
-- `SESSION_SECRET` thiếu ở production → dùng khoá ngẫu nhiên theo tiến trình thay vì chuỗi mặc định.
+- **Chế độ demo** (`lib/env.ts`): tài khoản học sinh dùng thử chỉ được phép với URL localhost/127.0.0.1 và chế độ chạy phù hợp. OTP luôn ngẫu nhiên, không có mã cố định; email đi qua `services/mailer.ts`.
+- `SESSION_SECRET` thiếu hoặc dưới 32 ký tự ở production → server từ chối khởi động.
 - **Link chia sẻ**: id 144 bit ngẫu nhiên, có hạn, thu hồi được; trang `noindex`, `no-referrer`, không lộ email; góp ý giới hạn độ dài/số lượng, lọc ký tự điều khiển, có bẫy bot.
 - **Quản trị**: kiểm tra quyền ở từng route (`requireAdmin`), trang trả 404 với tài khoản thường; dữ liệu nhập được kiểm tra khoảng giá trị.
 - **Chatbot**: câu hỏi ≤ 300 ký tự; body văn bản ≤ 8 KB, multipart có ảnh ≤ 4 MB; ảnh được kiểm tra loại tệp, giải mã và xóa metadata trước khi gửi tới model. Hạn mức tài khoản: 5 câu chữ/ngày và 3 ảnh/7 ngày; khách dùng cookie có chữ ký. Giới hạn tốc độ 20 câu/phút và 5 ảnh/phút mỗi IP vẫn áp dụng. Client chỉ hiển thị link nội bộ hoặc `https://` (`domain/chat.ts › safeChatHref`).
 - Giới hạn tần suất theo IP dựa vào header `X-Forwarded-For`: khi deploy phải đặt sau proxy/CDN **ghi đè** header này (Vercel, Nginx `proxy_set_header`), nếu không kẻ xấu có thể đổi IP giả để vượt giới hạn.
 - **Khảo sát / sự kiện phễu** (công khai): body ≤ 4 KB / 512 B, giới hạn tần suất theo IP, bẫy bot; phễu giới hạn 20.000 mã/sự kiện/ngày. **Xuất CSV** chặn “CSV injection” (ô bắt đầu bằng `= + - @`).
 - **Cron nhắc hạn**: so khớp `CRON_SECRET` bằng `timingSafeEqual`; không đặt → tắt.
-- Khi triển khai thật: đặt `SESSION_SECRET`, xoá tài khoản demo, cấp admin qua `ADMIN_EMAILS`, cấu hình `RESEND_API_KEY` + `MAIL_FROM`, thay rate-limit bộ nhớ bằng Redis nếu chạy nhiều instance.
+- Khi triển khai thật: đặt `SESSION_SECRET`, tắt tài khoản dùng thử trên môi trường công khai, cấp quyền bằng quản trị tài khoản, cấu hình `RESEND_API_KEY` + `MAIL_FROM` và TLS database. `ADMIN_EMAILS` chỉ dành cho migration cũ.
 
 ## Đăng nhập & dữ liệu người dùng
 

@@ -211,17 +211,20 @@ export const userDataService = {
     return data ? { ...sanitizeUserData(data), updatedAt: data.updatedAt } : emptyUserData();
   },
 
-  async replace(userId: string, input: unknown): Promise<UserData> {
+  async replace(userId: string, input: unknown, expectedUpdatedAt: string): Promise<UserData | null> {
     const clean = await onlyExistingPrograms(sanitizeUserData(input));
-    return repositories.userData.put(userId, { ...clean, updatedAt: new Date().toISOString() });
+    return repositories.userData.compareAndSwap(userId, { ...clean, updatedAt: new Date().toISOString() }, expectedUpdatedAt);
   },
 
   /** Gọi ngay sau khi đăng nhập: gộp dữ liệu khách vào tài khoản, trả về bản đã gộp. */
   async mergeLocal(userId: string, local: unknown): Promise<{ data: UserData; added: number }> {
-    const server = await this.get(userId);
-    const merged = await onlyExistingPrograms(mergeUserData(server, sanitizeUserData(local)));
-    const added = merged.saved.filter((id) => !server.saved.includes(id)).length + merged.wishlist.filter((w) => !server.wishlist.some((s) => s.id === w.id)).length;
-    const data = await repositories.userData.put(userId, { ...merged, updatedAt: new Date().toISOString() });
-    return { data, added };
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const server = await this.get(userId);
+      const merged = await onlyExistingPrograms(mergeUserData(server, sanitizeUserData(local)));
+      const added = merged.saved.filter((id) => !server.saved.includes(id)).length + merged.wishlist.filter((w) => !server.wishlist.some((s) => s.id === w.id)).length;
+      const data = await repositories.userData.compareAndSwap(userId, { ...merged, updatedAt: new Date().toISOString() }, server.updatedAt);
+      if (data) return { data, added };
+    }
+    throw new Error("Concurrent account updates; retry synchronization.");
   },
 };

@@ -2,6 +2,8 @@ import { config } from "dotenv";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "pg";
+import { snapshotSql } from "../snapshot";
+import { databaseConnection } from "../tls";
 import { readMigrations } from "./migration-source";
 
 config({ path: ".env.local", quiet: true });
@@ -9,7 +11,7 @@ const root = join(process.cwd(), "database");
 const statusOnly = process.argv.includes("--status");
 const fresh = process.argv.includes("--fresh");
 const allowDestructive = process.argv.includes("--allow-destructive");
-const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
+const client = new Client({ ...(process.env.DATABASE_URL ? databaseConnection(process.env.DATABASE_URL) : {}), connectionTimeoutMillis: 15000 });
 const source = (sql: string) => sql.replace(/^BEGIN;\s*$/m, "").replace(/^COMMIT;\s*$/m, "");
 const ident = (value: string) => '"' + value.replaceAll('"', '""') + '"';
 
@@ -54,8 +56,12 @@ async function main() {
         ).join(' UNION ALL ')}) backup_tables`)).rows;
         const backupDir=join(root,'backups');
         mkdirSync(backupDir,{recursive:true});
-        const file=join(backupDir,`before-migration-${new Date().toISOString().replace(/[:.]/g,'-')}.json`);
-        writeFileSync(file,JSON.stringify({format:1,createdAt:new Date().toISOString(),applied:[...applied],tables:snapshot.data})+'\n',{flag:'wx'});
+        const file=join(backupDir,`before-migration-${new Date().toISOString().replace(/[:.]/g,'-')}.sql`);
+        const metadata = (await client.query<{table_name:string;column_name:string}>(
+          "SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='trovio' AND is_generated='NEVER' ORDER BY table_name,ordinal_position")).rows;
+        const columns: Record<string,string[]> = {};
+        for (const row of metadata) (columns[row.table_name] ??= []).push(row.column_name);
+        writeFileSync(file,snapshotSql({format:1,createdAt:new Date().toISOString(),applied:[...applied],tables:snapshot.data},columns),{flag:'wx'});
         console.log(`Đã lưu snapshot đầy đủ ${tables.length} bảng: ${file}`);
       }
       if(fresh) await client.query('DROP SCHEMA IF EXISTS trovio CASCADE');

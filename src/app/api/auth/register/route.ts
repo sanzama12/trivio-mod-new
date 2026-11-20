@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 export async function POST(req: Request) {
   const { body, error } = await jsonBody(req, 8 * 1024);
   if (error) return error;
-  const wait = rateLimit(`register:${clientIp(req)}`, 10, 3600);
+  const wait = await rateLimit(`register:${clientIp(req)}`, 10, 3600);
   if (wait) return tooMany(wait);
   const b = body ?? {};
   const result = await authService.register({

@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { chatbotService } from "../services/chatbot.service";
+import { withAiBudget } from "../services/wusrouter-llm";
 import { clientIp, jsonBody, tooMany } from "../lib/http";
 import { rateLimit } from "../lib/rate-limit";
 import { getCurrentUser, requireUser } from "../lib/auth";
@@ -50,12 +51,12 @@ export class ChatbotController {
   static async handleChat(req: Request): Promise<Response> {
     const withImage = req.headers.get("content-type")?.startsWith("multipart/form-data") ?? false;
     const ip = clientIp(req);
-    const wait = Math.max(
+    const wait = Math.max(...await Promise.all([
       rateLimit(`chat:min:${ip}`, 20, 60),
       rateLimit(`chat:day:${ip}`, 300, 86400),
       withImage ? rateLimit(`chat:image:min:${ip}`, 5, 60) : 0,
       withImage ? rateLimit(`chat:image:day:${ip}`, 50, 86400) : 0,
-    );
+    ]));
     if (wait) return tooMany(wait);
 
     let body: { message?: unknown; context?: Record<string, unknown>; conversationId?: unknown } | null;
@@ -116,11 +117,11 @@ export class ChatbotController {
         const message = kind === "image" ? "Bạn đã dùng hết 3 lượt hỏi bằng ảnh. Lượt ảnh sẽ được cấp lại sau 7 ngày." : "Bạn đã dùng hết 5 câu hỏi hôm nay. Lượt chat sẽ được cấp lại lúc 00:00.";
         return attachChatGuestCookie(NextResponse.json({ ok: false, message, quota }, { status: 429, headers: { "Retry-After": String(retryAfter) } }), identity.guestToken);
       }
-      const result = await chatbotService.ask(question, {
+      const result = await withAiBudget(() => chatbotService.ask(question, {
         majorId: ctx.majorId,
         schoolId: ctx.schoolId,
         page: ctx.page,
-      }, user ? { userId: user.id, conversationId: typeof body?.conversationId === "string" ? body.conversationId : null } : undefined, imageInput);
+      }, user ? { userId: user.id, conversationId: typeof body?.conversationId === "string" ? body.conversationId : null } : undefined, imageInput));
       if (!result.ok) {
         await chatQuotaService.refund(identity.subject, kind, reservation);
         reservation = null;

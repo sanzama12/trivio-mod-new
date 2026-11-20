@@ -2,27 +2,19 @@
  * SERVICE LAYER — token có chữ ký HMAC-SHA256 (phiên đăng nhập, liên kết đặt lại mật khẩu, state OAuth).
  * Không phụ thuộc Next.js; lớp presentation lo phần đọc/ghi cookie.
  */
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const SESSION_COOKIE = "trovio_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 ngày
 
-const g = globalThis as unknown as { __trovioEphemeralSecret?: string };
-
-/**
- * Khoá ký token. Production mà quên đặt SESSION_SECRET → dùng khoá ngẫu nhiên theo tiến trình
- * (an toàn, chỉ là mọi phiên mất khi khởi động lại) thay vì một chuỗi mặc định ai cũng biết.
- */
-const secret = () => {
-  const env = process.env.SESSION_SECRET;
-  if (env && env.length >= 16) return env;
-  if (process.env.NODE_ENV !== "production") return env || "trovio-dev-secret-change-me";
-  if (!g.__trovioEphemeralSecret) {
-    g.__trovioEphemeralSecret = randomBytes(32).toString("base64url");
-    console.warn("[trovio] SESSION_SECRET chưa đặt hoặc quá ngắn (< 16 ký tự) — dùng khoá tạm thời, phiên sẽ mất khi khởi động lại.");
-  }
-  return g.__trovioEphemeralSecret;
-};
+/** One signing policy for sessions, OAuth, guest cookies and reset codes. */
+export function sessionSecret(): string {
+  const value = process.env.SESSION_SECRET?.trim();
+  if (value && value.length >= 32) return value;
+  if (process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET must contain at least 32 characters.");
+  return value || "trovio-local-development-secret-only";
+}
+const secret = sessionSecret;
 
 const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("base64url");
 

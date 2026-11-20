@@ -1,17 +1,23 @@
 /** Rehearse against an isolated schema copied from the catalog. Always ROLLBACK. */
 import { config } from "dotenv";
 import { Client } from "pg";
+import { databaseConnection } from "../tls";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import assert from "node:assert/strict";
+import { parseSnapshotSql } from "../snapshot";
 import { readMigration, readMigrations } from "./migration-source";
 
 config({ path: ".env.local", quiet: true });
-const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
+const client = new Client({ ...(process.env.DATABASE_URL ? databaseConnection(process.env.DATABASE_URL) : {}), connectionTimeoutMillis: 15000 });
 const schema = `trovio_verify_${Date.now()}`;
+// Legacy JSON snapshots are import-only compatibility; new backups are SQL.
+const readBackup = (name: string) => name.endsWith(".sql")
+  ? parseSnapshotSql(readFileSync(`database/backups/${name}`,"utf8"))
+  : JSON.parse(readFileSync(`database/backups/${name}`,"utf8"));
 const backupName = existsSync('database/backups') ? readdirSync('database/backups')
-  .filter(n=>n.startsWith('before-migration-') && n.endsWith('.json')).sort().reverse()
-  .find(n=>!JSON.parse(readFileSync(`database/backups/${n}`,'utf8')).applied?.includes('20261020_identity_integrity.sql')) : undefined;
-const backup = backupName ? JSON.parse(readFileSync(`database/backups/${backupName}`,'utf8')).tables as Record<string, unknown[]> : undefined;
+  .filter(n=>n.startsWith('before-migration-') && /\.(sql|json)$/.test(n)).sort().reverse()
+  .find(n=>!readBackup(n).applied?.includes('20261020_identity_integrity.sql')) : undefined;
+const backup = backupName ? readBackup(backupName).tables as Record<string, unknown[]> : undefined;
 const sqlFile = (name: string) => (name.startsWith('migrations/') ? readMigration(name.slice('migrations/'.length)) : readFileSync(`database/${name}`, "utf8"))
   .replace(/^\s*BEGIN;\s*/i, "").replace(/\s*COMMIT;\s*$/i, "")
   .replace(/\btrovio_archive\b/g, `${schema}_archive`)

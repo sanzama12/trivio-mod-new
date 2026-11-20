@@ -1,4 +1,5 @@
 import "server-only";
+import { sessionSecret } from "@/services/session.service";
 
 export interface ServerEnvironment {
   databaseUrl: string;
@@ -19,6 +20,7 @@ function required(name: string): string {
  */
 export function serverEnvironment(): ServerEnvironment {
   if (cached) return cached;
+  if (process.env.NODE_ENV === "production") sessionSecret();
 
   const databaseUrl = required("DATABASE_URL");
   if (!/^postgres(?:ql)?:\/\//i.test(databaseUrl)) {

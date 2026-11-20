@@ -92,6 +92,9 @@ export interface CatalogRepository {
 }
 
 export interface UserRepository {
+  listPage(filter: { q: string; role: string; status: string; since: string; page: number }): Promise<{
+    rows: User[]; total: number; stats: { total: number; active30: number; newThisMonth: number; locked: number };
+  }>;
   findByEmail(email: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
   findByGoogleId(googleId: string): Promise<User | null>;
@@ -112,6 +115,7 @@ export interface PasswordResetCodeRepository {
 
 /** Dữ liệu cá nhân đồng bộ theo tài khoản: đã lưu, nguyện vọng và hồ sơ điểm. */
 export interface UserDataRepository {
+  compareAndSwap(userId: string, data: UserData, expectedUpdatedAt: string): Promise<UserData | null>;
   get(userId: string): Promise<UserData | null>;
   put(userId: string, data: UserData): Promise<UserData>;
   delete(userId: string): Promise<void>;
@@ -163,11 +167,23 @@ export interface ChatQuotaRepository {
 }
 
 export interface ChatHistoryRepository {
+  append(conversation: ChatConversation): Promise<ChatConversation>;
+  summarizeUser(userId: string): Promise<ChatHistorySummary>;
   findById(id: string, userId: string): Promise<ChatConversation | null>;
   listByUser(userId: string, limit?: number, offset?: number): Promise<ChatConversation[]>;
   listUsers(query?: string, limit?: number, offset?: number): Promise<{ rows: ChatHistoryUserRow[]; total: number }>;
   put(conversation: ChatConversation): Promise<ChatConversation>;
   delete(id: string, userId: string): Promise<boolean>;
+}
+
+export interface ChatHistorySummary {
+  conversationCount: number;
+  questionCount: number;
+  answered: number;
+  refused: number;
+  unknown: number;
+  lastActiveAt: string | null;
+  byIntent: [string, number][];
 }
 
 export interface ChatHistoryUserRow {

@@ -5,6 +5,7 @@
 import { randomUUID } from "node:crypto";
 import type { PublicUser, UserRole } from "../domain/types";
 import { repositories } from "@database/repositories";
+import { normalizeVi } from "@/lib/text";
 import { authService, toPublicUser } from "./auth.service";
 
 type Fail = { ok: false; status: number; field?: string; message: string };
@@ -32,8 +33,18 @@ async function audit(actor: PublicUser, id: string, action: "update" | "delete" 
 }
 
 export const userAdminService = {
-  async list(): Promise<{ rows: AdminUserRow[]; stats: { total: number; active30: number; newThisMonth: number; locked: number } }> {
-    const users = await repositories.users.list();
+  async list(filter: { q?: string; role?: string; status?: string; since?: string; page?: string } = {}) {
+    const nowMs = Date.now();
+    const since = filter.since === "7" ? new Date(nowMs - 7 * 864e5).toISOString()
+      : filter.since === "30" ? new Date(nowMs - 30 * 864e5).toISOString()
+      : filter.since === "month" ? new Date(new Date(nowMs).toISOString().slice(0,7) + "-01").toISOString() : "";
+    const result = await repositories.users.listPage({
+      q: normalizeVi((filter.q ?? "").slice(0,100)),
+      role: ["admin","user"].includes(filter.role ?? "") ? filter.role! : "",
+      status: ["active","unverified","locked"].includes(filter.status ?? "") ? filter.status! : "",
+      since, page: Math.max(1,Math.min(10000,parseInt(filter.page ?? "1",10)||1)),
+    });
+    const users = result.rows;
     const rows = users
       .map((raw) => {
         const u = toPublicUser(raw);
@@ -52,17 +63,7 @@ export const userAdminService = {
         } satisfies AdminUserRow;
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    const t = Date.now();
-    const month = now().slice(0, 7);
-    return {
-      rows,
-      stats: {
-        total: rows.length,
-        active30: rows.filter((r) => r.lastLoginAt && t - Date.parse(r.lastLoginAt) <= 30 * 86400_000).length,
-        newThisMonth: rows.filter((r) => r.createdAt.startsWith(month)).length,
-        locked: rows.filter((r) => r.status === "locked").length,
-      },
-    };
+    return { rows, total: result.total, stats: result.stats };
   },
 
   /** Chi tiết một tài khoản (không lộ dữ liệu nhạy cảm: không mật khẩu/điểm chi tiết). */

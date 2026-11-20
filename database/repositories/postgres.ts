@@ -554,6 +554,26 @@ const USER_SELECT = `
   FROM trovio.users u`;
 
 export const postgresUserRepository: UserRepository = {
+  async listPage(filter) {
+    const locked = `(u.disabled OR (u.locked AND (u.lock_until IS NULL OR u.lock_until > now())))`;
+    const status = `CASE WHEN ${locked} THEN 'locked' WHEN NOT u.verified THEN 'unverified' ELSE 'active' END`;
+    const normalized = `translate(lower(regexp_replace(normalize(u.name || ' ' || u.email, NFD), U&'[\\0300-\\036F]', '', 'g')), 'đ', 'd')`;
+    const where = `WHERE ($1='' OR position($1 in ${normalized})>0)
+      AND ($2='' OR u.access_role=$2) AND ($3='' OR (${status})=$3)
+      AND ($4::timestamptz IS NULL OR u.created_at >= $4::timestamptz)`;
+    const values = [filter.q, filter.role, filter.status, filter.since || null];
+    const [rows, counts] = await Promise.all([
+      query<any>(`${USER_SELECT} ${where} ORDER BY u.created_at DESC,u.id LIMIT 10 OFFSET $5`, [...values, (filter.page - 1) * 10]),
+      query<{ total: number; all: number; active30: number; newThisMonth: number; locked: number }>(`
+        SELECT (SELECT count(*)::int FROM trovio.users u ${where}) AS total,
+        count(*)::int AS all,
+        count(*) FILTER (WHERE u.last_login_at >= now() - interval '30 days')::int AS "active30",
+        count(*) FILTER (WHERE to_char(u.created_at AT TIME ZONE 'UTC','YYYY-MM')=to_char(now() AT TIME ZONE 'UTC','YYYY-MM'))::int AS "newThisMonth",
+        count(*) FILTER (WHERE ${locked})::int AS locked FROM trovio.users u`, values),
+    ]);
+    const count = counts[0];
+    return { rows: rows.map(mapUser), total: count.total, stats: { total: count.all, active30: count.active30, newThisMonth: count.newThisMonth, locked: count.locked } };
+  },
   async findByEmail(email: string): Promise<User | null> {
     const rows = await query<any>(`${USER_SELECT} WHERE lower(u.email) = lower($1)`, [email]);
     return rows[0] ? mapUser(rows[0]) : null;

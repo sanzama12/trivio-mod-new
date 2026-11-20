@@ -45,6 +45,7 @@ export function invalidateDonationCache(): void {
 }
 
 export const donationService = {
+  getByTxnRef: (txnRef: string) => repositories.donations.getByTxnRef(txnRef),
   rangeReport(from: string, to: string) {
     return repositories.donations.rangeReport(from, to);
   },

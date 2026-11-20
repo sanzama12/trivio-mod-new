@@ -59,6 +59,9 @@ async function audit(actor: PublicUser, targetId: string, action: "create" | "up
 }
 
 export const interestService = {
+  adminMajorOptions: () => repositories.catalogAdmin.listMajors(),
+  adminSubjectOptions: () => repositories.catalog.findSubjects(),
+  adminCareerOptions: () => repositories.majorCareers.getMany(),
   /** Danh sách cho học sinh chọn (không gồm mục đang ẩn). */
   async listPublic(): Promise<Omit<Interest, "majorIds">[]> {
     return (await repositories.interests.list(false)).map(({ majorIds: _ignored, ...rest }) => rest);

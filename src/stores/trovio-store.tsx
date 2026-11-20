@@ -131,7 +131,45 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
   const hydratedRef = useRef(false);
   const syncedFor = useRef<string | null>(null);
   const inflight = useRef<string | null>(null);
-  const pendingPush = useRef<string | null>(null);
+  const pendingPush = useRef<{ uid: string; body: string } | null>(null);
+  const serverVersion = useRef<string | null>(null);
+  const acknowledged = useRef<string | null>(null);
+  const pushing = useRef(false);
+  const conflict = useRef(false);
+  const syncOwner = useRef<string | null>(null);
+  syncOwner.current = user?.id ?? null;
+
+  const pushPending = useCallback(async (keepalive = false) => {
+    const pending = pendingPush.current;
+    if (!pending || pushing.current || conflict.current || !serverVersion.current || syncOwner.current !== pending.uid) return;
+    pushing.current = true;
+    setSync("syncing");
+    try {
+      const response = await fetch("/api/account/data", {
+        method: "PUT", keepalive,
+        headers: { "Content-Type": "application/json", "If-Unmodified-Since": serverVersion.current },
+        body: pending.body,
+      });
+      if (syncOwner.current !== pending.uid) return;
+      if (response.status === 409 || response.status === 428) {
+        conflict.current = true;
+        toast("Dữ liệu đã thay đổi trên thiết bị khác. Thay đổi trên máy vẫn được giữ; tải lại trang để đồng bộ.", "error");
+        setSync("error");
+        return;
+      }
+      if (!response.ok) throw new Error("Synchronization failed");
+      const result = await response.json() as { data: UserData };
+      if (syncOwner.current !== pending.uid) return;
+      serverVersion.current = result.data.updatedAt;
+      acknowledged.current = pending.body;
+      if (pendingPush.current === pending) pendingPush.current = null;
+      setSync(pendingPush.current ? "syncing" : "synced");
+    } catch {
+      if (syncOwner.current === pending.uid) setSync("error");
+    } finally {
+      pushing.current = false;
+    }
+  }, [toast]);
 
   useEffect(() => {
     setState(load());
@@ -181,6 +219,10 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
     const local = load();
     if (!uid) {
       syncedFor.current = null;
+      pendingPush.current = null;
+      serverVersion.current = null;
+      acknowledged.current = null;
+      conflict.current = false;
       inflight.current = null;
       setSync("guest");
       if (local.owner) update((s) => ({ ...s, saved: [], wishlist: [], profile: null, riasec: null, goal: null, preferences: null, owner: null }));
@@ -202,6 +244,9 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
         if (inflight.current !== uid) return; // đã đăng xuất/đổi tài khoản trong lúc chờ
         inflight.current = null;
         syncedFor.current = uid;
+        serverVersion.current = data.updatedAt;
+        acknowledged.current = JSON.stringify({ saved: data.saved, wishlist: data.wishlist, profile: data.profile, riasec: sanitizeRiasecResult(data.riasec), goal: data.goal ?? null, preferences: data.preferences ?? null });
+        conflict.current = false;
         update((s) => ({
           ...initialState,
           saved: data.saved,
@@ -224,28 +269,29 @@ export function TrovioStoreProvider({ children, user }: { children: ReactNode; u
   }, [hydrated, uid, update, toast, applyIntent]);
 
   // Đẩy thay đổi lên server (debounce 600ms); flush khi rời trang.
+  // Serialize writes; keep the latest snapshot until the server acknowledges it.
   useEffect(() => {
     if (!uid || syncedFor.current !== uid || state.owner !== uid) return;
     const body = JSON.stringify(syncedPart(state));
-    pendingPush.current = body;
-    const t = setTimeout(() => {
-      pendingPush.current = null;
-      fetch("/api/account/data", { method: "PUT", headers: { "Content-Type": "application/json" }, body })
-        .then((r) => setSync(r.ok ? "synced" : "error"))
-        .catch(() => setSync("error"));
-    }, 600);
-    return () => clearTimeout(t);
-  }, [uid, state.saved, state.wishlist, state.profile, state.riasec, state.goal, state.preferences, state.owner]);
+    if (body === acknowledged.current) return;
+    pendingPush.current = { uid, body };
+    setSync(conflict.current ? "error" : "syncing");
+    const timer = setTimeout(() => void pushPending(), 600);
+    return () => clearTimeout(timer);
+  }, [uid, state.saved, state.wishlist, state.profile, state.riasec, state.goal, state.preferences, state.owner, pushPending]);
 
   useEffect(() => {
-    const flush = () => {
-      if (!pendingPush.current) return;
-      fetch("/api/account/data", { method: "PUT", headers: { "Content-Type": "application/json" }, body: pendingPush.current, keepalive: true });
-      pendingPush.current = null;
-    };
+    const retry = () => void pushPending();
+    const flush = () => void pushPending(true);
+    const timer = setInterval(retry, 5000);
+    window.addEventListener("online", retry);
     window.addEventListener("pagehide", flush);
-    return () => window.removeEventListener("pagehide", flush);
-  }, []);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", retry);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [pushPending]);
 
   const store = useMemo<Store>(
     () => ({

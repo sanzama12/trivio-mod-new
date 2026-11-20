@@ -10,7 +10,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (error) return error;
   // Bẫy bot: trường ẩn "website" phải để trống.
   if (body?.website) return NextResponse.json({ ok: true });
-  const wait = Math.max(rateLimit(`comment:ip:${clientIp(req)}`, 10, 600), rateLimit(`comment:share:${id}`, 15, 600));
+  const wait = Math.max(...await Promise.all([rateLimit(`comment:ip:${clientIp(req)}`, 10, 600), rateLimit(`comment:share:${id}`, 15, 600)]));
   if (wait) return tooMany(wait);
   const result = await shareService.addComment(id, body ?? {});
   if (!result.ok) return NextResponse.json(result, { status: result.status });

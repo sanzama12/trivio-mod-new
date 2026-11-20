@@ -1,7 +1,9 @@
 import { chromium } from "playwright";
 import { PNG } from "pngjs";
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+
+await mkdir("scratch", { recursive: true });
 
 const browser = await chromium.launch({
   channel: "chrome",

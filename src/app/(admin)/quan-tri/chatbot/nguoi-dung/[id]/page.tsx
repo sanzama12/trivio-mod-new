@@ -5,8 +5,10 @@ import { adminPage } from "@/lib/admin-page";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody } from "@/components/admin/ui";
 import { safeChatHref } from "@/domain/chat";
-import { repositories } from "@database/repositories";
+
 import { chatbotService } from "@/services/chatbot.service";
+import { StatTile } from "@/components/ui/misc";
+import { CHAT_INTENT_LABELS } from "@/domain/chat-intents";
 
 export const metadata: Metadata = { title: "Lịch sử chatbot theo người dùng", robots: { index: false, follow: false } };
 
@@ -18,21 +20,41 @@ export default async function ChatUserHistoryPage({ params, searchParams }: {
 }) {
   const { id } = await params;
   const path = `/quan-tri/chatbot/nguoi-dung/${encodeURIComponent(id)}`;
-  await adminPage(path);
+  const actor = await adminPage(path);
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Math.min(10000, Number.parseInt(pageParam ?? "1", 10) || 1));
-  const user = await repositories.users.findById(id);
+  const user = await chatbotService.adminHistoryUser(actor, id);
   if (!user) notFound();
-  const conversations = await chatbotService.adminHistory(id, page);
+  const [conversations, summary] = await Promise.all([
+    chatbotService.adminHistory(id, page),
+    chatbotService.adminUserSummary(id),
+  ]);
   const hasNext = conversations.length > 10;
 
   return <>
     <AdminHeader title={`Lịch sử chatbot: ${user.name}`} crumb="Chatbot / Người dùng" />
     <AdminBody>
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-        <Link href="/quan-tri/chatbot" className="font-semibold text-primary-700 hover:underline">← Tất cả người dùng</Link>
+        <Link href="/quan-tri/chatbot" className="font-semibold text-primary-700 hover:underline">← Tổng quan chatbot và người dùng</Link>
         <span className="break-all text-slate-600">{user.email}</span>
       </div>
+      <section aria-label="Tổng kết sử dụng chatbot" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <StatTile label="Hội thoại" value={summary.conversationCount} tone="primary" />
+        <StatTile label="Lượt hỏi" value={summary.questionCount} />
+        <StatTile label="Đã trả lời" value={summary.answered} />
+        <StatTile label="Từ chối an toàn" value={summary.refused} />
+        <StatTile label="Chưa có dữ liệu / hỏi lại" value={summary.unknown} />
+      </section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="text-base font-bold">Chủ đề người dùng quan tâm</h2>
+        <p className="mt-1 text-sm text-slate-500">Tổng kết toàn bộ lịch sử đã lưu của người dùng này.{summary.lastActiveAt && ` Hoạt động gần nhất: ${fmt(summary.lastActiveAt)}.`}</p>
+        {summary.byIntent.length ? <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+          {summary.byIntent.map(([intent, count]) => <li key={intent} className="flex justify-between gap-3 border-b border-slate-100 pb-2 text-sm">
+            <span>{CHAT_INTENT_LABELS[intent] ?? intent}</span><span className="shrink-0 font-semibold">{count} lượt</span>
+          </li>)}
+        </ul> : <p className="mt-3 text-sm text-slate-500">Chưa có dữ liệu chủ đề.</p>}
+      </section>
+      <h2 className="text-lg font-bold text-slate-900">Lịch sử hội thoại</h2>
       {conversations.length === 0 ? <p className="border-y border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">Không có hội thoại ở trang này.</p> : (
         <div className="space-y-8">
           {conversations.slice(0, 10).map((conversation) => <section key={conversation.id} className="border-t border-slate-200 pt-5" aria-label={conversation.title}>

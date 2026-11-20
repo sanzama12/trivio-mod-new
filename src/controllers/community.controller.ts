@@ -23,7 +23,7 @@ export class CommunityController {
 
   static async askQa(req: Request): Promise<Response> {
     const user = await getCurrentUser();
-    const wait = Math.max(rateLimit(`qa-ask:${clientIp(req)}`, 5, 600), user ? rateLimit(`qa-ask:u:${user.id}`, 10, 86400) : 0);
+    const wait = Math.max(...await Promise.all([rateLimit(`qa-ask:${clientIp(req)}`, 5, 600), user ? rateLimit(`qa-ask:u:${user.id}`, 10, 86400) : 0]));
     if (wait) return tooMany(wait);
     const { body, error } = await jsonBody(req, 4 * 1024);
     if (error) return error;
@@ -35,7 +35,7 @@ export class CommunityController {
   static async answerQa(req: Request, params: { id: string }): Promise<Response> {
     const { user, error } = await requireUser();
     if (error) return error;
-    const wait = Math.max(rateLimit(`qa-ans:${clientIp(req)}`, 10, 600), rateLimit(`qa-ans:u:${user.id}`, 20, 86400));
+    const wait = Math.max(...await Promise.all([rateLimit(`qa-ans:${clientIp(req)}`, 10, 600), rateLimit(`qa-ans:u:${user.id}`, 20, 86400)]));
     if (wait) return tooMany(wait);
     const { body, error: tooBig } = await jsonBody(req, 8 * 1024);
     if (tooBig) return tooBig;
@@ -46,7 +46,7 @@ export class CommunityController {
   static async voteAnswer(req: Request, params: { id: string; answerId: string }): Promise<Response> {
     const { user, error } = await requireUser();
     if (error) return error;
-    const wait = rateLimit(`qa-vote:${user.id}`, 60, 600);
+    const wait = await rateLimit(`qa-vote:${user.id}`, 60, 600);
     if (wait) return tooMany(wait);
     const { body, error: tooBig } = await jsonBody<{ action?: unknown }>(req, 512);
     if (tooBig) return tooBig;
@@ -58,7 +58,7 @@ export class CommunityController {
   static async submitSurvey(req: Request): Promise<Response> {
     const { body, error } = await jsonBody<Record<string, unknown>>(req, 4 * 1024);
     if (error) return error;
-    const wait = rateLimit(`survey:${clientIp(req)}`, 10, 3600);
+    const wait = await rateLimit(`survey:${clientIp(req)}`, 10, 3600);
     if (wait) return tooMany(wait);
     if (typeof body?.website === "string" && body.website.trim()) return NextResponse.json({ ok: true, score: 0, grade: "" });
     const result = await analyticsService.submitSurvey(body ?? {});

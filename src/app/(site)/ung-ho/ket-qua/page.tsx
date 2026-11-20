@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LuCircleCheck, LuCircleHelp, LuArrowRight } from "react-icons/lu";
-import { repositories } from "@database/repositories";
+import { donationService } from "@/services/donation.service";
 import { DonationResultCelebration } from "@/components/donate/donation-result-celebration";
 
 export const metadata: Metadata = { title: "Kết quả ủng hộ", robots: { index: false, follow: false } };
@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Kết quả ủng hộ", robots: { i
 export default async function DonationResultPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const txnRef = typeof params.txnRef === "string" ? params.txnRef : "";
-  const donation = /^[A-Za-z0-9_]{1,100}$/.test(txnRef) ? await repositories.donations.getByTxnRef(txnRef) : null;
+  const donation = /^[A-Za-z0-9_]{1,100}$/.test(txnRef) ? await donationService.getByTxnRef(txnRef) : null;
   const success = donation?.status === "success";
   return (
     <section className="flex min-h-[65vh] items-center justify-center bg-paper-50 px-5 py-16">

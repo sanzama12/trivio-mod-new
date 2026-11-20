@@ -1,15 +1,15 @@
 "use client";
 
 /** A08 — danh sách người dùng: lọc vai trò/trạng thái/ngày đăng ký, xem chi tiết, khoá/mở khoá, xoá (gõ lại email), thêm người dùng. */
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { LuEye, LuLock, LuLockOpen, LuPlus, LuSearch, LuTrash2 } from "react-icons/lu";
 import type { AdminUserRow } from "@/services/user-admin.service";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { normalizeVi } from "@/lib/text";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { Dialog, Drawer, Pager, paginate } from "./overlay";
+import { Dialog, Drawer, Pager } from "./overlay";
 import { useAdminPost } from "./use-admin-post";
 import { ago, fmtDate, inputCls, Panel, selectCls, td, th } from "./ui";
 
@@ -26,13 +26,19 @@ function roleBadge(r: AdminUserRow): { label: string; tone: BadgeTone } {
   return { label: "User", tone: "primary" };
 }
 
-export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[]; meId: string; initialStatus: string }) {
+export function UserManager({ rows, total, filters, meId, initialStatus }: {
+  rows: AdminUserRow[]; total: number; filters: { q?: string; role?: string; since?: string; page?: string; status?: string }; meId: string; initialStatus: string;
+}) {
+  const router = useRouter();
+  const [now] = useState(() => Date.now());
   const { post, busy } = useAdminPost();
-  const [q, setQ] = useState("");
-  const [role, setRole] = useState("");
+  const [q, setQ] = useState(filters.q ?? "");
+  const [role, setRole] = useState(filters.role ?? "");
   const [status, setStatus] = useState(initialStatus);
-  const [since, setSince] = useState("");
-  const [page, setPage] = useState(1);
+  useEffect(() => setStatus(initialStatus), [initialStatus]);
+  const [since, setSince] = useState(filters.since ?? "");
+  const [page, setPage] = useState(Math.max(1, parseInt(filters.page ?? "1",10)||1));
+  useEffect(() => setPage((current) => Math.min(current, Math.max(1, Math.ceil(total / 10)))), [total]);
   const [view, setView] = useState<AdminUserRow | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [lockTarget, setLockTarget] = useState<AdminUserRow | null>(null);
@@ -43,21 +49,31 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "" });
   const [formErr, setFormErr] = useState<{ field?: string; message?: string } | null>(null);
-  const [now] = useState(() => Date.now());
-
-  const filtered = useMemo(() => {
-    const nq = normalizeVi(q.trim());
-    const minDate = since === "7" ? now - 7 * 864e5 : since === "30" ? now - 30 * 864e5 : since === "month" ? Date.parse(new Date(now).toISOString().slice(0, 7) + "-01") : 0;
-    return rows.filter((r) => {
-      if (nq && !normalizeVi(`${r.name} ${r.email}`).includes(nq)) return false;
-      if (role === "admin" && !r.admin) return false;
-      if (role === "user" && r.admin) return false;
-      if (status && r.status !== status) return false;
-      if (minDate && Date.parse(r.createdAt) < minDate) return false;
-      return true;
-    });
-  }, [rows, q, role, status, since, now]);
-  const pg = paginate(filtered, page, 10);
+  useEffect(() => {
+    const restore = () => {
+      const params = new URLSearchParams(window.location.search);
+      setQ(params.get("q") ?? "");
+      setRole(params.get("role") ?? "");
+      setStatus(params.get("status") ?? "");
+      setSince(params.get("since") ?? "");
+      setPage(Math.max(1,parseInt(params.get("page") ?? "1",10)||1));
+    };
+    window.addEventListener("popstate",restore);
+    return () => window.removeEventListener("popstate",restore);
+  }, []);
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (q) next.set("q",q);
+    if (role) next.set("role",role);
+    if (status) next.set("status",status);
+    if (since) next.set("since",since);
+    if (page > 1) next.set("page",String(page));
+    const timer = setTimeout(() => {
+      if (window.location.search.slice(1) !== next.toString()) router.replace(`/quan-tri/nguoi-dung?${next}`, {scroll:false});
+    },300);
+    return () => clearTimeout(timer);
+  }, [q,role,status,since,page,router]);
+  const pg = { slice: rows, page, pageCount: Math.max(1, Math.ceil(total/10)), from: rows.length ? (page-1)*10+1 : 0, to: Math.min(page*10,total) };
 
   const openView = async (r: AdminUserRow) => {
     setView(r);
@@ -162,7 +178,7 @@ export function UserManager({ rows, meId, initialStatus }: { rows: AdminUserRow[
             </tbody>
           </table>
         </div>
-        <Pager page={pg.page} pageCount={pg.pageCount} onChange={setPage} total={filtered.length} from={pg.from} to={pg.to} unit="người dùng" />
+        <Pager page={pg.page} pageCount={pg.pageCount} onChange={setPage} total={total} from={pg.from} to={pg.to} unit="người dùng" />
       </Panel>
 
       <Drawer open={!!view} onClose={() => setView(null)} title={view?.name ?? ""} subtitle={view?.email}>

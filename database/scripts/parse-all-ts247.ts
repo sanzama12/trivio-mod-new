@@ -1,4 +1,5 @@
-import { readFileSync, readdirSync, writeFileSync, existsSync } from "fs";
+import { saveStagingEntry, closeStaging } from "../staging";
+import { readFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
 
 const CACHE_DIR = join(process.cwd(), "database", "cache_ts247");
@@ -143,7 +144,7 @@ export function parseSchoolHtml(fileName: string): SchoolData | null {
   };
 }
 
-function run() {
+async function run() {
   const files = readdirSync(CACHE_DIR).filter((f) => f.endsWith(".html") && f !== "diem_chuan_index.html");
   console.log(`Bắt đầu xử lý ${files.length} trường từ cache_ts247...`);
 
@@ -165,10 +166,9 @@ function run() {
   console.log(`• Số trường có dữ liệu điểm/phương thức: ${schoolsWithData}/${results.length}`);
   console.log(`• Tổng số bản ghi điểm chuẩn (cutoffs): ${totalAllCutoffs}`);
 
-  // Lưu bản tóm tắt JSON
-  const jsonPath = join(process.cwd(), "database", "ts247_parsed_data.json");
-  writeFileSync(jsonPath, JSON.stringify(results, null, 2), "utf8");
-  console.log(`✅ Đã lưu kết quả JSON vào: ${jsonPath}`);
+  // Store parsed data in PostgreSQL staging; publication remains a separate review step.
+  for (const result of results) await saveStagingEntry("ts247-parsed", result.school_code, result);
+  console.log(`Saved ${results.length} parsed schools to PostgreSQL staging.`);
 }
 
-run();
+run().catch((error) => { console.error(error.message); process.exitCode = 1; }).finally(closeStaging);

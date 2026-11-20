@@ -149,6 +149,11 @@ export const postgresAiSourceRepository = {
 
 /* ───────────── Lượt quan tâm và tìm kiếm ẩn danh ───────────── */
 export const postgresUsageRepository = {
+  async names(kind: "schools" | "majors" | "programs", ids: string[]): Promise<{ id: string; name: string }[]> {
+    if (!ids.length) return [];
+    const table = { schools: "schools", majors: "majors", programs: "programs" }[kind];
+    return query(`SELECT id,name FROM trovio.${table} WHERE id=ANY($1::text[])`, [ids]);
+  },
   async record(day: string, kind: UsageKind, entityId: string, anonId: string): Promise<void> {
     await query(
       `INSERT INTO trovio.usage_events (day, kind, entity_id, anon_id) VALUES ($1::date, $2, $3, $4)

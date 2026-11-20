@@ -1,12 +1,13 @@
-import fs from 'node:fs/promises';
+import { stagingEntries, saveStagingEntry, closeStaging } from '../staging.ts';
 import { parseDocument } from 'htmlparser2';
 import { textContent, findAll } from 'domutils';
+try {
 
-const websites = JSON.parse(await fs.readFile('database/data/school-websites.json', 'utf8'));
-await fs.mkdir('scratch/school-pages', { recursive: true });
+const websites = await stagingEntries('school-websites');
+if (!Object.keys(websites).length) throw new Error('No school websites in PostgreSQL staging.');
 const selected = process.argv.slice(2);
 const entries = Object.entries(websites).filter(([code]) => !selected.length || selected.includes(code));
-const results = JSON.parse(await fs.readFile('scratch/school-profile-candidates.json', 'utf8').catch(() => '[]'));
+const results = Object.values(await stagingEntries('school-profile-candidates'));
 const clean = value => value.replace(/\s+/g, ' ').trim();
 const norm = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
 const absolute = (value, base) => { try { const url = new URL(value, base); return /^https?:$/.test(url.protocol) ? url.href : ''; } catch { return ''; } };
@@ -46,13 +47,13 @@ async function worker() {
     const result = { code, website };
     try {
       const home = await readPage(website);
-      await fs.writeFile(`scratch/school-pages/${code}-home.html`, home.html);
+      await saveStagingEntry('school-pages', `${code}-home`, { url: home.url, html: home.html });
       result.home = inspect(home);
       const about = result.home.aboutLinks.find(link => link.href !== home.url && !/\.pdf|javascript:|#$/.test(link.href));
       if (about) {
         try {
           const page = await readPage(about.href);
-          await fs.writeFile(`scratch/school-pages/${code}-about.html`, page.html);
+          await saveStagingEntry('school-pages', `${code}-about`, { url: page.url, html: page.html });
           result.about = inspect(page);
         } catch (error) { result.aboutError = error.message; }
       }
@@ -61,8 +62,9 @@ async function worker() {
     if (oldIndex >= 0) results[oldIndex] = result;
     else results.push(result);
     console.log(`${code}: ${result.error || `${result.home.title.slice(0,75)} | logos=${result.home.images.length} | about=${result.about?.paragraphs.length || 0}`}`);
-    await fs.writeFile('scratch/school-profile-candidates.json', JSON.stringify(results, null, 2));
+    await saveStagingEntry('school-profile-candidates', code, result);
   }
 }
 await Promise.all(Array.from({length:6}, worker));
-await fs.writeFile('scratch/school-profile-candidates.json', JSON.stringify(results.sort((a,b)=>a.code.localeCompare(b.code)), null, 2));
+
+} finally { await closeStaging(); }

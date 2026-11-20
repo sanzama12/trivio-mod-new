@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { repositories } from "@database/repositories";
+
 import { donationService } from "@/services/donation.service";
 import { clientIp, tooMany } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
@@ -12,9 +12,9 @@ export async function GET(request: Request, context: { params: Promise<{ txnRef:
   if (!/^(?:(?:TQ|TS)[A-Fa-f0-9]{12}(?:[A-Fa-f0-9]{4})?|TROVIO(?:_|QR|SEPAY)[A-Fa-f0-9]{32})$/.test(txnRef)) {
     return NextResponse.json({ ok: false }, { status: 400, headers });
   }
-  const wait = rateLimit(`donation:status:${clientIp(request)}`, 120, 60);
+  const wait = await rateLimit(`donation:status:${clientIp(request)}`, 120, 60);
   if (wait) return tooMany(wait);
-  const donation = await repositories.donations.getByTxnRef(txnRef);
+  const donation = await donationService.getByTxnRef(txnRef);
   if (!donation) return NextResponse.json({ ok: false }, { status: 404, headers });
   const checked = await donationService.refreshQrPayment(donation);
   return NextResponse.json({ ok: true, data: { status: checked.donation.status, amount: checked.donation.amount, paidAt: checked.donation.paidAt, verificationUnavailable: checked.verificationUnavailable } }, {

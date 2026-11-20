@@ -8,10 +8,11 @@ import { UserManager } from "@/components/admin/user-manager";
 
 export const metadata: Metadata = { title: "Quản lý Người dùng", robots: { index: false, follow: false } };
 
-export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; role?: string; since?: string; page?: string }> }) {
   const me = await adminPage("/quan-tri/nguoi-dung");
-  const { status } = await searchParams;
-  const { rows, stats } = await userAdminService.list();
+  const filters = await searchParams;
+  const { status } = filters;
+  const { rows, stats, total } = await userAdminService.list(filters);
   const pct = stats.total ? Math.round((stats.active30 / stats.total) * 100) : 0;
   return (
     <>
@@ -23,7 +24,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <AdminStat label="Mới tháng này" value={stats.newThisMonth.toLocaleString("vi-VN")} hint="Tài khoản mới trong tháng" hintTone="slate" Icon={LuTrendingUp} tone="success" />
           <AdminStat label="Bị khóa" value={stats.locked} hint="Khoá bởi quản trị hoặc sai mật khẩu 5 lần" Icon={LuShieldAlert} tone="danger" />
         </StatGrid>
-        <UserManager rows={rows} meId={me.id} initialStatus={["active", "unverified", "locked"].includes(status ?? "") ? status! : ""} />
+        <UserManager total={total} filters={filters} rows={rows} meId={me.id} initialStatus={["active", "unverified", "locked"].includes(status ?? "") ? status! : ""} />
       </AdminBody>
     </>
   );

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const { body, error } = await jsonBody<{ email?: unknown }>(req, 4 * 1024);
   if (error) return error;
   const email = String(body?.email ?? "").slice(0, 200);
-  const wait = Math.max(rateLimit(`otp-resend:ip:${clientIp(req)}`, 5, 600), rateLimit(`otp-resend:email:${email.toLowerCase()}`, 3, 600));
+  const wait = Math.max(...await Promise.all([rateLimit(`otp-resend:ip:${clientIp(req)}`, 5, 600), rateLimit(`otp-resend:email:${email.toLowerCase()}`, 3, 600)]));
   if (wait) return tooMany(wait);
   return NextResponse.json(await authService.resendEmailOtp(email));
 }

@@ -4,13 +4,14 @@
  * npm run school-logos:publish -- --apply     (save URLs)
  */
 import { config } from "dotenv";
-import { readFileSync } from "node:fs";
+import { stagingEntries, closeStaging } from "../staging";
 
 config({ path: ".env.local", quiet: true });
 
 async function main() {
-  const logos: Record<string, string> = JSON.parse(readFileSync("database/data/school-logos.json", "utf8"));
-  const websites: Record<string, string> = JSON.parse(readFileSync("database/data/school-websites.json", "utf8"));
+  const logos: Record<string, string> = await stagingEntries<string>("school-logos");
+  const websites: Record<string, string> = await stagingEntries<string>("school-websites");
+  if (!Object.keys(websites).length) throw new Error("No school websites in PostgreSQL staging.");
   const entries = Object.entries(logos).map(([code, url]) => {
     const parsed = new URL(url);
     if (!websites[code] || parsed.protocol !== "https:" || parsed.username || parsed.password) {
@@ -58,4 +59,4 @@ async function main() {
 main().catch(error => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
-});
+}).finally(closeStaging);

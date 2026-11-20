@@ -159,6 +159,15 @@ async function updateDocument<T extends object>(
 }
 
 export const postgresUserDataRepository: UserDataRepository = {
+  async compareAndSwap(userId, data, expectedUpdatedAt) {
+    return withTransaction(async () => {
+      await query("SELECT pg_advisory_xact_lock(hashtext($1))", [`user-data:${userId}`]);
+      const current = await getDocument<UserData>("user-data", userId);
+      if ((current?.updatedAt ?? new Date(0).toISOString()) !== expectedUpdatedAt) return null;
+      const updatedAt = new Date(Math.max(Date.now(), Date.parse(expectedUpdatedAt) + 1)).toISOString();
+      return putDocument("user-data", userId, { ...data, updatedAt }, { ownerId: userId });
+    });
+  },
   get: (userId) => getDocument<UserData>("user-data", userId),
   put: (userId, data) => putDocument("user-data", userId, data, { ownerId: userId }),
   async delete(userId) {
@@ -263,6 +272,52 @@ export const postgresChatLogRepository: ChatLogRepository = {
 };
 
 export const postgresChatHistoryRepository: ChatHistoryRepository = {
+  async append(conversation) {
+    const rows = await query<DocumentRow<ChatConversation>>(`
+      INSERT INTO trovio.app_documents(collection,id,owner_id,payload)
+      VALUES ('chat-history',$1,$2,$3::jsonb)
+      ON CONFLICT(collection,id) DO UPDATE SET
+        payload=jsonb_set(jsonb_set(trovio.app_documents.payload, '{messages}',
+          coalesce(trovio.app_documents.payload->'messages','[]'::jsonb) || (EXCLUDED.payload->'messages')),
+          '{updatedAt}',to_jsonb(GREATEST(trovio.app_documents.payload->>'updatedAt',EXCLUDED.payload->>'updatedAt'))),
+        updated_at=now()
+      WHERE trovio.app_documents.owner_id=EXCLUDED.owner_id
+      RETURNING payload`, [conversation.id, conversation.userId, JSON.stringify(conversation)]);
+    if (!rows[0]) throw new Error("Conversation owner mismatch.");
+    return rows[0].payload;
+  },
+  async summarizeUser(userId) {
+    const rows = await query<{
+      conversations: number; questions: number; answered: number; refused: number; unknown: number;
+      lastActiveAt: string | null; byIntent: [string, number][];
+    }>(`
+      WITH conversations AS (
+        SELECT payload, updated_at FROM trovio.app_documents
+        WHERE collection = 'chat-history' AND owner_id = $1
+      ), messages AS (
+        SELECT m FROM conversations,
+        LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(payload->'messages') = 'array'
+          THEN payload->'messages' ELSE '[]'::jsonb END) m
+      ), topics AS (
+        SELECT coalesce(nullif(m->'answer'->>'intent', ''), 'unknown') AS intent, count(*)::int AS n
+        FROM messages WHERE m->>'role' = 'assistant' GROUP BY 1
+      )
+      SELECT (SELECT count(*)::int FROM conversations) AS conversations,
+        (SELECT max(updated_at) FROM conversations) AS "lastActiveAt",
+        count(*) FILTER (WHERE m->>'role' = 'user')::int AS questions,
+        count(*) FILTER (WHERE m->>'role' = 'assistant' AND m->'answer'->>'kind' = 'answer')::int AS answered,
+        count(*) FILTER (WHERE m->>'role' = 'assistant' AND m->'answer'->>'kind' = 'refusal')::int AS refused,
+        count(*) FILTER (WHERE m->>'role' = 'assistant' AND m->'answer'->>'kind' IN ('unknown', 'clarify'))::int AS unknown,
+        coalesce((SELECT jsonb_agg(jsonb_build_array(intent, n) ORDER BY n DESC, intent) FROM topics), '[]'::jsonb) AS "byIntent"
+      FROM messages`, [userId]);
+    const row = rows[0];
+    return {
+      conversationCount: row.conversations, questionCount: row.questions,
+      answered: row.answered, refused: row.refused, unknown: row.unknown,
+      lastActiveAt: row.lastActiveAt ? new Date(row.lastActiveAt).toISOString() : null,
+      byIntent: row.byIntent,
+    };
+  },
   async findById(id, userId) {
     const conversation = await getDocument<ChatConversation>("chat-history", id);
     return conversation?.userId === userId ? conversation : null;
@@ -284,7 +339,7 @@ export const postgresChatHistoryRepository: ChatHistoryRepository = {
       WITH activity AS (
         SELECT owner_id AS "userId", count(*) AS "conversationCount",
                sum(CASE WHEN jsonb_typeof(payload->'messages') = 'array'
-                   THEN jsonb_array_length(payload->'messages') / 2 ELSE 0 END) AS "questionCount",
+                   THEN (SELECT count(*) FROM jsonb_array_elements(payload->'messages') m WHERE m->>'role'='user') ELSE 0 END) AS "questionCount",
                max(updated_at) AS "lastActiveAt"
         FROM trovio.app_documents
         WHERE collection = 'chat-history' AND owner_id IS NOT NULL
@@ -301,7 +356,10 @@ export const postgresChatHistoryRepository: ChatHistoryRepository = {
         conversationCount: Number(row.conversationCount), questionCount: Number(row.questionCount),
         lastActiveAt: new Date(row.lastActiveAt).toISOString(),
       })),
-      total: Number(rows[0]?.total ?? 0),
+      total: rows.length ? Number(rows[0].total) : Number((await query<{ total: string }>(`
+        SELECT count(DISTINCT u.id)::text AS total FROM trovio.users u
+        JOIN trovio.app_documents d ON d.owner_id=u.id AND d.collection='chat-history'
+        WHERE $1='' OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%'`, [filter]))[0].total),
     };
   },
   put: (conversation) => putDocument("chat-history", conversation.id, conversation, { ownerId: conversation.userId }),

@@ -1,9 +1,10 @@
 /** Inspect remote logo resolution and suggest official alternatives. Never saves image files. */
-import fs from 'node:fs/promises';
+import { stagingEntries, saveStagingEntry, closeStaging } from '../staging.ts';
 import sharp from 'sharp';
+try {
 
-const logos = JSON.parse(await fs.readFile('database/data/school-logos.json', 'utf8'));
-const websites = JSON.parse(await fs.readFile('database/data/school-websites.json', 'utf8'));
+const logos = await stagingEntries('school-logos');
+const websites = await stagingEntries('school-websites');
 const selected = process.argv.slice(2);
 const entries = Object.entries(logos).filter(([code]) => !selected.length || selected.includes(code));
 const headers = { 'User-Agent': 'Trovio school logo quality check' };
@@ -55,7 +56,10 @@ async function worker() {
           .sort((a, b) => b.score - a.score || Math.min(b.width, b.height) - Math.min(a.width, a.height)).slice(0, 3);
       }
     } catch (error) { result.error = error.message; }
+    await saveStagingEntry('school-logo-quality', code, result);
     console.log(JSON.stringify(result));
   }
 }
 await Promise.all(Array.from({ length: 5 }, worker));
+
+} finally { await closeStaging(); }

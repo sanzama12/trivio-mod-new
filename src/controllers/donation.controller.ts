@@ -17,7 +17,7 @@ export class DonationController {
   static async createDonation(req: NextRequest): Promise<Response> {
     try {
       const ip = clientIp(req);
-      const wait = rateLimit(`donation:create:${ip}`, 12, 60);
+      const wait = await rateLimit(`donation:create:${ip}`, 12, 60);
       if (wait) return tooMany(wait);
       const { body, error } = await jsonBody<Record<string, unknown>>(req, 8 * 1024);
       if (error) return error;

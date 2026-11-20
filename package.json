@@ -19,7 +19,7 @@
     "db:status": "tsx database/scripts/migrate-pg.ts --status",
     "admissions:export": "tsx database/scripts/export-tong-hop.ts",
     "admissions:publish": "tsx database/scripts/publish-catalog.ts",
-    "school-logos:collect": "node database/scripts/collect-school-logos.mjs",
+    "school-logos:collect": "node --import tsx database/scripts/collect-school-logos.mjs",
     "school-logos:check": "node --conditions=react-server --import tsx database/scripts/publish-school-logos.ts --check",
     "school-logos:publish": "node --conditions=react-server --import tsx database/scripts/publish-school-logos.ts",
     "db:audit": "tsx database/scripts/audit.ts",
@@ -35,17 +35,23 @@
     "db:setup": "tsx database/scripts/setup-db.ts",
     "test": "npm run db:test",
     "check": "npm run typecheck && npm run db:typecheck && npm test && npm run secrets:check",
-    "verify:runtime": "node scripts/verify-runtime.mjs"
+    "verify:runtime": "node scripts/verify-runtime.mjs",
+    "verify:hardening": "node --conditions=react-server --import tsx scripts/verify-hardening.ts",
+    "verify:account-flows": "node --conditions=react-server --import tsx scripts/verify-account-flows.ts",
+    "school-logos:quality": "node --import tsx database/scripts/check-school-logo-quality.mjs",
+    "school-profiles:collect": "node --import tsx database/scripts/collect-school-profiles.mjs",
+    "db:import-legacy-json": "tsx database/scripts/import-legacy-json.ts",
+    "verify:db-storage": "node --import tsx scripts/verify-db-storage.ts"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",
     "exceljs": "^4.4.0",
     "firebase": "^13.4.0",
-    "next": "^16.0.0",
+    "next": "^16.4.6",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-icons": "^5.5.0",
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
@@ -64,5 +70,11 @@
     "tailwindcss": "^4.1.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7",
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }

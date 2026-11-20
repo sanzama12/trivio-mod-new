@@ -4,7 +4,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminBody } from "@/components/admin/ui";
 import { SuggestionDataManager } from "@/components/admin/suggestion-data-manager";
 import { interestService } from "@/services";
-import { repositories } from "@database/repositories";
+
 
 export const metadata: Metadata = { title: "Dữ liệu gợi ý ngành", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -14,9 +14,9 @@ export default async function AdminSuggestionDataPage() {
   const [interests, subjectLinks, majors, subjects, careers] = await Promise.all([
     interestService.listAdmin(),
     interestService.listSubjectLinks(),
-    repositories.catalogAdmin.listMajors(),
-    repositories.catalog.findSubjects(),
-    repositories.majorCareers.getMany(),
+    interestService.adminMajorOptions(),
+    interestService.adminSubjectOptions(),
+    interestService.adminCareerOptions(),
   ]);
   return (
     <>

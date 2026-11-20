@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   if (error) return error;
   const email = String(body?.email ?? "").trim().toLowerCase().slice(0, 200);
   if (emailError(email)) return NextResponse.json({ ok: false, message: "Email không hợp lệ." }, { status: 400 });
-  const wait = Math.max(rateLimit(`forgot:ip:${clientIp(req)}`, 10, 900), rateLimit(`forgot:email:${email.toLowerCase()}`, 3, 900));
+  const wait = Math.max(...await Promise.all([rateLimit(`forgot:ip:${clientIp(req)}`, 10, 900), rateLimit(`forgot:email:${email.toLowerCase()}`, 3, 900)]));
   if (wait) return tooMany(wait);
   if (!isMailerConfigured()) return NextResponse.json({ ok: false, message: "Dịch vụ gửi email chưa được cấu hình. Vui lòng thử lại sau." }, { status: 503 });
   try {

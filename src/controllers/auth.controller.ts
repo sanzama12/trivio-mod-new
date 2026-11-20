@@ -19,10 +19,10 @@ export class AuthController {
     const email = String(body?.email ?? "").trim().toLowerCase();
     const password = String(body?.password ?? "").slice(0, 200);
 
-    const wait = Math.max(
+    const wait = Math.max(...await Promise.all([
       rateLimit(`login:ip:${clientIp(req)}`, 30, 600),
       rateLimit(`login:email:${email.toLowerCase()}`, 10, 600),
-    );
+    ]));
     if (wait) return tooMany(wait);
 
     const invalidEmail = emailError(email);

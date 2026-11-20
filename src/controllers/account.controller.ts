@@ -52,7 +52,11 @@ export class AccountController {
     if (error) return error;
     const { body, error: tooBig } = await jsonBody(req, 256 * 1024);
     if (tooBig) return tooBig;
-    return NextResponse.json({ ok: true, data: await userDataService.replace(user.id, body) });
+    const version = req.headers.get("if-unmodified-since");
+    if (!version || Number.isNaN(Date.parse(version))) return NextResponse.json({ ok: false, message: "Cần tải lại phiên bản dữ liệu trước khi lưu." }, { status: 428 });
+    const data = await userDataService.replace(user.id, body, version);
+    if (!data) return NextResponse.json({ ok: false, message: "Dữ liệu đã thay đổi trên thiết bị khác. Bản thay đổi trên máy này vẫn được giữ; hãy tải lại để đồng bộ." }, { status: 409 });
+    return NextResponse.json({ ok: true, data });
   }
 
   static async mergeData(req: Request): Promise<Response> {

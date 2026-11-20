@@ -59,14 +59,16 @@ export const analyticsService = {
   /** Trường, ngành được quan tâm nhiều nhất và tổng lượt tìm kiếm trong khoảng ngày. */
   async usageReport(days = 30, to = vnDay()) {
     const { from } = dateRange(days, to);
-    const [totals, schoolTop, majorTop, programTop, schools, majors, programs] = await Promise.all([
+    const [totals, schoolTop, majorTop, programTop] = await Promise.all([
       repositories.usage.totals(from, to),
       repositories.usage.top(["school_view", "school_save"], from, to, 30),
       repositories.usage.top(["major_view", "major_save"], from, to, 30),
       repositories.usage.top(["program_view", "program_save", "wishlist_add"], from, to, 30),
-      repositories.schools.findAll(),
-      repositories.majors.findAll(),
-      repositories.programs.findAll(),
+    ]);
+    const [schools, majors, programs] = await Promise.all([
+      repositories.usage.names("schools", schoolTop.map((row) => row.entityId)),
+      repositories.usage.names("majors", majorTop.map((row) => row.entityId)),
+      repositories.usage.names("programs", programTop.map((row) => row.entityId)),
     ]);
     const schoolName = new Map(schools.map((s) => [s.id, s.name]));
     const majorName = new Map(majors.map((m) => [m.id, m.name]));

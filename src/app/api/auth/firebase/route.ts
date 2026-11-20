@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { isFirebaseServerConfigured, verifyFirebaseGoogleToken } from "@/services/firebase-auth.service";
 
 export async function POST(req: Request) {
-  const wait = rateLimit(`auth:firebase:${clientIp(req)}`, 20, 60);
+  const wait = await rateLimit(`auth:firebase:${clientIp(req)}`, 20, 60);
   if (wait) return tooMany(wait);
   const { body, error } = await jsonBody<{ idToken?: unknown; next?: unknown; mode?: unknown }>(req, 12 * 1024);
   if (error) return error;

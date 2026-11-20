@@ -1,4 +1,5 @@
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { buildLlmSystemPrompt } from "./ai-knowledge-base";
 import type { ChatImageInput } from "@/domain/chat-image";
 import { isFaithful, isUsableGeneralAnswer } from "./chatbot-llm";
@@ -12,6 +13,11 @@ export interface WusRouterMessage {
 }
 
 export type ChatAnswerMode = "website" | "general";
+
+const aiDeadline = new AsyncLocalStorage<number>();
+export function withAiBudget<T>(work: () => Promise<T>, budgetMs = 30_000): Promise<T> {
+  return aiDeadline.run(Date.now() + budgetMs, work);
+}
 
 export interface WusRouterOptions {
   model?: string;
@@ -51,10 +57,16 @@ export async function sendWusRouterChat(
 
   const timeoutMs = options.timeoutMs ?? 15000;
   const maxRetries = 2;
+  const deadline = aiDeadline.getStore() ?? Date.now() + timeoutMs;
+  const startedAt = Date.now();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return null;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, remaining));
+    let status: number | null = null;
+    let tokens: number | null = null;
     try {
       const res = await fetchImpl(`${getWusRouterBaseUrl()}/chat/completions`, {
         method: "POST",
@@ -71,9 +83,10 @@ export async function sendWusRouterChat(
           max_tokens: options.maxTokens ?? 240,
         }),
       });
+      status = res.status;
 
       if (!res.ok) {
-        if (res.status >= 500 && attempt < maxRetries) {
+        if (res.status >= 500 && attempt < maxRetries && deadline - Date.now() > 1000) {
           clearTimeout(timer);
           await new Promise((r) => setTimeout(r, 1000));
           continue;
@@ -82,7 +95,8 @@ export async function sendWusRouterChat(
         return null;
       }
 
-      const data = (await res.json()) as { choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }> };
+      const data = (await res.json()) as { usage?: { total_tokens?: number }; choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }> };
+      if (Number.isSafeInteger(data.usage?.total_tokens) && data.usage!.total_tokens! >= 0) tokens = data.usage!.total_tokens!;
       const choice = data.choices?.[0];
       // Never display a truncated response or coerce an invalid provider payload into an answer.
       if (choice?.finish_reason === "length" || typeof choice?.message?.content !== "string") return null;
@@ -92,7 +106,7 @@ export async function sendWusRouterChat(
       }
       return answer;
     } catch (error) {
-      if (attempt < maxRetries) {
+      if (attempt < maxRetries && deadline - Date.now() > 1000) {
         clearTimeout(timer);
         await new Promise((r) => setTimeout(r, 1000));
         continue;
@@ -101,6 +115,7 @@ export async function sendWusRouterChat(
       return null;
     } finally {
       clearTimeout(timer);
+      console.info(JSON.stringify({ event: "ai.request", attempt: attempt + 1, status, tokens, elapsedMs: Date.now() - startedAt, aborted: controller.signal.aborted }));
     }
   }
 

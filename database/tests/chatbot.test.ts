@@ -140,14 +140,14 @@ test('chat log write and conversation lookup start together', async () => {
   const original = {
     add: repositories.chatLogs.add,
     find: repositories.chatHistory.findById,
-    put: repositories.chatHistory.put,
+    put: repositories.chatHistory.append,
   };
   let finishLog: (() => void) | undefined;
   let lookupStarted = false;
   try {
     repositories.chatLogs.add = () => new Promise<void>((resolve) => { finishLog = resolve; });
     repositories.chatHistory.findById = async () => { lookupStarted = true; return null; };
-    repositories.chatHistory.put = async (c) => c;
+    repositories.chatHistory.append = async (c) => c;
     const pending = chatbotService.ask('xin chào', {}, { userId: 'test-user', conversationId: '11111111-1111-4111-8111-111111111111' });
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(lookupStarted, true);
@@ -157,7 +157,7 @@ test('chat log write and conversation lookup start together', async () => {
     finishLog?.();
     repositories.chatLogs.add = original.add;
     repositories.chatHistory.findById = original.find;
-    repositories.chatHistory.put = original.put;
+    repositories.chatHistory.append = original.put;
   }
 });
 

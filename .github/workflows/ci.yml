@@ -33,11 +33,11 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🔍 TypeScript Typecheck
-        run: npm run typecheck
+      - name: TypeScript and regression checks
+        run: npm run check
 
-      - name: Check tracked secrets
-        run: npm run secrets:check
+      - name: Check runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: 🚀 Build Next.js Application
         run: npm run build

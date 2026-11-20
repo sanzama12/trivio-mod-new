@@ -2,6 +2,7 @@
 import type { AuditEntry } from "./types";
 
 export const ACTION_LABEL: Record<AuditEntry["action"], string> = {
+  read: "Xem lịch sử chatbot",
   update: "Cập nhật",
   verify: "Đã kiểm tra",
   reset: "Khôi phục gốc",

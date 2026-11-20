@@ -1,20 +1,19 @@
 /** Collect HTTPS logo URLs without saving image files.
- * node database/scripts/collect-school-logos.mjs [SCHOOL_CODE ...]
+ * npm run school-logos:collect -- [SCHOOL_CODE ...]
  */
-import fs from 'node:fs/promises';
+import { stagingEntries, saveStagingEntry, closeStaging } from '../staging.ts';
+try {
 
-const websites = JSON.parse(await fs.readFile('database/data/school-websites.json', 'utf8'));
-const overrides = JSON.parse(await fs.readFile('database/data/school-logo-overrides.json', 'utf8'));
-const output = 'database/data/school-logos.json';
-const reportPath = 'scratch/school-logo-results.json';
+const websites = await stagingEntries('school-websites');
+const overrides = await stagingEntries('school-logo-overrides');
 const selected = process.argv.slice(2).map(code => code.toUpperCase());
 for (const code of selected) {
   if (!websites[code]) throw new Error(`Unknown school code: ${code}`);
 }
 const entries = Object.entries(websites).filter(([code]) => !selected.length || selected.includes(code));
-const logos = JSON.parse(await fs.readFile(output, 'utf8').catch(() => '{}'));
-const results = JSON.parse(await fs.readFile(reportPath, 'utf8').catch(() => '[]'));
-await fs.mkdir('scratch', { recursive: true });
+const logos = await stagingEntries('school-logos');
+const results = Object.values(await stagingEntries('school-logo-results'));
+if (!Object.keys(websites).length) throw new Error('No school websites in PostgreSQL staging. Import legacy data first.');
 
 const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
 const decode = value => value.replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;/g, "'");
@@ -81,15 +80,16 @@ async function worker() {
       } catch (cause) { error = cause.message; }
     }
     const result = { code, website, ...(url ? { url } : { error }), candidates: choices.map(choice => choice.src) };
-    if (url) logos[code] = url;
+    if (url) { logos[code] = url; await saveStagingEntry('school-logos', code, url); }
+    await saveStagingEntry('school-logo-results', code, result);
     const index = results.findIndex(item => item.code === code);
     if (index >= 0) results[index] = result; else results.push(result);
     console.log(`${code}: ${url || error}`);
   }
 }
 await Promise.all(Array.from({ length: 8 }, worker));
-await fs.writeFile(output, JSON.stringify(Object.fromEntries(Object.entries(logos).sort(([a], [b]) => a.localeCompare(b))), null, 2) + '\n');
-await fs.writeFile(reportPath, JSON.stringify(results.sort((a, b) => a.code.localeCompare(b.code)), null, 2) + '\n');
 const failed = results.filter(item => entries.some(([code]) => code === item.code) && !item.url);
 console.log(`Verified ${entries.length - failed.length}/${entries.length} school logo URLs. No image files written.`);
 if (failed.length) process.exitCode = 1;
+
+} finally { await closeStaging(); }

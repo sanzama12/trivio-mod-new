@@ -319,7 +319,13 @@ export function ChatWidget() {
   };
 
   const deleteHistory = async (id: string) => {
-    if (user) await fetch(`/api/chat?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+    if (user) {
+      const response = await fetch(`/api/chat?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+      if (!response?.ok && response?.status !== 404) {
+        push({ id: nextId(), role: "error", text: "Chưa xóa được hội thoại. Kiểm tra kết nối và thử lại." });
+        return;
+      }
+    }
     else writeGuestHistory(readGuestHistory().filter((item) => item.id !== id));
     if (conversationId === id) reset();
     await loadHistory();
@@ -328,7 +334,11 @@ export function ChatWidget() {
   const feedback = async (id: string, logId: string | null, helpful: boolean) => {
     setMessages((prev) => prev.map((m) => (m.id === id && m.role === "bot" ? { ...m, feedback: helpful } : m)));
     if (!logId) return;
-    await fetch("/api/chat/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ logId, helpful }) }).catch(() => null);
+    const response = await fetch("/api/chat/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ logId, helpful }) }).catch(() => null);
+    if (!response?.ok) {
+      setMessages((prev) => prev.map((m) => m.id === id && m.role === "bot" ? { ...m, feedback: undefined } : m));
+      push({ id: nextId(), role: "error", text: "Chưa lưu được đánh giá. Bạn thử lại nhé." });
+    }
   };
 
   const onSubmit = (e: FormEvent) => {

@@ -436,7 +436,7 @@ export interface AuditEntry {
   programId: string;
   /** Loại đối tượng; thiếu = chương trình. */
   targetType?: "program" | "qa" | "chat-alias" | "school" | "major" | "import" | "user" | "school-submission";
-  action: "update" | "verify" | "reset" | "approve" | "reject" | "delete" | "create";
+  action: "update" | "verify" | "reset" | "approve" | "reject" | "delete" | "create" | "read";
   changes: { field: string; before: string; after: string }[];
 }
 

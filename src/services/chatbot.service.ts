@@ -959,11 +959,10 @@ export const chatbotService = {
       const [, current] = await Promise.all([logWrite, requestedId ? repositories.chatHistory.findById(requestedId, history.userId) : Promise.resolve(null)]);
       conversationId = current?.id ?? randomUUID();
       const messages: ChatHistoryMessage[] = [
-        ...(current?.messages ?? []),
         { id: randomUUID(), role: "user" as const, at: now, text: recordedQuestion },
         { id: randomUUID(), role: "assistant" as const, at: now, answer, logId },
-      ].slice(-40);
-      await repositories.chatHistory.put({
+      ];
+      await repositories.chatHistory.append({
         id: conversationId,
         userId: history.userId,
         title: current?.title ?? recordedQuestion.slice(0, 80),
@@ -979,12 +978,27 @@ export const chatbotService = {
     return (await repositories.chatHistory.listByUser(userId, Math.min(30, Math.max(1, limit)))).map(({ userId: _owner, ...conversation }) => conversation);
   },
 
+  async adminHistoryUser(actor: PublicUser, userId: string) {
+    if (!actor.admin) throw new Error("Administrator access required.");
+    const user = await repositories.users.findById(userId);
+    if (!user) return null;
+    await repositories.audit.append({
+      id: randomUUID(), at: new Date().toISOString(), actorId: actor.id, actorEmail: actor.email,
+      programId: userId, targetType: "user", action: "read", changes: [],
+    });
+    return { id: user.id, name: user.name, email: user.email };
+  },
+
   adminUsers(search: string, page: number) {
     return repositories.chatHistory.listUsers(search, 30, (page - 1) * 30);
   },
 
   adminHistory(userId: string, page: number) {
     return repositories.chatHistory.listByUser(userId, 11, (page - 1) * 10);
+  },
+
+  adminUserSummary(userId: string) {
+    return repositories.chatHistory.summarizeUser(userId);
   },
 
   deleteHistory(userId: string, conversationId: string) {

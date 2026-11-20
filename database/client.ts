@@ -1,6 +1,7 @@
 import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Pool, type PoolClient } from "pg";
+import { databaseConnection } from "./tls";
 import { serverEnvironment } from "@/lib/server-env";
 
 declare global {
@@ -16,14 +17,8 @@ const SLOW_QUERY_THRESHOLD_MS = Number(process.env.PG_SLOW_QUERY_MS) || 1200;
 export function getPool(): Pool {
   if (!global.__pgPool) {
     const dbUrl = serverEnvironment().databaseUrl;
-    const isCloud =
-      dbUrl.includes("neon.tech") ||
-      dbUrl.includes("supabase.co") ||
-      dbUrl.includes("amazonaws.com") ||
-      dbUrl.includes("sslmode=");
-
     global.__pgPool = new Pool({
-      connectionString: dbUrl,
+      ...databaseConnection(dbUrl),
       // Kích thước Pool chuẩn cho Node.js + Serverless
       max: Number(process.env.PG_POOL_MAX) || 5,
       min: Number(process.env.PG_POOL_MIN) || 2, // Duy trì kết nối ấm tránh cold-start 150ms
@@ -42,11 +37,7 @@ export function getPool(): Pool {
       // Định danh ứng dụng cho pg_stat_activity
       application_name: "trovio-web-api",
 
-      // SSL an toàn cho môi trường Cloud
-      ssl:
-        isCloud || process.env.NODE_ENV === "production"
-          ? { rejectUnauthorized: false }
-          : undefined,
+
     });
 
     global.__pgPool.on("error", (error) => {

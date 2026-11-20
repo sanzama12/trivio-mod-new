@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   try {
     const { user, error } = await requireAdmin();
     if (error) return error;
-    const wait = rateLimit(`import:${user.id}`, 40, 600);
+    const wait = await rateLimit(`import:${user.id}`, 40, 600);
     if (wait) return tooMany(wait);
     const parsed = await jsonBody<Record<string, unknown>>(req, 10 * 1024 * 1024);
     if (parsed.error) return parsed.error;

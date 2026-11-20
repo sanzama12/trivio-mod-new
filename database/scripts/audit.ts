@@ -1,10 +1,10 @@
 import { config } from "dotenv";
 import { Client } from "pg";
-import { writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { databaseConnection } from "../tls";
+import { saveStagingEntry, closeStaging } from "../staging";
 
 config({ path: ".env.local", quiet: true });
-const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15000 });
+const client = new Client({ ...(process.env.DATABASE_URL ? databaseConnection(process.env.DATABASE_URL) : {}), connectionTimeoutMillis: 15000 });
 async function main() {
   await client.connect();
   await client.query("BEGIN READ ONLY");
@@ -45,9 +45,7 @@ async function main() {
     };
     const report: Record<string, unknown> = { checkedAt: new Date().toISOString() };
     for (const [name, sql] of Object.entries(checks)) report[name] = (await client.query(sql)).rows;
-    const outputFlag = process.argv.indexOf("--output");
-    const output = outputFlag >= 0 ? resolve(process.argv[outputFlag + 1] || "database/audit-report.json") : undefined;
-    if (output) writeFileSync(output, JSON.stringify(report, null, 2) + "\n");
+    await saveStagingEntry("database-audits", String(report.checkedAt), report);
     const summary = { checkedAt: report.checkedAt, counts: report.catalogCounts,
       duplicateSchoolCodes: (report.duplicateSchoolCodes as unknown[]).length,
       duplicateMajorCodes: (report.duplicateMajorCodes as unknown[]).length,
@@ -59,10 +57,10 @@ async function main() {
       foreignKeysWithoutLeadingIndex: (report.foreignKeysWithoutLeadingIndex as unknown[]).length,
       orphanProgramYearActors: Number((report.orphanProgramYearActors as { count: string }[])[0]?.count ?? 0),
       orphanAiSourceActors: Number((report.orphanAiSourceActors as { count: string }[])[0]?.count ?? 0),
-      ...(output ? { report: output } : {}),
+      reportId: String(report.checkedAt),
     };
     console.log(JSON.stringify(summary, null, 2));
-    if (Object.entries(summary).some(([key, value]) => !["checkedAt", "counts", "report"].includes(key) && Number(value) > 0)) {
+    if (Object.entries(summary).some(([key, value]) => !["checkedAt", "counts", "reportId"].includes(key) && Number(value) > 0)) {
       throw new Error("Database integrity audit failed; review the non-zero checks above.");
     }
   } finally {
@@ -70,4 +68,4 @@ async function main() {
     await client.end();
   }
 }
-main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+main().catch((error) => { console.error(error.message); process.exitCode = 1; }).finally(closeStaging);

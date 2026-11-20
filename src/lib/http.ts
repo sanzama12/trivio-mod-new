@@ -9,8 +9,25 @@ export class BodyTooLargeError extends Error {}
 export async function readJson<T = unknown>(req: Request, maxBytes = 64 * 1024): Promise<T | null> {
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) throw new BodyTooLargeError();
-  const text = await req.text().catch(() => "");
-  if (Buffer.byteLength(text, "utf8") > maxBytes) throw new BodyTooLargeError();
+  const reader = req.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel();
+        throw new BodyTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const text = Buffer.concat(chunks, size).toString("utf8");
   if (!text) return null;
   try {
     return JSON.parse(text) as T;

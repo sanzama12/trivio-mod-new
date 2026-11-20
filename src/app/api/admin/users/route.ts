@@ -8,7 +8,7 @@ import { userAdminService } from "@/services/user-admin.service";
 export async function POST(req: Request) {
   const { user, error } = await requireAdmin();
   if (error) return error;
-  const wait = rateLimit(`admin-create-user:${user.id}`, 20, 3600);
+  const wait = await rateLimit(`admin-create-user:${user.id}`, 20, 3600);
   if (wait) return tooMany(wait);
   const parsed = await jsonBody<Record<string, unknown>>(req, 4096);
   if (parsed.error) return parsed.error;

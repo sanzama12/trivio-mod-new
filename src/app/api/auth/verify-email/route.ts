@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const email = String(body?.email ?? "").slice(0, 200);
   const code = String(body?.code ?? "").slice(0, 12);
   // Mã 6 số → phải giới hạn số lần thử để không dò được.
-  const wait = Math.max(rateLimit(`otp:ip:${clientIp(req)}`, 20, 600), rateLimit(`otp:email:${email.toLowerCase()}`, 8, 600));
+  const wait = Math.max(...await Promise.all([rateLimit(`otp:ip:${clientIp(req)}`, 20, 600), rateLimit(`otp:email:${email.toLowerCase()}`, 8, 600)]));
   if (wait) return tooMany(wait);
   const result = await authService.verifyEmail(email, code);
   if (!result.ok) return NextResponse.json(result, { status: 400 });

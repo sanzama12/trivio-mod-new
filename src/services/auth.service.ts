@@ -9,7 +9,7 @@ import { PROVINCES } from "../domain/provinces";
 import { repositories } from "@database/repositories";
 import { checkPassword } from "./password.rules";
 import { hashPassword, verifyPassword } from "./password.hash";
-import { signToken, verifyToken } from "./session.service";
+import { signToken, verifyToken, sessionSecret } from "./session.service";
 import { isMailerConfigured, sendMail } from "./mailer";
 import { emailError } from "../lib/email-validation";
 import { accountRole } from "../domain/access";
@@ -86,8 +86,7 @@ function lockedResult(user: LockState): Extract<LoginResult, { reason: "locked" 
   return { ok: false, reason: "locked", permanent, lockUntil: permanent ? null : user.lockUntil, attemptsLeft: permanent ? 0 : Math.max(0, MAX_LOGIN_ATTEMPTS - user.failedAttempts) };
 }
 const resetCodeHash = (userId: string, code: string) => {
-  const secret = process.env.SESSION_SECRET?.trim();
-  if (!secret || secret.length < 32) throw new Error("SESSION_SECRET chưa được cấu hình đủ mạnh.");
+  const secret = sessionSecret();
   return createHmac("sha256", secret).update(`password-reset:${userId}:${code}`).digest("base64url");
 };
 
