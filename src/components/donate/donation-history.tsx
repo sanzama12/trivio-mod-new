@@ -63,7 +63,7 @@ export function DonationHistory({ initialItems }: { initialItems: HistoryItem[] 
       checking = false;
     };
     void check();
-    const timer = window.setInterval(() => void check(), 5000);
+    const timer = window.setInterval(() => void check(), 10000);
     const onVisible = () => { if (document.visibilityState === "visible") void check(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { cancelled = true; controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };

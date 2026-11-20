@@ -94,7 +94,7 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
       }
     }
     void checkStatus();
-    const timer = setInterval(() => void checkStatus(), 5000);
+    const timer = setInterval(() => void checkStatus(), 10000);
     const onVisible = () => { if (document.visibilityState === "visible") void checkStatus(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -359,9 +359,9 @@ export function DonateForm({ availability, defaultDonorName = "", demoMethods = 
               <div className={styles.pollingStatus}>
                 <p className={styles.hint} role="status">
                   {pollingError
-                    ? "Chưa kết nối được dữ liệu xác nhận từ ngân hàng. Hệ thống vẫn tự kiểm tra mỗi 5 giây; bạn không cần chuyển tiền lại."
+                    ? "Đang chờ đối soát từ ngân hàng (có thể trễ 30s – 1 phút). Hệ thống vẫn đang tự động kiểm tra mỗi 10 giây..."
                     : payment.method === "qr"
-                      ? "Đang tự động kiểm tra tài khoản mỗi 5 giây..."
+                      ? "Đang tự động kiểm tra tài khoản mỗi 10 giây..."
                       : "Trạng thái sẽ tự động cập nhật sau khi thanh toán."}
                 </p>
               </div>

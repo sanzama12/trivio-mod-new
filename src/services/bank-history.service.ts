@@ -97,6 +97,7 @@ export async function fetchBankHistory(fetchImpl: typeof fetch = fetch): Promise
       }
       // dichvucheap rate-limit (10s cooldown): {"status": 99, "msg": "Vui lòng chờ 10 giây để tiếp tục!"}
       if (raw && typeof raw === "object" && (raw as Record<string, unknown>).status === 99) {
+        console.warn("[bank-history] dichvucheap rate-limit (chờ 10s giữa 2 lần tra cứu).");
         return null;
       }
       return parseBankHistory(raw);
